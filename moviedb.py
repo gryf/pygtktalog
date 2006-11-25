@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: iso8859-2 -*-
 """
-MovieDB 0.7
+MovieDB 0.8
 
 features:
     - szukanie po tytule filmu/serii
@@ -23,11 +23,41 @@ todo:
 import sys
 import os
 
-WRKDIR = sys.argv[0:][0].split('moviedb.py')[0]
+WRKDIR = sys.argv[0:][0].split('moviedb2.py')[0]
 
 if WRKDIR[0] != '/':
     """¶cie¿ka nie jest absolutna"""
     WRKDIR = os.getcwd()+"/"+WRKDIR
+
+
+try:
+    path = os.environ['HOME']
+except:
+    path = "/tmp"
+    
+try:
+    # przeczytaj plik, o ile istnieje
+    f = open("%s/.moviedb" % path,"rw")
+    zpliku = f.read()
+    f.close()
+    p = {}
+    zpliku = zpliku.split("\n")
+    for i in zpliku:
+        i = i.split("\t")
+        p[i[0]] = i[1]
+    if len(p) == 5:
+        DB=p['db']
+        CD=p['cdrom']
+        EPORTXLS=p['exportxls']
+    else:
+        DB="moviedb.db"
+        CD="/mnt/cdrom"
+        EPORTXLS=False
+except:
+    # w przeciwnym przypadku przjmij warto¶ci domy¶lne
+    DB="moviedb.db"
+    CD="/mnt/cdrom"
+    EPORTXLS=False
 
 try:
     import pygtk
@@ -49,55 +79,20 @@ except:
 #Also, we know we are running GTK v2
 
 try:
-    from pyPgSQL import PgSQL
-    
+    from pysqlite2 import dbapi2 as sqlite
 except:
-    print "You need to install pyPgSQL to run this app\nhttp://pypgsql.sourceforge.net/"
+    print "MovieDB uses SQLite DB.\nYou'll need to get it and the python bindings as well.\nhttp://www.sqlite.org\nhttp://initd.org/tracker/pysqlite"
     sys.exit(1)
 
-try:
-    import pyExcelerator
-except:
-    print "You need pyExcelerator\nhttp://sourceforge.net/projects/pyexcelerator"
-    sys.exit(1)
-    
+if EPORTXLS==True:
+    try:
+        import pyExcelerator
+    except:
+        print "You'll need pyExcelerator, if you want to export DB to XLS format.\nhttp://sourceforge.net/projects/pyexcelerator"
+        sys.exit(1)
+
 #}}}
 
-try:
-    path = os.environ['HOME']
-except:
-    path = "/tmp"
-    
-try:
-    # przeczytaj plik, o ile istnieje
-    f = open("%s/.moviedb" % path,"rw")
-    zpliku = f.read()
-    f.close()
-    p = {}
-    zpliku = zpliku.split("\n")
-    for i in zpliku:
-        i = i.split("\t")
-        p[i[0]] = i[1]
-    if len(p) == 5:
-        USER=p['user']
-        PASS=p['pass']
-        HOST=p['host']
-        DB=p['db']
-        CD=p['cdrom']
-    else:
-        USER="movie"
-        PASS="teamsleep"
-        HOST="localhost"
-        DB="moviedb"
-        CD="/mnt/cdrom"
-except:
-    # w przeciwnym przypadku przjmij warto¶ci domy¶lne
-    USER="movie"
-    PASS="teamsleep"
-    HOST="localhost"
-    DB="moviedb"
-    CD="/mnt/cdrom"
-    
 
 class SaveAsMDB:
     """pokazuje dialog zapisu(exportu) do pliku""" #{{{
@@ -214,27 +209,6 @@ class StdMSG:
         return self.result
         #}}}
 
-class LoginMDB:
-    """pokazuje dialog logowania""" #{{{
-    def __init__(self):
-        self.gladefile = WRKDIR + "/glade/moviedb.glade"
-    def run(self):
-        self.logingld = gtk.glade.XML(self.gladefile, "loginMDB") 
-        self.login = self.logingld.get_widget("loginMDB")
-        try:
-            pixBuf = gtk.gdk.pixbuf_new_from_file(WRKDIR + "/pixmaps/login.png")
-            self.logingld.get_widget("loginImg").set_from_pixbuf(pixBuf)
-        except:
-            pass
-        
-        self.login.set_title("MovieDB - Login")
-        self.result = self.login.run()
-        l = self.logingld.get_widget("flogin").get_text()
-        p = self.logingld.get_widget("fpass").get_text()
-        self.login.destroy()
-        return self.result,[l,p]
-        #}}}
-
 class AboutMDB:
     """pokazuje prosty dialog "o programie" """ #{{{
     def __init__(self):
@@ -257,14 +231,13 @@ class AboutMDB:
 
 class DetailsMDB:
     """Pokazuje okno z informacjami wyci±gniêtymi z DB na podstawie id tytu³u""" #{{{
-    def __init__(self, tid=0, perms=0):
+    def __init__(self, tid=0):
         """innicjalizacja obiektu"""
         gladefile=WRKDIR + "/glade/moviedb.glade"
         self.wDetails = gtk.glade.XML(gladefile,"winDetails")
         self.wDetails.get_widget("image1").set_from_file(WRKDIR + "/img/notavail.gif")
         
         # pomocnicze zmienne
-        self.perms = perms
         self.typ = '0'
         self.imgIndeks = 1
         
@@ -296,13 +269,11 @@ class DetailsMDB:
         self.sbid = 0
         
         # g³ówna robota:
-        cx = PgSQL.connect(user=USER, password=PASS, host=HOST, database=DB, client_encoding="iso8859-2")
+        cx = sqlite.connect(WRKDIR+"/db/"+DB,isolation_level=None)
+        cx.isolation_level = "IMMEDIATE"
         c = cx.cursor()
         
-        if self.perms != 2:
-            typ = 4
-        else:
-            typ = 0
+        typ = 0
         
         # {{{ SQL: DetailsMDB#1 wyci±gniêcie podstawowych informacji o tytule
         c.execute("SELECT\
@@ -496,35 +467,27 @@ class DetailsMDB:
         
 class MovieDB:
     """pokazuj±ca g³ówne okno aplikacji, pozwalaj±ca na przeszukiwanie w¶ród plików i tytu³ów i wy¶wietlaj±ca wynik wyszukiwania""" #{{{
-    def __init__(self, perms=0):
+    def __init__(self,dbfile=None):
         
-        self.perms = perms
         self.gladefile=WRKDIR + "/glade/moviedb.glade"
         self.wTree=gtk.glade.XML(self.gladefile,"mainWin")
         
         # sygna³y:
         dic = {"on_mainWin_destroy"     :(gtk.main_quit),\
                "on_quit1_activate"      :(gtk.main_quit),\
-               "on_szukaj_clicked"      :(self.searchdb,self.perms),\
-               "on_szukPat_activate"    :(self.searchdb,self.perms),\
-               "on_lista_row_activated" :(self.szczegoly,self.perms),\
+               "on_szukaj_clicked"      :(self.searchdb),\
+               "on_szukPat_activate"    :(self.searchdb),\
+               "on_lista_row_activated" :(self.szczegoly),\
                "on_about1_activate"     :self.oprogramie,\
                "on_cut1_activate"       :self.showPrefs,\
                "on_save_as1_activate"    :self.exportToXLS}
                
-        # inicjalizacja dodatkowych pozycji w menu, je¶li uprawnienia pozwalaj±
-        if self.perms == 2:
-            pass
-            #self.wTree.get_widget("mainMenu").
-        
         # pod³±czenie sygna³ów
         self.wTree.signal_autoconnect(dic)
         
         # inicjalizacja combo boxów
         self.treeview=self.wTree.get_widget("pattMatch").set_active(0)
         self.treeview=self.wTree.get_widget("typ").set_active(0)
-        if self.perms ==2:
-            self.treeview=self.wTree.get_widget("typ").append_text('XXX')
         # inicjalizacja listy z tytu³ami
         import gobject
         self.treeview=self.wTree.get_widget("lista")
@@ -563,9 +526,9 @@ class MovieDB:
         return myiter
         
     #####CALLBACKS
-    def szczegoly(self,treeview,path,view_column,perms=0):
+    def szczegoly(self,treeview,path,view_column):
         """poka¿ szczegó³y w nowym oknie.""" # {{{
-        win = DetailsMDB(treeview.get_model().get_value(treeview.get_model().get_iter(path),0),perms)
+        win = DetailsMDB(treeview.get_model().get_value(treeview.get_model().get_iter(path),0))
         #}}}
         
     def oprogramie(self, widget):
@@ -579,7 +542,7 @@ class MovieDB:
         prefs = PrefsMDB()
         #}}}
         
-    def searchdb(self,widget,perms=0):
+    def searchdb(self,widget):
         """u³ó¿ zapytanie i wypluj wyniki do treeview""" #{{{
         if self.wTree.get_widget("pattMatch").get_active() == 3:
             pattern=self.wTree.get_widget("szukPat").get_text()
@@ -589,13 +552,14 @@ class MovieDB:
             pattern=self.wTree.get_widget("szukPat").get_text() + "%"
         else:
             pattern="%" + self.wTree.get_widget("szukPat").get_text() + "%"
-            
-        cx = PgSQL.connect(user=USER, password=PASS, host=HOST, database=DB, client_encoding="iso8859-2")
+        
+        cx = sqlite.connect(WRKDIR+"/db/"+DB,isolation_level=None)
+        cx.isolation_level = "IMMEDIATE"
         c = cx.cursor()
         if self.wTree.get_widget("czalt").get_active():
-            klon = False
+            klon = 'f'
         else:
-            klon = True
+            klon = 't'
         
         # szukaj wg typu:
         # NOTE: daj tu to, co potrzeba
@@ -603,11 +567,12 @@ class MovieDB:
         if self.wTree.get_widget("radn").get_active():
             # SQL: zapytanie zbieraj±ce tytu³y filmów po kluczu nazw plików
             # TODO: zrobiæ tablicê przechowuj±c± nr p³yt (najlepiej triggerze)
+            """
             c.execute("SELECT distinct\
                   a.id_tytulu,\
                   n.tytul,\
                   alt,\
-                  to_char (data_wydania,'YYYY'),\
+                  data_wydania,\
                   case\
                     when\
                         ilosc_w_serii is null then 0\
@@ -621,26 +586,25 @@ class MovieDB:
                         ilosc_posiadanych\
                   end,\
                   nazwa_typu,\
-                  plyty_asstring(a.id_tytulu::text)\
+                  1\
             from\
                 nazwa_tytulu as n\
                 left join tytul a using(id_tytulu)\
                 left join typ as t using(id_typu)\
                 left join plik p using(id_tytulu)\
             where\
-                (alt is false or alt is %s)\
+                (alt = 'f' or alt = %s)\
                 and nazwa_pliku ilike %s\
                 and id_typu in (%s, %s, %s, %s)\
                 and id_typu != %s\
             order by\
-                id_tytulu, alt",(klon,pattern.encode("iso8859-2"),anime,xxx,filmy,kreskowki,typ))
-        else:
-        # SQL: zapytanie zbieraj±ce tytu³y filmów
-            c.execute("SELECT \
+                id_tytulu, alt",(klon,pattern,anime,xxx,filmy,kreskowki,typ))
+                """
+            c.execute("SELECT distinct\
                   a.id_tytulu,\
                   n.tytul,\
                   alt,\
-                  to_char (data_wydania,'YYYY'),\
+                  data_wydania,\
                   case\
                     when\
                         ilosc_w_serii is null then 0\
@@ -654,19 +618,63 @@ class MovieDB:
                         ilosc_posiadanych\
                   end,\
                   nazwa_typu,\
-                  plyty_asstring(a.id_tytulu::text)\
+                  1\
+            from\
+                nazwa_tytulu as n\
+                left join tytul a using(id_tytulu)\
+                left join typ as t using(id_typu)\
+                left join plik p using(id_tytulu)")
+        else:
+            # SQL: zapytanie zbieraj±ce tytu³y filmów
+            """
+            c.execute("SELECT \
+                  a.id_tytulu,\
+                  n.tytul,\
+                  alt,\
+                  data_wydania,\
+                  case\
+                    when\
+                        ilosc_w_serii is null then 0\
+                    else\
+                        ilosc_w_serii\
+                  end,\
+                  case\
+                    when\
+                        ilosc_posiadanych is null then 0\
+                    else\
+                        ilosc_posiadanych\
+                  end,\
+                  nazwa_typu,\
+                  1\
             from\
                 nazwa_tytulu as n\
                 left join tytul a using(id_tytulu)\
                 left join typ as t using(id_typu)\
             where\
-                (alt is false or alt is %s)\
+                (alt = 'f' or alt = %s)\
                 and tytul ilike %s\
                 and id_typu in (%s, %s, %s, %s)\
                 and id_typu != %s\
             order by\
-                id_tytulu, alt",(klon,pattern.encode("iso8859-2"),anime,xxx,filmy,kreskowki,typ))
-        
+                id_tytulu, alt",(klon,pattern,anime,xxx,filmy,kreskowki,typ))
+                """
+            c.execute("SELECT distinct\
+                  a.id_tytulu,\
+                  n.tytul,\
+                  alt,\
+                  data_wydania,\
+                  ilosc_w_serii,\
+                  ilosc_posiadanych,\
+                  nazwa_typu,\
+                  1\
+            from\
+                nazwa_tytulu as n\
+                left join tytul as a on a.id_tytulu=n.id_tytulu\
+                left join typ as t using (id_typu)\
+                left join plik as p on p.id_tytulu=n.id_tytulu\
+            where\
+                tytul like '%s'" % pattern)
+                
         res = c.fetchall()
         cx.close()
         
@@ -685,13 +693,13 @@ class MovieDB:
                 ido=0
                 for i in res:
                     if i[2] == True and ido == i[0]:
-                        self.insert_row(model,iterobj,i[0],i[1].decode("iso8859-2"),i[4],i[5],i[3],i[6],i[7])
+                        self.insert_row(model,iterobj,i[0],i[1],i[4],i[5],i[3],i[6],i[7])
                     else:
-                        iterobj = self.insert_row(model,None,i[0],i[1].decode("iso8859-2"),i[4],i[5],i[3],i[6],i[7])
+                        iterobj = self.insert_row(model,None,i[0],i[1],i[4],i[5],i[3],i[6],i[7])
                     ido = i[0]
             else:
                 for i in res:
-                    self.insert_row(model,None,i[0],i[1].decode("iso8859-2"),i[4],i[5],i[3],i[6],i[7])
+                    self.insert_row(model,None,i[0],i[1],i[4],i[5],i[3],i[6],i[7])
                     
             #model.set_sort_column_id(1,gtk.SORT_ASCENDING)
             
@@ -729,10 +737,8 @@ class MovieDB:
             filmy = 2
             kreskowki = 3
             xxx = 4
-        if self.perms !=2:
-            typ=4
-        else:
-            typ=0
+        
+        typ=0
         
         return anime,filmy,kreskowki,xxx,typ
         
@@ -766,7 +772,7 @@ class MovieDB:
             
             anime,filmy,kreskowki,xxx,typ = self.getType()
             
-            cx = PgSQL.connect(user=USER, password=PASS, host=HOST, database=DB, client_encoding="iso8859-2")
+            cx = sqlite.connect(user=USER, password=PASS, host=HOST, database=DB, client_encoding="iso8859-2")
             c = cx.cursor()
             sql = "select\
 				p.id_pliku,\
@@ -871,57 +877,15 @@ class MovieDB:
 #}}}
     
 # NOTE: koniec deklaracji klas. g³ówny program:
-petla = 0
-perms = 0
 
-while petla == 0:
-    # {{{ pokazanie dialogu logowania w pêtli
-    login = LoginMDB()
-    result,loginPair = login.run()
+
+try:
+    app=MovieDB(sys.argv[1])
+except:
+    app=MovieDB()
     
-    #sprawdzenie co te¿ u¿ytkownik wpisa³ i dokonanie odpowiedniego zachowania
-    if (result == gtk.RESPONSE_OK):
-        # w przypadku naci¶niêcia OK, pobranie z DB uprawnienia, je¶li login/has³o siê zgadza
-        cx = PgSQL.connect(user=USER, password=PASS, host=HOST, database=DB, client_encoding="iso8859-2")
-        c = cx.cursor()
-        c.execute("SELECT\
-                uprawnienia\
-            from\
-                users\
-            where\
-                login = %s\
-                and password = md5(%s)\
-                ", loginPair[0],loginPair[1])
-        perms = c.fetchone()
-        cx.close()
-        
-        if perms==None:
-            # z³y login lub has³o
-            m = StdMSG(u"MovieDB - B³±d logowania",u"Nieprawid³owy login lub has³o.\n",1)
-            m.run()
-        else:
-            # zapytanie zwróci³o nie None; wychodzimy z pêtli while.
-            petla = 1
-            perms = perms[0]
-    elif (result == gtk.RESPONSE_CANCEL):
-        # user nacisn±³ cancel, wiêc nie chce, lub ne mo¿e siê zalogowaæ. sprawdzamy jak jest.
-        # pokazanie dialogu z pytaniem
-        m = StdMSG("MovieDB - Pytanie",u"Jeste¶ pewien, ¿e <b>nie chcesz</b> siê logowaæ?\n")
-        res = m.run()
-        if(res == gtk.RESPONSE_OK):
-            # je¶li jest pewny, wychodzimy z pêtli while. je¶li nie, nic nie robimy,
-            # okno logowanie pojawi siê przy powtórnym obrocie pêtli.
-            petla = 1
-    else:
-        # user ubi³ okno logowania, lub poci±gn±³ z krzy¿a, lub do dialogu zosta³ wys³any inny sygna³.
-        petla = 2
-        #}}}
-
-if petla != 2:
-    # w przypadku poci±gniêcia z krzy¿a wychodzimy z aplikacji, w pozosta³ych przypadkach uruchomione zostaje g³ówne okno.
-    app=MovieDB(perms)
-    try:
-        gtk.main()
-    except KeyboardInterrupt:
-        gtk.main_quit
+try:
+    gtk.main()
+except KeyboardInterrupt:
+    gtk.main_quit
 
