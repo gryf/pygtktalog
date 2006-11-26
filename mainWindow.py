@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+# This Python file uses the following encoding: utf-8
 """
 GUI, main window class and correspondig methods for pyGTKtalog app.
 """
@@ -11,7 +10,10 @@ import popen2
 import pygtk
 import gtk
 import gtk.glade
+
 from config import Config
+import deviceHelper
+import dialogs
 
 class PyGTKtalog:
     def __init__(self):
@@ -83,7 +85,8 @@ class PyGTKtalog:
         
     def newDB(self,widget):
         """create database in temporary place"""
-        self.window.set_title("untitled - pyGTKtalog")
+        self.window.set_title("żażółć gęślą jaźń")
+        #self.window.set_title("untitled - pyGTKtalog")
         for w in self.widgets:
             try:
                 a = self.pygtkcat.get_widget(w)
@@ -114,8 +117,13 @@ class PyGTKtalog:
         gtk.main()
         
     def addCD(self,widget):
-        self.scan(self.conf.confd['cd'])
-        
+        mount = deviceHelper.volmount(self.conf.confd['cd'])
+        if mount == 'ok':
+            self.scan(self.conf.confd['cd'])
+            deviceHelper.eject_cd()
+        else:
+            msg = dialogs.Wrn(self.window, "error mounting device - pyGTKtalog","Cannot mount device pointed to %s.\nLast mount message:\n<tt>%s</tt>" % (self.conf.confd['cd'],mount))
+            
     def scan(self,path):
         mime = mimetypes.MimeTypes()
         extensions = ('mkv','avi','ogg','mpg','wmv','mp4')
