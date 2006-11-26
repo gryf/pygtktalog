@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+# This Python file uses the following encoding: utf-8
 """
 config parser object
 """
@@ -39,6 +38,7 @@ class Config:
         'v' : 300,
         'exportxls' : False,
         'cd' : '/cdrom',
+        'eject' : 'eject -r'
     }
     
     dictconf = {
@@ -48,10 +48,11 @@ class Config:
         "vertical panes":"v",
         "export xls":"exportxls",
         "cd drive":"cd",
+        "eject command":"eject",
     }
     
     dbool = ('exportxls')
-    dstring = ('cd')
+    dstring = ('cd','eject')
     
     try:
         path = os.environ['HOME']
@@ -62,7 +63,10 @@ class Config:
         self.load()
         
     def save(self):
-        self.confd
+        try:
+            os.lstat("%s/.pygtktalog" % self.path)
+        except:
+            print "Saving preferences to %s/.pygtktalog" % self.path
         newIni = Ini()
         newIni.add_section("pyGTKtalog conf")
         for opt in self.dictconf:
@@ -92,6 +96,5 @@ class Config:
                         except:
                             pass
         except:
-            print "No config file"
             pass
 
