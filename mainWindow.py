@@ -55,6 +55,7 @@ class PyGTKtalog:
                "on_quit1_activate"      :self.doQuit,
                "on_new1_activate"       :self.newDB,
                "on_add_cd_activate"     :self.addCD,
+               "on_about1_activate"     :self.about,
         }
         
         # connect signals
@@ -177,4 +178,6 @@ class PyGTKtalog:
         self.sbid = self.status.push(self.sbSearchCId, "Idle")
         
         self.progress.set_fraction(0)
+    def about(self,widget):
+        ab = dialogs.About(name="pyGTKtalog", ver="0.1", title="About", authors=["Roman 'gryf' Dobosz"],licence="GPL")
 
