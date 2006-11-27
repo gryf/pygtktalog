@@ -84,11 +84,6 @@
 		      <property name="label" translatable="yes">Recent files</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_recent_files1_activate" last_modification_time="Thu, 23 Nov 2006 18:29:26 GMT"/>
-
-		      <child>
-			<widget class="GtkMenu" id="recent_files1_menu">
-			</widget>
-		      </child>
 		    </widget>
 		  </child>
 
@@ -184,6 +179,7 @@
 		      <property name="label" translatable="yes">Add CD/DVD</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_add_cd_activate" last_modification_time="Fri, 24 Nov 2006 14:12:30 GMT"/>
+		      <accelerator key="a" modifiers="GDK_CONTROL_MASK" signal="activate"/>
 		    </widget>
 		  </child>
 
@@ -218,10 +214,10 @@
 		<widget class="GtkMenu" id="menuitem4_menu">
 
 		  <child>
-		    <widget class="GtkMenuItem" id="about1">
+		    <widget class="GtkImageMenuItem" id="about1">
 		      <property name="visible">True</property>
-		      <property name="label" translatable="yes">_About</property>
-		      <property name="use_underline">True</property>
+		      <property name="label">gtk-about</property>
+		      <property name="use_stock">True</property>
 		      <signal name="activate" handler="on_about1_activate" last_modification_time="Wed, 09 Aug 2006 17:12:54 GMT"/>
 		    </widget>
 		  </child>
