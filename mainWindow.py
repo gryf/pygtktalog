@@ -349,7 +349,6 @@ Public License instead of this License.
 #}}}
 
 __version__ = "0.2"
-
 import sys
 import os
 import mimetypes
@@ -523,26 +522,28 @@ class PyGTKtalog:
         oldroot = path
         t="\t"
         
-        current_dir = {'/' : path}
+        current_dir = {}
         
         index = 1
         
-        for root,kat,plik in os.walk(path):
+        for root,kat,plik in os.walk(path,False):
             
-            
-            
-            if oldroot!=root:
-                oldroot=root
-                t=t+"\t"
-            if(len(root)==len(path)):
+            if root == path:
                 r = '/'
             else:
                 r = root[len(path):]
+                
+            a = fileObj(name=r,tmproot=root)
+            for k in kat:
+                b = fileObj(name=k,tmproot=os.path.join(root,k))
+                a.add_member(b)
             
-            current_dir[r] = [kat, plik]
+            #current_dir.append(a)
             
             # scan only files
             for p in plik:
+                b = fileObj(name=p,tmproot=os.path.join(root,p))
+                a.add_member(b)
                 if p[-3:].lower() in extensions or \
                 mime.guess_type(p)!= (None,None) and \
                 mime.guess_type(p)[0].split("/")[0] == 'video':
@@ -577,8 +578,10 @@ class PyGTKtalog:
                 
                 # PyGTK FAQ entry 23.20
                 while gtk.events_pending(): gtk.main_iteration()
-        
-        print current_dir
+            #current_dir[] =
+            print a
+        #for i in current_dir:
+        #    print i
         
         if self.sbid != 0:
             self.status.remove(self.sbSearchCId, self.sbid)
