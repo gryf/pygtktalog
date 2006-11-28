@@ -12,6 +12,7 @@ class fileObj:
         self.filetype = filetype
         self.members = members
         self.date = date.fromtimestamp(mtime)
+        self.t = tmproot
         
     def add_member(self,member):
         if self.filetype == 'd':
@@ -27,3 +28,5 @@ class fileObj:
     def get_size(self):
         return self.size
 
+    def __str__(self):
+        return self.name + ' ['+self.t+']'
