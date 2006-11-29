@@ -360,13 +360,18 @@ import gtk.glade
 
 from config import Config
 import deviceHelper
+import filetypeHelper
 import dialogs
+import prefs
 from files import fileObj
+
+_count=0
 
 class PyGTKtalog:
     def __init__(self):
         
         self.conf = Config()
+        self.conf.load()
         
         self.gladefile = "glade/main.glade"
         self.pygtkcat = gtk.glade.XML(self.gladefile,"main")
@@ -404,6 +409,7 @@ class PyGTKtalog:
                "on_new1_activate"       :self.newDB,
                "on_add_cd_activate"     :self.addCD,
                "on_about1_activate"     :self.about,
+               "on_properties1_activate":self.preferences,
         }
         
         # connect signals
@@ -420,7 +426,9 @@ class PyGTKtalog:
         self.conf.save()
         
         return
+    def preferences(self):
         
+        return
     def doQuit(self, widget):
         """quit and save window parameters to config file"""
         try:
@@ -507,9 +515,12 @@ class PyGTKtalog:
             dialogs.Wrn("error mounting device - pyGTKtalog","Cannot mount device pointed to %s.\nLast mount message:\n<tt>%s</tt>" % (self.conf.confd['cd'],mount))
             
     def scan(self,path):
+        global _count
+        _count= 0
         mime = mimetypes.MimeTypes()
-        extensions = ('mkv','avi','ogg','mpg','wmv','mp4')
-        
+        mov_ext = ('mkv','avi','ogg','mpg','wmv','mp4','mpeg')
+        img_ext = ('jpg','jpeg','png','gif','bmp','tga','tif','tiff','ilbm','iff','pcx')
+        # count files in directory tree
         count = 0
         for root,kat,plik in os.walk(path):
             for p in plik:
@@ -518,77 +529,53 @@ class PyGTKtalog:
         frac = 1.0/count
         count = 1
         
-        c=0
-        oldroot = path
-        t="\t"
-        
-        current_dir = {}
-        
-        index = 1
-        
-        for root,kat,plik in os.walk(path,False):
+        def recurse(path,name,wobj,date=0,frac=0):
+            global _count
             
-            if root == path:
-                r = '/'
-            else:
-                r = root[len(path):]
+            walker = os.walk(path)
+            root,dirs,files = walker.next()
+            
+            f = fileObj(name=name,filetype="d",mtime=date)
+            
+            for i in dirs:
+                f.add_member(recurse(os.path.join(path,i),i,wobj,os.stat(os.path.join(root,i)).st_mtime,frac))
                 
-            a = fileObj(name=r,tmproot=root)
-            for k in kat:
-                b = fileObj(name=k,tmproot=os.path.join(root,k))
-                a.add_member(b)
-            
-            #current_dir.append(a)
-            
-            # scan only files
-            for p in plik:
-                b = fileObj(name=p,tmproot=os.path.join(root,p))
-                a.add_member(b)
-                if p[-3:].lower() in extensions or \
-                mime.guess_type(p)!= (None,None) and \
-                mime.guess_type(p)[0].split("/")[0] == 'video':
+            for i in files:
+                _count+=1
+                st = os.stat(os.path.join(root,i))
+                ### scan files
+                if i[-3:].lower() in mov_ext or \
+                mime.guess_type(i)!= (None,None) and \
+                mime.guess_type(i)[0].split("/")[0] == 'video':
                     # video only
-                    # TODO: parametrize this loop!
-                    info = popen2.popen4('midentify "' + os.path.join(root,p)+'"')[0].readlines()
-                    video_format = ''
-                    audio_codec = ''
-                    video_codec = ''
-                    video_x = ''
-                    video_y = ''
-                    for line in info:
-                        l = line.split('=')
-                        val = l[1].split('\n')[0]
-                        if l[0] == 'ID_VIDEO_FORMAT':
-                            video_format = val
-                        elif l[0] == 'ID_AUDIO_CODEC':
-                            audio_codec = val
-                        elif l[0] == 'ID_VIDEO_CODEC':
-                            video_codec = val
-                        elif l[0] == 'ID_VIDEO_WIDTH':
-                            video_x = val
-                        elif l[0] == 'ID_VIDEO_HEIGHT':
-                            video_y = val
+                    info = filetypeHelper.guess_video(os.path.join(root,i))
+                    #print info
+                elif i[-3:].lower() in img_ext or \
+                mime.guess_type(i)!= (None,None) and \
+                mime.guess_type(i)[0].split("/")[0] == 'image':
+                    pass
+                ### end of scan
+                if wobj.sbid != 0:
+                    wobj.status.remove(wobj.sbSearchCId, wobj.sbid)
+                wobj.sbid = wobj.status.push(wobj.sbSearchCId, "Scannig: %s" % (os.path.join(root,i)))
                 
-                if self.sbid != 0:
-                    self.status.remove(self.sbSearchCId, self.sbid)
-                self.sbid = self.status.push(self.sbSearchCId, "Scannig: %s" % (os.path.join(root,p)))
-                
-                self.progress.set_fraction(frac * count)
-                count+=1
+                wobj.progress.set_fraction(frac * _count)
                 
                 # PyGTK FAQ entry 23.20
                 while gtk.events_pending(): gtk.main_iteration()
-            #current_dir[] =
-            print a
-        #for i in current_dir:
-        #    print i
+                
+                f.add_member(fileObj(name=i, size=st.st_size, filetype="r", mtime=st.st_mtime))
+            
+            return f
+        
+        fileobj = recurse(path,'/',self,0,frac)
         
         if self.sbid != 0:
             self.status.remove(self.sbSearchCId, self.sbid)
         self.sbid = self.status.push(self.sbSearchCId, "Idle")
         
         self.progress.set_fraction(0)
-        
+
     def about(self,widget):
         dialogs.Abt("pyGTKtalog", __version__, "About", ["Roman 'gryf' Dobosz"], licence)
 
