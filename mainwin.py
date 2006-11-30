@@ -362,7 +362,7 @@ from config import Config
 import deviceHelper
 import filetypeHelper
 import dialogs
-import prefs
+from preferences import Preferences
 from files import fileObj
 
 _count=0
@@ -426,9 +426,10 @@ class PyGTKtalog:
         self.conf.save()
         
         return
-    def preferences(self):
-        
-        return
+    
+    def preferences(self,widget):
+        a = Preferences()
+    
     def doQuit(self, widget):
         """quit and save window parameters to config file"""
         try:
