@@ -49,9 +49,16 @@ if conf.confd['exportxls']:
     except:
         print "You'll need pyExcelerator, if you want to export DB to XLS format.\nhttp://sourceforge.net/projects/pyexcelerator"
         sys.exit(1)
+
+if conf.confd['pil']:
+    try:
+        import Image, ImageEnhance
+    except:
+        print "You'll need Python Imaging Library (PIL), if you want to make thumbnails"
+        sys.exit(1)
     
 # project modules
-from mainWindow import PyGTKtalog
+from mainwin import PyGTKtalog
 
 if __name__ == "__main__":
     app=PyGTKtalog()
