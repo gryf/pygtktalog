@@ -38,7 +38,8 @@ class Config:
         'v' : 300,
         'exportxls' : False,
         'cd' : '/cdrom',
-        'eject' : 'eject -r'
+        'eject' : 'eject -r',
+        'pil': False,
     }
     
     dictconf = {
@@ -49,9 +50,10 @@ class Config:
         "export xls":"exportxls",
         "cd drive":"cd",
         "eject command":"eject",
+        "image support":"pil",
     }
     
-    dbool = ('exportxls')
+    dbool = ('exportxls','pil')
     dstring = ('cd','eject')
     
     try:
@@ -60,7 +62,7 @@ class Config:
         path = "/tmp"
     
     def __init__(self):
-        self.load()
+        pass
         
     def save(self):
         try:
