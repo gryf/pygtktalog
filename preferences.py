@@ -16,6 +16,7 @@ import dialogs
 class Preferences:
     def __init__(self):
         self.category_dict = {'Disk options':'disk_group','General':'general_group','Scan options':'scan_group'}
+        self.category_order = ['General','Disk options','Scan options']
         self.conf = Config()
         self.conf.load()
         
@@ -37,8 +38,27 @@ class Preferences:
         self.cd.set_text(self.conf.confd['cd'])
         
         self.eject = self.glade.get_widget("ejt_entry")
-        self.eject.set_text(self.conf.confd['eject'])
-        self.pref.show()
+        self.eject.set_text(self.conf.confd['ejectapp'])
+        
+        self.ch_win = self.glade.get_widget("ch_win")
+        self.ch_win.set_active(self.conf.confd['savewin'])
+        self.ch_pan = self.glade.get_widget("ch_pan")
+        self.ch_pan.set_active(self.conf.confd['savepan'])
+        self.ch_eject = self.glade.get_widget("ch_eject")
+        self.ch_eject.set_active(self.conf.confd['eject'])
+        self.ch_xls = self.glade.get_widget("ch_xls")
+        self.ch_xls.set_active(self.conf.confd['exportxls'])
+        self.ch_quit = self.glade.get_widget("ch_quit")
+        self.ch_quit.set_active(self.conf.confd['confirmquit'])
+        self.ch_unsaved = self.glade.get_widget("ch_unsaved")
+        self.ch_unsaved.set_active(self.conf.confd['confirmunsaved'])
+        
+        self.ch_thumb = self.glade.get_widget("ch_thumb")
+        self.ch_thumb.set_active(self.conf.confd['pil'])
+        self.ch_exif = self.glade.get_widget("ch_exif")
+        self.ch_exif.set_active(self.conf.confd['exif'])
+        self.ch_gthumb = self.glade.get_widget("ch_gthumb")
+        self.ch_gthumb.set_active(self.conf.confd['gthumb'])
         
         self.tree = self.glade.get_widget("category_tree")
         self.model = gtk.ListStore(gobject.TYPE_STRING)
@@ -47,16 +67,27 @@ class Preferences:
         self.tree.set_headers_visible(False)
         self.tree.show()
         
-        for i in self.category_dict:
-            print i,self.category_dict[i]
-            myiter = self.model.insert_after(None,None)
+        for i in self.category_order:
+            myiter = self.model.insert_before(None,None)
             self.model.set_value(myiter,0,i)
 
         renderer=gtk.CellRendererText()
         column=gtk.TreeViewColumn("Name",renderer, text=0)
         column.set_resizable(True)
         self.tree.append_column(column)
-                                
+        if self.pref.run() == gtk.RESPONSE_OK:
+            self.conf.confd['cd'] = self.cd.get_text()
+            self.conf.confd['ejectapp'] = self.eject.get_text()
+            self.conf.confd['savewin'] = self.ch_win.get_active()
+            self.conf.confd['savepan'] = self.ch_pan.get_active()
+            self.conf.confd['eject'] = self.ch_eject.get_active()
+            self.conf.confd['pil'] = self.ch_thumb.get_active()
+            self.conf.confd['exif'] = self.ch_exif.get_active()
+            self.conf.confd['gthumb'] = self.ch_gthumb.get_active()
+            self.conf.confd['exportxls'] = self.ch_xls.get_active()
+            self.conf.save()
+        self.pref.destroy()
+        
     def show_filechooser(self,widget):
         """dialog for choose eject"""
         dialog = gtk.FileChooserDialog(
@@ -92,7 +123,7 @@ class Preferences:
         )
         
         dialog.set_action(gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER)
-        
+        dialog.set_filename(self.conf.confd['cd'])
         dialog.set_default_response(gtk.RESPONSE_OK)
         
         response = dialog.run()
@@ -106,21 +137,15 @@ class Preferences:
         iterator = treeview.get_model().get_iter_first();
         while iterator != None:
             if model.get_value(iterator,0) == selected:
-                try:
-                    self.glade.get_widget(self.category_dict[model.get_value(iterator,0)]).show()
-                except:
-                    pass
+                self.glade.get_widget(self.category_dict[model.get_value(iterator,0)]).show()
+                self.desc.set_markup("<b>%s</b>" % selected)
             else:
-                try:
-                    self.glade.get_widget(self.category_dict[model.get_value(iterator,0)]).hide()
-                except:
-                    pass
+                self.glade.get_widget(self.category_dict[model.get_value(iterator,0)]).hide()
             iterator = treeview.get_model().iter_next(iterator);
         
 if __name__ == "__main__":
     try:
         app=Preferences()
-        #app.run()
         gtk.main()
     except KeyboardInterrupt:
         gtk.main_quit
