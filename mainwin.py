@@ -348,7 +348,7 @@ Public License instead of this License.
 """
 #}}}
 
-__version__ = "0.2"
+__version__ = "0.3"
 import sys
 import os
 import mimetypes
@@ -392,11 +392,32 @@ class PyGTKtalog:
         self.details = self.pygtkcat.get_widget("details")
         self.details.hide()
         
-        self.widgets = ("discs","files","details",'save1','save_as1','cut1','copy1','paste1','delete1','add_cd','add_directory1')
+        self.widgets = ("discs","files","details",'save1','save_as1',
+                        'cut1','copy1','paste1','delete1','add_cd','add_directory1',
+                        'tb_save','tb_addcd','tb_find'
+                        )
         for w in self.widgets:
             a = self.pygtkcat.get_widget(w)
             a.set_sensitive(False)
         
+        # toolbar/status bar
+        self.menu_toolbar = self.pygtkcat.get_widget("toolbar1")
+        self.menu_toolbar.set_active(self.conf.confd['showtoolbar'])
+        self.menu_statusbar = self.pygtkcat.get_widget("status_bar1")
+        self.menu_statusbar.set_active(self.conf.confd['showstatusbar'])
+        self.toolbar = self.pygtkcat.get_widget("maintoolbar")
+        if self.conf.confd['showtoolbar']:
+            self.toolbar.show()
+        else:
+            self.toolbar.hide()
+        self.statusprogress = self.pygtkcat.get_widget("statusprogress")
+        if self.conf.confd['showstatusbar']:
+            self.statusprogress.show()
+        else:
+            self.statusprogress.hide()
+        
+        
+        # window size
         a = self.pygtkcat.get_widget('hpaned1')
         a.set_position(self.conf.confd['h'])
         a = self.pygtkcat.get_widget('vpaned1')
@@ -406,16 +427,35 @@ class PyGTKtalog:
         # sygnały:
         dic = {"on_main_destroy_event"  :self.doQuit,
                "on_quit1_activate"      :self.doQuit,
+               "on_tb_quit_clicked"     :self.doQuit,
                "on_new1_activate"       :self.newDB,
+               "on_tb_new_clicked"      :self.newDB,
                "on_add_cd_activate"     :self.addCD,
+               "on_tb_addcd_clicked"    :self.addCD,
                "on_about1_activate"     :self.about,
                "on_properties1_activate":self.preferences,
+               "on_status_bar1_activate":self.toggle_status_bar,
+               "on_toolbar1_activate"   :self.toggle_toolbar,
         }
         
         # connect signals
         self.pygtkcat.signal_autoconnect(dic)
         self.window.connect("delete_event", self.deleteEvent)
     
+    def toggle_toolbar(self,widget):
+        self.conf.confd['showtoolbar'] = self.menu_toolbar.get_active()
+        if self.menu_toolbar.get_active():
+            self.toolbar.show()
+        else:
+            self.toolbar.hide()
+            
+    def toggle_status_bar(self,widget):
+        self.conf.confd['showstatusbar'] = self.menu_statusbar.get_active()
+        if self.menu_statusbar.get_active():
+            self.statusprogress.show()
+        else:
+            self.statusprogress.hide()
+            
     def storeSettings(self):
         """Store window size and pane position in config file (using config object)"""
         if self.conf.confd['savewin']:
@@ -440,8 +480,8 @@ class PyGTKtalog:
         except:
             # check if any unsaved project is on go.
             try:
-                if self.active_project and self.unsaved_project:
-                    if self.conf.confd['confirmunsaved']:
+                if self.unsaved_project:
+                    if self.conf.confd['confirmquit']:
                         obj = dialogs.Qst('Quit application - pyGTKtalog','There is not saved database\nDo you really want to quit?')
                         if not obj.run():
                             return
@@ -453,8 +493,16 @@ class PyGTKtalog:
         
     def newDB(self,widget):
         """create database in temporary place"""
+        try:
+            if self.unsaved_project:
+                if self.conf.confd['confirmabandon']:
+                    obj = dialogs.Qst('Unsaved data - pyGTKtalog','There is not saved database\nDo you really want to abandon it?')
+                    if not obj.run():
+                        return
+        except AttributeError:
+            pass
         self.active_project = True
-        self.unsaved_project = True
+        self.unsaved_project = False
         
         self.window.set_title("untitled - pyGTKtalog")
         for w in self.widgets:
@@ -481,8 +529,8 @@ class PyGTKtalog:
         """checkout actual database changed. If so, do the necessary ask."""
         # check if any unsaved project is on go.
         try:
-            if self.active_project and self.unsaved_project:
-                if self.conf.confd['confirmunsaved']:
+            if self.unsaved_project:
+                if self.conf.confd['confirmquit']:
                     obj = dialogs.Qst('Quit application - pyGTKtalog','There is not saved database\nDo you really want to quit?')
                     if not obj.run():
                         return True
@@ -501,13 +549,20 @@ class PyGTKtalog:
             guessed_label = deviceHelper.volname(self.conf.confd['cd'])
             obj = dialogs.InputDiskLabel(guessed_label)
             if obj.run() != None:
+                
                 self.scan(self.conf.confd['cd'])
-                deviceHelper.mountpoint_to_dev(self.conf.confd['cd'])
+                
+                self.unsaved_project = True
+                
+                # umount/eject cd
                 if self.conf.confd['eject']:
-                    deviceHelper.eject_cd()
+                    msg = deviceHelper.eject_cd()
+                    if msg != 'ok':
+                        dialogs.Wrn("error ejecting device - pyGTKtalog","Cannot eject device pointed to %s.\nLast eject message:\n<tt>%s</tt>" % (self.conf.confd['cd'],msg))
                 else:
-                    if deviceHelper.volmount(self.conf.confd['cd'])!= 'ok':
-                        dialogs.Wrn("error unmounting device - pyGTKtalog","Cannot unmount device pointed to %s.\nLast umount message:\n<tt>%s</tt>" % (self.conf.confd['cd'],mount))
+                    msg = deviceHelper.volumount(self.conf.confd['cd'])
+                    if msg != 'ok':
+                        dialogs.Wrn("error unmounting device - pyGTKtalog","Cannot unmount device pointed to %s.\nLast umount message:\n<tt>%s</tt>" % (self.conf.confd['cd'],msg))
         else:
             dialogs.Wrn("error mounting device - pyGTKtalog","Cannot mount device pointed to %s.\nLast mount message:\n<tt>%s</tt>" % (self.conf.confd['cd'],mount))
             
@@ -546,7 +601,6 @@ class PyGTKtalog:
                 mime.guess_type(i)[0].split("/")[0] == 'video':
                     # video only
                     info = filetypeHelper.guess_video(os.path.join(root,i))
-                    #print info
                 elif i[-3:].lower() in img_ext or \
                 mime.guess_type(i)!= (None,None) and \
                 mime.guess_type(i)[0].split("/")[0] == 'image':
