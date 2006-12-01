@@ -46,7 +46,10 @@ class Config:
         'gthumb':False,
         'exif':False,
         'confirmquit':True,
-        'confirmunsaved':True,
+        'mntwarn':True,
+        'confirmabandon':True,
+        'showtoolbar':True,
+        'showstatusbar':True,
     }
     
     dictconf = {
@@ -61,10 +64,27 @@ class Config:
         "eject command":"eject",
         "image support":"pil",
         'confirm quit':'confirmquit',
-        'warn unsaved':'confirmunsaved',
+        'warn mount/umount errors':'mntwarn',
+        'confirm abandon current catalog':'confirmabandon',
+        'show toolbar':'showtoolbar',
+        'show statusbar and progress bar':'showstatusbar',
     }
     
-    dbool = ('exportxls','pil','savewin','savepan','eject','gthumb','exif')
+    dbool = (
+             'exportxls',
+             'pil',
+             'savewin',
+             'savepan',
+             'eject',
+             'gthumb',
+             'exif',
+             'confirmquit',
+             'mntwarn',
+             'confirmabandon',
+             'showtoolbar',
+             'showstatusbar',
+    )
+    
     dstring = ('cd','eject')
     
     try:
@@ -86,10 +106,13 @@ class Config:
             newIni.add_key(opt,self.confd[self.dictconf[opt]])
         try:
             f = open("%s/.pygtktalog" % self.path,"w")
+            success = True
         except:
-            print "Cannot open config file %s for writing." % (self.path, "/.pygtktalog") 
+            print "Cannot open config file %s for writing." % (self.path, "/.pygtktalog")
+            success = False
         f.write(newIni.show())
         f.close()
+        return success
         
     def load(self):
         try:
@@ -110,4 +133,9 @@ class Config:
                             pass
         except:
             pass
-
+    def __str__(self):
+        """show prefs in string way"""
+        string = "[varname]\tvalue\n"
+        for i in self.confd:
+            string+="%s\t%s\n" % (i,self.confd[i])
+        return string
