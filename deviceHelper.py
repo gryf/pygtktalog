@@ -38,6 +38,20 @@ def volmount(mntp):
         else:
             return i.strip()
     return "Mount point does'nt exist in fstab"
+
+def volumount(mntp):
+    """mount device, return True/False"""
+    dev = mountpoint_to_dev(mntp)
+    if dev != None:
+        _in,_out,_err = popen2.popen3("umount %s" % dev)
+        inf = _err.readlines()
+        for i in inf:
+            i.strip()
+        if check_mount(dev):
+            return 'ok'
+        else:
+            return i.strip()
+    return "Mount point does'nt exist in fstab"
     
 def check_mount(dev):
     """Refresh the entries from fstab or mount."""
@@ -64,6 +78,6 @@ def mountpoint_to_dev(mntp):
     return None
     
 def eject_cd():
-    if len(c.confd['eject']) > 0:
-        os.popen("%s %s" %(c.confd['eject'],c.confd['cd']))
+    if len(c.confd['ejectapp']) > 0:
+        os.popen("%s %s" %(c.confd['ejectapp'],c.confd['cd']))
 
