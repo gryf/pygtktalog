@@ -32,17 +32,26 @@ class Config:
     ini = Ini()
     
     confd = {
+        'savewin' : True,
+        'savepan' : True,
         'wx' : 800,
         'wy' : 600,
         'h' : 200,
         'v' : 300,
         'exportxls' : False,
         'cd' : '/cdrom',
-        'eject' : 'eject -r',
+        'ejectapp' : 'eject -r',
+        'eject' : True,
         'pil': False,
+        'gthumb':False,
+        'exif':False,
+        'confirmquit':True,
+        'confirmunsaved':True,
     }
     
     dictconf = {
+        "save main window size" : "savewin",
+        "save panes size" : "savepan",
         "main window width" : "wx",
         "main window height": "wy",
         "horizontal panes": "h",
@@ -51,9 +60,11 @@ class Config:
         "cd drive":"cd",
         "eject command":"eject",
         "image support":"pil",
+        'confirm quit':'confirmquit',
+        'warn unsaved':'confirmunsaved',
     }
     
-    dbool = ('exportxls','pil')
+    dbool = ('exportxls','pil','savewin','savepan','eject','gthumb','exif')
     dstring = ('cd','eject')
     
     try:
