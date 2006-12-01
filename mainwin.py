@@ -418,13 +418,15 @@ class PyGTKtalog:
     
     def storeSettings(self):
         """Store window size and pane position in config file (using config object)"""
-        hpan = self.pygtkcat.get_widget('hpaned1')
-        vpan = self.pygtkcat.get_widget('vpaned1')
-        
-        self.conf.confd['wx'], self.conf.confd['wy'] = self.window.get_size()
-        self.conf.confd['h'],self.conf.confd['v'] = hpan.get_position(), vpan.get_position()
+        if self.conf.confd['savewin']:
+            self.conf.confd['wx'], self.conf.confd['wy'] = self.window.get_size()
+            
+        if self.conf.confd['savepan']:
+            hpan = self.pygtkcat.get_widget('hpaned1')
+            vpan = self.pygtkcat.get_widget('vpaned1')
+            self.conf.confd['h'],self.conf.confd['v'] = hpan.get_position(), vpan.get_position()
+            
         self.conf.save()
-        
         return
     
     def preferences(self,widget):
@@ -439,16 +441,13 @@ class PyGTKtalog:
             # check if any unsaved project is on go.
             try:
                 if self.active_project and self.unsaved_project:
-                    # True, if user want to abandon changes/db
-                    # NOTE: uncomment this!
-                    #obj = dialogs.Qst('Quit application - pyGTKtalog','There is not saved database\nDo you really want to quit?')
-                    #if not obj.run():
-                    if False:
-                        return
+                    if self.conf.confd['confirmunsaved']:
+                        obj = dialogs.Qst('Quit application - pyGTKtalog','There is not saved database\nDo you really want to quit?')
+                        if not obj.run():
+                            return
             except AttributeError:
                 pass
-            # NOTE: uncomment this!
-            #self.storeSettings()
+            self.storeSettings()
         gtk.main_quit()
         return False
         
@@ -483,16 +482,13 @@ class PyGTKtalog:
         # check if any unsaved project is on go.
         try:
             if self.active_project and self.unsaved_project:
-                # True, if user want to abandon changes/db
-                # NOTE: uncomment this!
-                #obj = dialogs.Qst('Quit application - pyGTKtalog','There is not saved database\nDo you really want to quit?')
-                #if not obj.run():
-                if False:
-                    return True
+                if self.conf.confd['confirmunsaved']:
+                    obj = dialogs.Qst('Quit application - pyGTKtalog','There is not saved database\nDo you really want to quit?')
+                    if not obj.run():
+                        return True
         except AttributeError:
             pass
-        # NOTE: uncomment this!
-        #self.storeSettings()
+        self.storeSettings()
         return False
    
     def run(self):
@@ -500,18 +496,18 @@ class PyGTKtalog:
         gtk.main()
         
     def addCD(self,widget):
-        # NOTE: uncomment this!
-        #mount = deviceHelper.volmount(self.conf.confd['cd'])
-        #if mount == 'ok':
-        if True:
-            # NOTE: uncomment this!
-            #guessed_label = deviceHelper.volname(self.conf.confd['cd'])
-            #obj = dialogs.InputDiskLabel(guessed_label)
-            #if obj.run() != None:
-            if True:
+        mount = deviceHelper.volmount(self.conf.confd['cd'])
+        if mount == 'ok':
+            guessed_label = deviceHelper.volname(self.conf.confd['cd'])
+            obj = dialogs.InputDiskLabel(guessed_label)
+            if obj.run() != None:
                 self.scan(self.conf.confd['cd'])
-                # NOTE: uncomment this!
-                #deviceHelper.eject_cd()
+                deviceHelper.mountpoint_to_dev(self.conf.confd['cd'])
+                if self.conf.confd['eject']:
+                    deviceHelper.eject_cd()
+                else:
+                    if deviceHelper.volmount(self.conf.confd['cd'])!= 'ok':
+                        dialogs.Wrn("error unmounting device - pyGTKtalog","Cannot unmount device pointed to %s.\nLast umount message:\n<tt>%s</tt>" % (self.conf.confd['cd'],mount))
         else:
             dialogs.Wrn("error mounting device - pyGTKtalog","Cannot mount device pointed to %s.\nLast mount message:\n<tt>%s</tt>" % (self.conf.confd['cd'],mount))
             
