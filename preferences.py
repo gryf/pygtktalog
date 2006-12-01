@@ -50,8 +50,10 @@ class Preferences:
         self.ch_xls.set_active(self.conf.confd['exportxls'])
         self.ch_quit = self.glade.get_widget("ch_quit")
         self.ch_quit.set_active(self.conf.confd['confirmquit'])
-        self.ch_unsaved = self.glade.get_widget("ch_unsaved")
-        self.ch_unsaved.set_active(self.conf.confd['confirmunsaved'])
+        self.ch_wrnmount = self.glade.get_widget("ch_wrnmount")
+        self.ch_wrnmount.set_active(self.conf.confd['mntwarn'])
+        self.ch_warnnew = self.glade.get_widget("ch_warnnew")
+        self.ch_warnnew.set_active(self.conf.confd['confirmabandon'])        
         
         self.ch_thumb = self.glade.get_widget("ch_thumb")
         self.ch_thumb.set_active(self.conf.confd['pil'])
@@ -85,6 +87,9 @@ class Preferences:
             self.conf.confd['exif'] = self.ch_exif.get_active()
             self.conf.confd['gthumb'] = self.ch_gthumb.get_active()
             self.conf.confd['exportxls'] = self.ch_xls.get_active()
+            self.conf.confd['confirmquit'] = self.ch_quit.get_active()
+            self.conf.confd['mntwarn'] = self.ch_wrnmount.get_active()
+            self.conf.confd['confirmabandon'] = self.ch_warnnew.get_active()
             self.conf.save()
         self.pref.destroy()
         
