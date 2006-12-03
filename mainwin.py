@@ -369,7 +369,8 @@ _count=0
 
 class PyGTKtalog:
     def __init__(self):
-        
+        """ init"""
+        # {{{ init
         self.conf = Config()
         self.conf.load()
         
@@ -425,39 +426,48 @@ class PyGTKtalog:
         self.window.resize(self.conf.confd['wx'],self.conf.confd['wy'])
         
         # sygnały:
-        dic = {"on_main_destroy_event"  :self.doQuit,
-               "on_quit1_activate"      :self.doQuit,
-               "on_tb_quit_clicked"     :self.doQuit,
-               "on_new1_activate"       :self.newDB,
-               "on_tb_new_clicked"      :self.newDB,
-               "on_add_cd_activate"     :self.addCD,
-               "on_tb_addcd_clicked"    :self.addCD,
-               "on_about1_activate"     :self.about,
-               "on_properties1_activate":self.preferences,
-               "on_status_bar1_activate":self.toggle_status_bar,
-               "on_toolbar1_activate"   :self.toggle_toolbar,
+        dic = {"on_main_destroy_event"      :self.doQuit,
+               "on_quit1_activate"          :self.doQuit,
+               "on_tb_quit_clicked"         :self.doQuit,
+               "on_new1_activate"           :self.newDB,
+               "on_tb_new_clicked"          :self.newDB,
+               "on_add_cd_activate"         :self.addCD,
+               "on_tb_addcd_clicked"        :self.addCD,
+               "on_add_directory1_activate" :self.addDirectory,
+               "on_about1_activate"         :self.about,
+               "on_properties1_activate"    :self.preferences,
+               "on_status_bar1_activate"    :self.toggle_status_bar,
+               "on_toolbar1_activate"       :self.toggle_toolbar,
         }
         
         # connect signals
         self.pygtkcat.signal_autoconnect(dic)
         self.window.connect("delete_event", self.deleteEvent)
+        #}}}
     
     def toggle_toolbar(self,widget):
+        """toggle visibility of toolbar bar"""
+        #{{{
         self.conf.confd['showtoolbar'] = self.menu_toolbar.get_active()
         if self.menu_toolbar.get_active():
             self.toolbar.show()
         else:
             self.toolbar.hide()
-            
+        #}}}
+    
     def toggle_status_bar(self,widget):
+        """toggle visibility of statusbat and progress bar"""
+        #{{{
         self.conf.confd['showstatusbar'] = self.menu_statusbar.get_active()
         if self.menu_statusbar.get_active():
             self.statusprogress.show()
         else:
             self.statusprogress.hide()
-            
+        #}}}
+    
     def storeSettings(self):
         """Store window size and pane position in config file (using config object)"""
+        #{{{
         if self.conf.confd['savewin']:
             self.conf.confd['wx'], self.conf.confd['wy'] = self.window.get_size()
             
@@ -467,13 +477,17 @@ class PyGTKtalog:
             self.conf.confd['h'],self.conf.confd['v'] = hpan.get_position(), vpan.get_position()
             
         self.conf.save()
-        return
-    
+        #}}}
+        
     def preferences(self,widget):
+        """display preferences window"""
+        #{{{
         a = Preferences()
+        #}}}
     
     def doQuit(self, widget):
         """quit and save window parameters to config file"""
+        #{{{
         try:
             if widget.title:
                 pass
@@ -490,9 +504,11 @@ class PyGTKtalog:
             self.storeSettings()
         gtk.main_quit()
         return False
+        #}}}
         
     def newDB(self,widget):
         """create database in temporary place"""
+        #{{{
         try:
             if self.unsaved_project:
                 if self.conf.confd['confirmabandon']:
@@ -524,10 +540,11 @@ class PyGTKtalog:
         #self.detailplaceholder.add_with_viewport(self.details)
         #self.details.show()
         return
+        #}}}
     
     def deleteEvent(self, widget, event, data=None):
         """checkout actual database changed. If so, do the necessary ask."""
-        # check if any unsaved project is on go.
+        #{{{ check if any unsaved project is on go.
         try:
             if self.unsaved_project:
                 if self.conf.confd['confirmquit']:
@@ -538,12 +555,27 @@ class PyGTKtalog:
             pass
         self.storeSettings()
         return False
-   
+        #}}}
+    
     def run(self):
+        """show window and run app"""
+        #{{{
         self.window.show();
         gtk.main()
+        #}}}
+        
+    def addDirectory(self,widget):
+        """add directory structure from given location"""
+        #{{{
+        obj = dialogs.PointDirectoryToAdd()
+        res = obj.run()
+        print res
+        self.scan(res[1])
+        #}}}
         
     def addCD(self,widget):
+        """add directory structure from cd/dvd disc"""
+        #{{{
         mount = deviceHelper.volmount(self.conf.confd['cd'])
         if mount == 'ok':
             guessed_label = deviceHelper.volname(self.conf.confd['cd'])
@@ -565,8 +597,11 @@ class PyGTKtalog:
                         dialogs.Wrn("error unmounting device - pyGTKtalog","Cannot unmount device pointed to %s.\nLast umount message:\n<tt>%s</tt>" % (self.conf.confd['cd'],msg))
         else:
             dialogs.Wrn("error mounting device - pyGTKtalog","Cannot mount device pointed to %s.\nLast mount message:\n<tt>%s</tt>" % (self.conf.confd['cd'],mount))
-            
+        #}}}
+    
     def scan(self,path):
+        """scan content of the given path"""
+        #{{{
         global _count
         _count= 0
         mime = mimetypes.MimeTypes()
@@ -582,6 +617,8 @@ class PyGTKtalog:
         count = 1
         
         def recurse(path,name,wobj,date=0,frac=0):
+            """recursive scans the path"""
+            #{{{
             global _count
             
             walker = os.walk(path)
@@ -618,6 +655,7 @@ class PyGTKtalog:
                 f.add_member(fileObj(name=i, size=st.st_size, filetype="r", mtime=st.st_mtime))
             
             return f
+            #}}}
         
         fileobj = recurse(path,'/',self,0,frac)
         
@@ -626,7 +664,11 @@ class PyGTKtalog:
         self.sbid = self.status.push(self.sbSearchCId, "Idle")
         
         self.progress.set_fraction(0)
-
+        #}}}
+        
     def about(self,widget):
+        """simple about dialog"""
+        #{{{
         dialogs.Abt("pyGTKtalog", __version__, "About", ["Roman 'gryf' Dobosz"], licence)
+        #}}}
 
