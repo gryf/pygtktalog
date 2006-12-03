@@ -31,7 +31,7 @@ class Preferences:
         self.glade.signal_autoconnect(dic)
         
         self.pref = self.glade.get_widget("prefs")
-        
+        self.pref.set_title("Preferences - pyGTKtalog")
         self.desc = self.glade.get_widget("desc")
         
         self.cd = self.glade.get_widget("mnt_entry")
