@@ -9,7 +9,10 @@ class fileObj:
         date = datetime.datetime(datetime.MINYEAR,1,1)
         self.name = name
         self.size = size
-        self.filetype = filetype
+        if filetype == 'r':
+            self.filetype = 1
+        elif filetype == 'd':
+            self.filetype = 2
         self.members = []
         self.date = date.fromtimestamp(mtime)
         
