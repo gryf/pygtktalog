@@ -364,6 +364,7 @@ import filetypeHelper
 import dialogs
 from preferences import Preferences
 from files import fileObj
+import db
 
 _count=0
 
@@ -569,8 +570,7 @@ class PyGTKtalog:
         #{{{
         obj = dialogs.PointDirectoryToAdd()
         res = obj.run()
-        print res
-        self.scan(res[1])
+        self.scan(res[1],res[0])
         #}}}
         
     def addCD(self,widget):
@@ -580,9 +580,10 @@ class PyGTKtalog:
         if mount == 'ok':
             guessed_label = deviceHelper.volname(self.conf.confd['cd'])
             obj = dialogs.InputDiskLabel(guessed_label)
-            if obj.run() != None:
+            label = obj.run()
+            if label != None:
                 
-                self.scan(self.conf.confd['cd'])
+                self.scan(self.conf.confd['cd'],label)
                 
                 self.unsaved_project = True
                 
@@ -599,7 +600,7 @@ class PyGTKtalog:
             dialogs.Wrn("error mounting device - pyGTKtalog","Cannot mount device pointed to %s.\nLast mount message:\n<tt>%s</tt>" % (self.conf.confd['cd'],mount))
         #}}}
     
-    def scan(self,path):
+    def scan(self,path,label):
         """scan content of the given path"""
         #{{{
         global _count
@@ -657,7 +658,9 @@ class PyGTKtalog:
             return f
             #}}}
         
-        fileobj = recurse(path,'/',self,0,frac)
+        fileobj = recurse(path,label,self,0,frac)
+        baza = db.dbfile()
+        baza.populate(fileobj)
         
         if self.sbid != 0:
             self.status.remove(self.sbSearchCId, self.sbid)
