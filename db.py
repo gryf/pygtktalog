@@ -3,41 +3,68 @@
 
 import datetime
 from pysqlite2 import dbapi2 as sqlite
+import pygtk
+import gtk
+import gobject
 
 class dbfile:
-    def __init__(self,db=None):
-        if db !=None:
-            self.con = sqlite.connect("%s" % db, detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
-            self.cur = self.con.cursor()
-        else:
-            name = datetime.datetime.now()
-            name = "/tmp/pygtktalog%d.db" % name.microsecond
-            self.con = sqlite.connect("%s" % name, detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
-            self.cur = self.con.cursor()
-            self.createDB()
-        pass
-    def createDB(self):
-        """make plain new database"""
-        self.cur.execute("create table files(id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, date timestamp, size integer, type integer)")
-        self.cur.execute("create table files_connect(id INTEGER PRIMARY KEY AUTOINCREMENT, parent integer, child integer, depth integer)")
+    def __init__(self,winobj,connection,cursor):
+        self.con = connection
+        self.cur = cursor
+        self.winobj = winobj
+        # create tree model
+        self.dirmodel = self.treemodel=gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING)
+        self.filemodel = self.treemodel=gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,gobject.TYPE_STRING)
         
-    def populate(self,fileobj):
-        """add fileobject to database"""
-        print "aa"
-        def make_tree(obj,spc,parent=0,depth=0):
-            """how about members?"""
-            self.cur.execute("insert into files(filename,date,size,type) values (?,?,?,?)", (obj.name,obj.date,obj.size,obj.filetype))
-            self.cur.execute("select seq from sqlite_sequence where name='files'")
-            file_id = self.cur.fetchone()
-            self.cur.execute("insert into files_connect(parent,child,depth) values(?,?,?) ",(file_id[0], file_id[0], 0))
-            parent = parent + 1
-            depth = depth + 1
-            print obj.name, parent, depth
-            for i in obj.members:
-                if i.filetype == "d":
-                    print "%s[%s]" % (spc, i.name)
-                else:
-                    print "%s%s" % (spc, i.name)
-                make_tree(i,spc+".",parent,depth)
-        make_tree(fileobj,".")
-        return ""
+    def getDirectories(self,root=0):
+        """get directory tree from DB"""
+        
+        self.cur.execute("select count(id) from files where type=1")
+        self.count = self.cur.fetchone()[0]
+        if self.count>0:
+            frac = 1.0/self.count
+        else:
+            frac = 1.0
+        self.count = 0
+
+        if self.winobj.sbid != 0:
+            self.winobj.status.remove(self.winobj.sbSearchCId, self.winobj.sbid)
+        self.winobj.sbid = self.winobj.status.push(self.winobj.sbSearchCId, "Fetching data from catalog file")
+            
+        def get_children(id, name, parent):
+            """fetch all children and place them in model"""
+            #{{{
+            myiter = self.dirmodel.insert_after(parent,None)
+            self.dirmodel.set_value(myiter,0,id)
+            self.dirmodel.set_value(myiter,1,name)
+            self.cur.execute("SELECT o.child, f.filename FROM files_connect o LEFT JOIN files f ON o.child=f.id WHERE o.parent=? AND o.depth=1 AND f.type=1 ORDER BY f.filename",(id,))
+            
+            # progress
+            self.winobj.progress.set_fraction(frac * self.count)
+            while gtk.events_pending(): gtk.main_iteration()
+            self.count = self.count + 1
+            
+            for cid,name in self.cur.fetchall():
+                get_children(cid, name, myiter)
+            #}}}
+            
+        # get initial roots from first, default root (id: 1) in the tree,
+        # and then add other subroots to tree model
+        if __debug__:
+            data = datetime.datetime.now()
+        self.cur.execute("SELECT o.child, f.filename FROM files_connect o LEFT JOIN files f ON o.child=f.id WHERE o.parent=1 AND o.depth=1 AND f.type=1 ORDER BY f.filename")
+        
+        # real volumes:
+        for id,name in self.cur.fetchall():
+            get_children(id,name,None)
+        if __debug__:
+            print "[db.py] tree generation time: ", (datetime.datetime.now() - data)
+        
+        if self.winobj.sbid != 0:
+            self.winobj.status.remove(self.winobj.sbSearchCId, self.winobj.sbid)
+        self.winobj.sbid = self.winobj.status.push(self.winobj.sbSearchCId, "Idle")
+        
+        self.winobj.progress.set_fraction(0)
+            
+        return self.dirmodel
+        
