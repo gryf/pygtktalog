@@ -348,25 +348,26 @@ Public License instead of this License.
 """
 #}}}
 
-__version__ = "0.3"
+__version__ = "0.5"
 import sys
 import os
 import mimetypes
 import popen2
+import datetime
+import bz2
 
 import pygtk
 import gtk
 import gtk.glade
+
+from pysqlite2 import dbapi2 as sqlite
 
 from config import Config
 import deviceHelper
 import filetypeHelper
 import dialogs
 from preferences import Preferences
-from files import fileObj
 import db
-
-_count=0
 
 class PyGTKtalog:
     def __init__(self):
@@ -374,6 +375,9 @@ class PyGTKtalog:
         # {{{ init
         self.conf = Config()
         self.conf.load()
+        
+        self.opened_catalog = None
+        self.db_tmp_filename = None
         
         self.gladefile = "glade/main.glade"
         self.pygtkcat = gtk.glade.XML(self.gladefile,"main")
@@ -398,6 +402,7 @@ class PyGTKtalog:
                         'cut1','copy1','paste1','delete1','add_cd','add_directory1',
                         'tb_save','tb_addcd','tb_find'
                         )
+        
         for w in self.widgets:
             a = self.pygtkcat.get_widget(w)
             a.set_sensitive(False)
@@ -418,6 +423,9 @@ class PyGTKtalog:
         else:
             self.statusprogress.hide()
         
+        # main tree
+        self.discs = self.pygtkcat.get_widget('discs')
+        self.discs.append_column(gtk.TreeViewColumn('filename',gtk.CellRendererText(), text=1))
         
         # window size
         a = self.pygtkcat.get_widget('hpaned1')
@@ -426,7 +434,7 @@ class PyGTKtalog:
         a.set_position(self.conf.confd['v'])
         self.window.resize(self.conf.confd['wx'],self.conf.confd['wy'])
         
-        # sygnały:
+        # signals:
         dic = {"on_main_destroy_event"      :self.doQuit,
                "on_quit1_activate"          :self.doQuit,
                "on_tb_quit_clicked"         :self.doQuit,
@@ -439,6 +447,13 @@ class PyGTKtalog:
                "on_properties1_activate"    :self.preferences,
                "on_status_bar1_activate"    :self.toggle_status_bar,
                "on_toolbar1_activate"       :self.toggle_toolbar,
+               "on_save1_activate"          :self.save,
+               "on_tb_save_clicked"         :self.save,
+               "on_save_as1_activate"       :self.save_as,
+               "on_tb_open_clicked"         :self.opendb,
+               "on_open1_activate"          :self.opendb,
+               "on_discs_cursor_changed"    :None,
+               "on_files_cursor_changed"    :None,
         }
         
         # connect signals
@@ -446,6 +461,187 @@ class PyGTKtalog:
         self.window.connect("delete_event", self.deleteEvent)
         #}}}
     
+    def opendb(self,widget):
+        """open dtatabase file, decompress it to temp"""
+        #{{{
+        try:
+            if self.unsaved_project:
+                if self.conf.confd['confirmabandon']:
+                    obj = dialogs.Qst('Unsaved data - pyGTKtalog','There is not saved database\nDo you really want to abandon it?')
+                    if not obj.run():
+                        return
+        except AttributeError:
+            pass
+        
+        
+        #create filechooser dialog
+        dialog = gtk.FileChooserDialog(
+            title="Open catalog",
+            action=gtk.FILE_CHOOSER_ACTION_OPEN,
+            buttons=(
+                gtk.STOCK_CANCEL,
+                gtk.RESPONSE_CANCEL,
+                gtk.STOCK_OPEN,
+                gtk.RESPONSE_OK
+            )
+        )
+        dialog.set_default_response(gtk.RESPONSE_OK)
+        
+        f = gtk.FileFilter()
+        f.set_name("Catalog files")
+        f.add_pattern("*.pgt")
+        dialog.add_filter(f)
+        f = gtk.FileFilter()
+        f.set_name("All files")
+        f.add_pattern("*.*")
+        dialog.add_filter(f)
+        
+        response = dialog.run()
+        tmp = self.opened_catalog
+        try:
+            self.opened_catalog = dialog.get_filename()
+        except:
+            self.opened_catalog = tmp
+            pass
+        dialog.destroy()
+        
+        if response == gtk.RESPONSE_OK:
+            # delete an existing temp file
+            try:
+                os.unlink(self.db_tmp_filename)
+            except:
+                pass
+            
+            # initial switches
+            self.db_tmp_filename = None
+            self.active_project = True
+            self.unsaved_project = False
+            self.window.set_title("untitled - pyGTKtalog")
+        
+            self.db_tmp_filename = "/tmp/pygtktalog%d.db" % datetime.datetime.now().microsecond
+            
+            source = bz2.BZ2File(self.opened_catalog, 'rb')
+            destination = open(self.db_tmp_filename, 'wb')
+            while True:
+                try:
+                    data = source.read(1024000)
+                except:
+                    dialogs.Err("Error opening file - pyGTKtalog","Cannot open file %s." % self.opened_catalog)
+                    self.opened_catalog = None
+                    self.newDB(self.window)
+                    return
+                if not data: break
+                destination.write(data)
+            destination.close()
+            source.close()
+            
+            self.active_project = True
+            self.unsaved_project = False
+            
+            self.con = sqlite.connect("%s" % self.db_tmp_filename, detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
+            self.cur = self.con.cursor()
+            
+            self.window.set_title("%s - pyGTKtalog" % self.opened_catalog)
+            
+            for w in self.widgets:
+                try:
+                    a = self.pygtkcat.get_widget(w)
+                    a.set_sensitive(True)
+                except:
+                    pass
+                # PyGTK FAQ entry 23.20
+                while gtk.events_pending():
+                    gtk.main_iteration()
+            
+            self.__display_main_tree()
+        else:
+            self.opened_catalog = tmp
+            
+        #}}}
+        
+    def __create_database(self,filename):
+        """make all necessary tables in db file"""
+        #{{{
+        self.con = sqlite.connect("%s" % filename, detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
+        #self.con = sqlite.connect(":memory:", detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
+        self.cur = self.con.cursor()
+        self.cur.execute("create table files(id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, date timestamp, size integer, type integer);")
+        self.cur.execute("create table files_connect(id INTEGER PRIMARY KEY AUTOINCREMENT, parent numeric, child numeric, depth numeric);")
+        self.cur.execute("insert into files values(1, 'root', 0, 0, 0);")
+        self.cur.execute("insert into files_connect values(1, 1, 1, 0);")
+        #}}}
+            
+    def save(self,widget):
+        """save database to file. compress it with gzip"""
+        #{{{
+        if self.opened_catalog == None:
+            self.save_as(widget)
+        else:
+            self.__compress_and_save(self.opened_catalog)
+        #}}}
+        
+    def save_as(self,widget):
+        """save database to another file. compress it with gzip"""
+        #{{{
+        dialog = gtk.FileChooserDialog(
+            title="Save catalog as...",
+            action=gtk.FILE_CHOOSER_ACTION_SAVE,
+            buttons=(
+                gtk.STOCK_CANCEL,
+                gtk.RESPONSE_CANCEL,
+                gtk.STOCK_SAVE,
+                gtk.RESPONSE_OK
+            )
+        )
+        
+        dialog.set_action(gtk.FILE_CHOOSER_ACTION_SAVE)
+        dialog.set_default_response(gtk.RESPONSE_OK)
+        dialog.set_do_overwrite_confirmation(True)
+        if widget.get_name() == 'save1':
+            dialog.set_title('Save catalog to file...')
+        
+        f = gtk.FileFilter()
+        f.set_name("Catalog files")
+        f.add_pattern("*.pgt")
+        dialog.add_filter(f)
+        f = gtk.FileFilter()
+        f.set_name("All files")
+        f.add_pattern("*.*")
+        dialog.add_filter(f)
+        
+        response = dialog.run()
+        if response == gtk.RESPONSE_OK:
+            filename = dialog.get_filename()
+            if filename[-4] == '.':
+                if filename[-3:].lower() != 'pgt':
+                    filename = filename + '.pgt'
+                else:
+                    filename = filename[:-3] + 'pgt'
+            else:
+                filename = filename + '.pgt'
+            self.__compress_and_save(filename)
+            self.opened_catalog = filename
+            
+        dialog.destroy()
+        #}}}
+        
+    def __compress_and_save(self,filename):
+        """compress and save temporary file to catalog"""
+        #{{{
+        source = open(self.db_tmp_filename, 'rb')
+        destination = bz2.BZ2File(filename, 'w')
+            
+        while True:
+            data = source.read(1024000)
+            if not data: break
+            destination.write(data)
+            
+        destination.close()
+        source.close()
+        self.window.set_title("%s - pyGTKtalog" % filename)
+        self.unsaved_project = False
+        #}}}
+        
     def toggle_toolbar(self,widget):
         """toggle visibility of toolbar bar"""
         #{{{
@@ -504,6 +700,16 @@ class PyGTKtalog:
                 pass
             self.storeSettings()
         gtk.main_quit()
+        try:
+            self.con.commit()
+            self.cur.close()
+            self.con.close()
+        except:
+            pass
+        try:
+            os.unlink(self.db_tmp_filename)
+        except:
+            pass
         return False
         #}}}
         
@@ -532,20 +738,28 @@ class PyGTKtalog:
             while gtk.events_pending():
                 gtk.main_iteration()
                 
-        #self.details.set_sensitive(True)
-        #self.details.destroy()
+        # Create new database
+        if self.db_tmp_filename!=None:
+            self.con.commit()
+            self.cur.close()
+            self.con.close()
+            os.unlink(self.db_tmp_filename)
+            
+        self.db_tmp_filename = datetime.datetime.now()
+        self.db_tmp_filename = "/tmp/pygtktalog%d.db" % self.db_tmp_filename.microsecond
+        self.__create_database(self.db_tmp_filename)
         
-        #self.details = gtk.Button("Press mi or daj");
-        #self.details.set_name("details")
+        #clear treeview, if possible
+        try:
+            self.discs.get_model().clear()
+        except:
+            pass
         
-        #self.detailplaceholder.add_with_viewport(self.details)
-        #self.details.show()
-        return
         #}}}
     
     def deleteEvent(self, widget, event, data=None):
         """checkout actual database changed. If so, do the necessary ask."""
-        #{{{ check if any unsaved project is on go.
+        #{{{
         try:
             if self.unsaved_project:
                 if self.conf.confd['confirmquit']:
@@ -555,6 +769,18 @@ class PyGTKtalog:
         except AttributeError:
             pass
         self.storeSettings()
+        try:
+            self.cur.close()
+        except:
+            pass
+        try:
+            self.con.close()
+        except:
+            pass
+        try:
+            os.unlink(self.db_tmp_filename)
+        except:
+            pass
         return False
         #}}}
     
@@ -570,7 +796,8 @@ class PyGTKtalog:
         #{{{
         obj = dialogs.PointDirectoryToAdd()
         res = obj.run()
-        self.scan(res[1],res[0])
+        if res !=(None,None):
+            self.__scan(res[1],res[0])
         #}}}
         
     def addCD(self,widget):
@@ -583,9 +810,7 @@ class PyGTKtalog:
             label = obj.run()
             if label != None:
                 
-                self.scan(self.conf.confd['cd'],label)
-                
-                self.unsaved_project = True
+                self.__scan(self.conf.confd['cd'],label)
                 
                 # umount/eject cd
                 if self.conf.confd['eject']:
@@ -600,39 +825,56 @@ class PyGTKtalog:
             dialogs.Wrn("error mounting device - pyGTKtalog","Cannot mount device pointed to %s.\nLast mount message:\n<tt>%s</tt>" % (self.conf.confd['cd'],mount))
         #}}}
     
-    def scan(self,path,label):
+    def __scan(self,path,label,currentdb=None):
         """scan content of the given path"""
         #{{{
-        global _count
-        _count= 0
         mime = mimetypes.MimeTypes()
         mov_ext = ('mkv','avi','ogg','mpg','wmv','mp4','mpeg')
         img_ext = ('jpg','jpeg','png','gif','bmp','tga','tif','tiff','ilbm','iff','pcx')
+        
         # count files in directory tree
         count = 0
+        if self.sbid != 0:
+            self.status.remove(self.sbSearchCId, self.sbid)
+        self.sbid = self.status.push(self.sbSearchCId, "Calculating number of files in directory tree...")
         for root,kat,plik in os.walk(path):
             for p in plik:
                 count+=1
-        
+                while gtk.events_pending(): gtk.main_iteration()
         frac = 1.0/count
-        count = 1
         
-        def recurse(path,name,wobj,date=0,frac=0):
-            """recursive scans the path"""
+        self.count = 0
+        
+        def __recurse(path,name,wobj,date=0,frac=0,idWhere=1):
+            """recursive scans the path
+            path = path string
+            name = field name
+            wobj = obiekt katalogu
+            date = data pliku
+            frac - kolejne krok w statusbarze.
+            idWhere - simple id parent, or "place" where to add node
+            """
             #{{{
-            global _count
             
             walker = os.walk(path)
             root,dirs,files = walker.next()
+            ftype = 1
+            self.cur.execute("insert into files(filename, date, size, type) values(?,?,?,?)",(name, date, 0, ftype))
+            self.cur.execute("select seq FROM sqlite_sequence WHERE name='files'")
+            currentid=self.cur.fetchone()[0]
+            self.cur.execute("insert into files_connect(parent,child,depth) values(?,?,?)",(currentid, currentid, 0))        
             
-            f = fileObj(name=name,filetype="d",mtime=date)
+            if idWhere>0:
+                self.cur.execute("insert into files_connect(parent, child, depth) select r1.parent, r2.child, r1.depth + r2.depth + 1 as depth FROM files_connect r1, files_connect r2 WHERE r1.child = ? AND r2.parent = ? ",(idWhere, currentid))
             
             for i in dirs:
-                f.add_member(recurse(os.path.join(path,i),i,wobj,os.stat(os.path.join(root,i)).st_mtime,frac))
+                st = os.stat(os.path.join(root,i))
+                __recurse(os.path.join(path,i),i,wobj,st.st_mtime,frac,currentid)
                 
             for i in files:
-                _count+=1
+                self.count = self.count + 1
                 st = os.stat(os.path.join(root,i))
+                
                 ### scan files
                 if i[-3:].lower() in mov_ext or \
                 mime.guess_type(i)!= (None,None) and \
@@ -644,29 +886,47 @@ class PyGTKtalog:
                 mime.guess_type(i)[0].split("/")[0] == 'image':
                     pass
                 ### end of scan
+                
+                # progress/status
                 if wobj.sbid != 0:
                     wobj.status.remove(wobj.sbSearchCId, wobj.sbid)
                 wobj.sbid = wobj.status.push(wobj.sbSearchCId, "Scannig: %s" % (os.path.join(root,i)))
-                
-                wobj.progress.set_fraction(frac * _count)
-                
+                wobj.progress.set_fraction(frac * self.count)
                 # PyGTK FAQ entry 23.20
                 while gtk.events_pending(): gtk.main_iteration()
                 
-                f.add_member(fileObj(name=i, size=st.st_size, filetype="r", mtime=st.st_mtime))
-            
-            return f
+                self.cur.execute('insert into files(filename, date, size, type) values(?,?,?,?)',(i, st.st_mtime, st.st_size,2))
+                self.cur.execute("select seq FROM sqlite_sequence WHERE name='files'")
+                currentfileid=self.cur.fetchone()[0]
+                self.cur.execute("insert into files_connect(parent,child,depth) values(?,?,?)",(currentfileid, currentfileid, 0))
+                if currentid>0:
+                    self.cur.execute("insert into files_connect(parent, child, depth) select r1.parent, r2.child, r1.depth + r2.depth + 1 as depth FROM files_connect r1, files_connect r2 WHERE r1.child = ? AND r2.parent = ? ",(currentid, currentfileid))
+                self.con.commit()
             #}}}
         
-        fileobj = recurse(path,label,self,0,frac)
-        baza = db.dbfile()
-        baza.populate(fileobj)
+        self.con.commit()
+        fileobj = __recurse(path,label,self,0,frac)
+        self.unsaved_project = True
+        self.__display_main_tree()
         
         if self.sbid != 0:
             self.status.remove(self.sbSearchCId, self.sbid)
         self.sbid = self.status.push(self.sbSearchCId, "Idle")
         
         self.progress.set_fraction(0)
+        #}}}
+        
+    def __display_main_tree(self):
+        """refresh tree with model form db"""
+        #{{{
+        try:
+            self.dirmodel = db.dbfile(self,self.con,self.cur).getDirectories()
+        except:
+            dialogs.Err("Error opening file - pyGTKtalog","Cannot open file %s." % self.opened_catalog)
+            self.newDB(self.window)
+            return
+        #self.dirmodel.set_sort_column_id(1,gtk.SORT_ASCENDING)
+        self.discs.set_model(self.dirmodel)
         #}}}
         
     def about(self,widget):
