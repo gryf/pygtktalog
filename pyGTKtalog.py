@@ -66,5 +66,8 @@ if __name__ == "__main__":
         app.run()
     except KeyboardInterrupt:
         app.storeSettings()
+        app.cur.close()
+        app.con.close()
+        os.unlink(app.db_tmp_filename)
         gtk.main_quit
 
