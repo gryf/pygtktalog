@@ -361,6 +361,7 @@ import gtk
 import gtk.glade
 
 from pysqlite2 import dbapi2 as sqlite
+import mx.DateTime
 
 from config import Config
 import deviceHelper
@@ -423,9 +424,27 @@ class PyGTKtalog:
         else:
             self.statusprogress.hide()
         
-        # main tree
+        # trees
         self.discs = self.pygtkcat.get_widget('discs')
         self.discs.append_column(gtk.TreeViewColumn('filename',gtk.CellRendererText(), text=1))
+        
+        self.files = self.pygtkcat.get_widget('files')
+        
+        c = gtk.TreeViewColumn('Filename',gtk.CellRendererText(), text=1)
+        c.set_sort_column_id(1)
+        self.files.append_column(c)
+        
+        c = gtk.TreeViewColumn('Size',gtk.CellRendererText(), text=2)
+        c.set_sort_column_id(2)
+        self.files.append_column(c)
+        
+        c = gtk.TreeViewColumn('Date',gtk.CellRendererText(), text=3)
+        c.set_sort_column_id(3)
+        self.files.append_column(c)
+        
+        c = gtk.TreeViewColumn('Category',gtk.CellRendererText(), text=5)
+        c.set_sort_column_id(5)
+        self.files.append_column(c)
         
         # window size
         a = self.pygtkcat.get_widget('hpaned1')
@@ -452,8 +471,10 @@ class PyGTKtalog:
                "on_save_as1_activate"       :self.save_as,
                "on_tb_open_clicked"         :self.opendb,
                "on_open1_activate"          :self.opendb,
-               "on_discs_cursor_changed"    :None,
-               "on_files_cursor_changed"    :None,
+               "on_discs_cursor_changed"    :self.show_files,
+               "on_discs_row_activated"     :self.collapse_expand_branch,
+               "on_files_cursor_changed"    :self.show_details,
+               "on_files_row_activated"     :self.change_view,
         }
         
         # connect signals
@@ -461,6 +482,85 @@ class PyGTKtalog:
         self.window.connect("delete_event", self.deleteEvent)
         #}}}
     
+    def collapse_expand_branch(self, treeview, path, treecolumn):
+        """if possible, expand or collapse branch of tree"""
+        #{{{
+        if treeview.row_expanded(path):
+            treeview.collapse_row(path)
+        else:
+            treeview.expand_row(path,False)
+        #}}}
+        
+    def show_details(self,treeview):
+        """show details about file"""
+        #{{{
+        model, paths = treeview.get_selection().get_selected_rows()
+        itera = model.get_iter(paths[0])
+        if model.get_value(itera,4) == 1:
+            #directory, do nothin', just turn off view
+            if __debug__:
+                print "[mainwin.py] directory selected"
+        else:
+            #file, show what you got.
+            if __debug__:
+                print "[mainwin.py] some other thing selected"
+        #}}}
+        
+    def change_view(self, treeview, path, treecolumn):
+        """show information or change directory deep down"""
+        #{{{
+        model, paths = treeview.get_selection().get_selected_rows()
+        itera = model.get_iter(paths[0])
+        current_id = model.get_value(itera,0)
+        if model.get_value(itera,4) == 1:
+            self.filemodel = db.dbfile(self,self.con,self.cur).getCurrentFiles(current_id)
+            self.files.set_model(self.filemodel)
+            
+            pat,col = self.discs.get_cursor()
+            if pat!=None:
+                if not self.discs.row_expanded(pat):
+                    self.discs.expand_row(pat,False)
+            #self.discs.unselect_all()
+            
+            model, paths = self.discs.get_selection().get_selected_rows()
+            selected = None
+            new_iter = self.discs.get_model().iter_children(model.get_iter(pat))
+            if new_iter:
+                while new_iter:
+                    if model.get_value(new_iter,0) == current_id:
+                        self.discs.set_cursor(model.get_path(new_iter))
+                    new_iter = model.iter_next(new_iter)
+            
+            
+        else:
+            #directory, do nothin', just turn off view
+            if __debug__:
+                print "[mainwin.py] directory selected"
+        #}}}
+        
+    def sort_files_view(self, model, iter1, iter2, data):
+        print 'aaaa'
+        
+    def show_files(self,treeview):
+        """show files after click on left side disc tree"""
+        #{{{
+        model = treeview.get_model()
+        selected_item = model.get_value(model.get_iter(treeview.get_cursor()[0]),0)
+        self.filemodel = db.dbfile(self,self.con,self.cur).getCurrentFiles(selected_item)
+        self.files.set_model(self.filemodel)
+            
+        """
+        iterator = treeview.get_model().get_iter_first();
+        while iterator != None:
+            if model.get_value(iterator,0) == selected:
+                self.glade.get_widget(self.category_dict[model.get_value(iterator,0)]).show()
+                self.desc.set_markup("<b>%s</b>" % selected)
+            else:
+                self.glade.get_widget(self.category_dict[model.get_value(iterator,0)]).hide()
+            iterator = treeview.get_model().iter_next(iterator);
+        """
+        #}}}
+        
     def opendb(self,widget):
         """open dtatabase file, decompress it to temp"""
         #{{{
@@ -563,9 +663,8 @@ class PyGTKtalog:
         """make all necessary tables in db file"""
         #{{{
         self.con = sqlite.connect("%s" % filename, detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
-        #self.con = sqlite.connect(":memory:", detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
         self.cur = self.con.cursor()
-        self.cur.execute("create table files(id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, date timestamp, size integer, type integer);")
+        self.cur.execute("create table files(id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, date datetime, size integer, type integer);")
         self.cur.execute("create table files_connect(id INTEGER PRIMARY KEY AUTOINCREMENT, parent numeric, child numeric, depth numeric);")
         self.cur.execute("insert into files values(1, 'root', 0, 0, 0);")
         self.cur.execute("insert into files_connect values(1, 1, 1, 0);")
@@ -752,6 +851,10 @@ class PyGTKtalog:
         #clear treeview, if possible
         try:
             self.discs.get_model().clear()
+        except:
+            pass
+        try:
+            self.files.get_model().clear()
         except:
             pass
         
