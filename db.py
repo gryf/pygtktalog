@@ -14,7 +14,7 @@ class dbfile:
         self.winobj = winobj
         # create tree model
         self.dirmodel = self.treemodel=gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING)
-        self.filemodel = self.treemodel=gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,gobject.TYPE_STRING)
+        self.filemodel = self.treemodel=gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING)
         
     def getDirectories(self,root=0):
         """get directory tree from DB"""
@@ -34,7 +34,7 @@ class dbfile:
         def get_children(id, name, parent):
             """fetch all children and place them in model"""
             #{{{
-            myiter = self.dirmodel.insert_after(parent,None)
+            myiter = self.dirmodel.insert_before(parent,None)
             self.dirmodel.set_value(myiter,0,id)
             self.dirmodel.set_value(myiter,1,name)
             self.cur.execute("SELECT o.child, f.filename FROM files_connect o LEFT JOIN files f ON o.child=f.id WHERE o.parent=? AND o.depth=1 AND f.type=1 ORDER BY f.filename",(id,))
@@ -67,4 +67,42 @@ class dbfile:
         self.winobj.progress.set_fraction(0)
             
         return self.dirmodel
+    def getCurrentFiles(self,id):
+        self.filemodel.clear()
+        # parent for virtual '..' dir
+        #myiter = self.filemodel.insert_before(None,None)
+        #self.cur.execute("SELECT parent FROM files_connect WHERE child=? AND depth = 1",(id,))
+        #self.filemodel.set_value(myiter,0,self.cur.fetchone()[0])
+        #self.filemodel.set_value(myiter,1,'..')
+        #if __debug__:
+        #    print datetime.datetime.fromtimestamp(ch[3])
         
+        # directories first
+        self.cur.execute("SELECT o.child, f.filename, f.size, f.date FROM files_connect o LEFT JOIN files f ON o.child=f.id WHERE o.parent=? AND o.depth=1 AND f.type=1 ORDER BY f.filename",(id,))
+        for ch in self.cur.fetchall():
+            myiter = self.filemodel.insert_before(None,None)
+            self.filemodel.set_value(myiter,0,ch[0])
+            self.filemodel.set_value(myiter,1,ch[1])
+            self.filemodel.set_value(myiter,2,ch[2])
+            self.filemodel.set_value(myiter,3,datetime.datetime.fromtimestamp(ch[3]))
+            self.filemodel.set_value(myiter,4,1)
+            self.filemodel.set_value(myiter,5,'direktorja')
+            #print datetime.datetime.fromtimestamp(ch[3])
+            
+        # all the rest
+        self.cur.execute("SELECT o.child, f.filename, f.size, f.date, f.type FROM files_connect o LEFT JOIN files f ON o.child=f.id WHERE o.parent=? AND o.depth=1 AND f.type!=1 ORDER BY f.filename",(id,))
+        for ch in self.cur.fetchall():
+            myiter = self.filemodel.insert_before(None,None)
+            self.filemodel.set_value(myiter,0,ch[0])
+            self.filemodel.set_value(myiter,1,ch[1])
+            self.filemodel.set_value(myiter,2,ch[2])
+            self.filemodel.set_value(myiter,3,datetime.datetime.fromtimestamp(ch[3]))
+            self.filemodel.set_value(myiter,4,ch[4])
+            self.filemodel.set_value(myiter,5,'kategoria srategoria')
+            #print datetime.datetime.fromtimestamp(ch[3])
+        #self.filemodel.set_sort_func(1,self.sort_files_view)
+        return self.filemodel
+        
+    def sort_files_view(self,a,b,c):
+        print a,b,c
+        return 2
