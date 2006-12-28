@@ -14,7 +14,7 @@ class dbfile:
         self.winobj = winobj
         # create tree model
         self.dirmodel = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,str)
-        self.filemodel = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING,str)
+        self.filemodel = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING,str)
         
     def getDirectories(self,root=0):
         """get directory tree from DB"""
