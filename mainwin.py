@@ -426,24 +426,45 @@ class PyGTKtalog:
         
         # trees
         self.discs = self.pygtkcat.get_widget('discs')
-        self.discs.append_column(gtk.TreeViewColumn('filename',gtk.CellRendererText(), text=1))
+        c = gtk.TreeViewColumn('Filename')
+        cellpb = gtk.CellRendererPixbuf()
+        cell = gtk.CellRendererText()
+        c.pack_start(cellpb, False)
+        c.pack_start(cell, True)
+        c.set_attributes(cellpb, stock_id=2)
+        c.set_attributes(cell, text=1)
+        
+        self.discs.append_column(c)
+        
         
         self.files = self.pygtkcat.get_widget('files')
+        self.files.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
         
-        c = gtk.TreeViewColumn('Filename',gtk.CellRendererText(), text=1)
+        c = gtk.TreeViewColumn('Filename')
+        cellpb = gtk.CellRendererPixbuf()
+        cell = gtk.CellRendererText()
+        c.pack_start(cellpb, False)
+        c.pack_start(cell, True)
+        c.set_attributes(cellpb, stock_id=6)
+        c.set_attributes(cell, text=1)
+                
         c.set_sort_column_id(1)
+        c.set_resizable(True)
         self.files.append_column(c)
         
         c = gtk.TreeViewColumn('Size',gtk.CellRendererText(), text=2)
         c.set_sort_column_id(2)
+        c.set_resizable(True)
         self.files.append_column(c)
         
         c = gtk.TreeViewColumn('Date',gtk.CellRendererText(), text=3)
         c.set_sort_column_id(3)
+        c.set_resizable(True)
         self.files.append_column(c)
         
         c = gtk.TreeViewColumn('Category',gtk.CellRendererText(), text=5)
         c.set_sort_column_id(5)
+        c.set_resizable(True)
         self.files.append_column(c)
         
         # window size
@@ -495,15 +516,19 @@ class PyGTKtalog:
         """show details about file"""
         #{{{
         model, paths = treeview.get_selection().get_selected_rows()
-        itera = model.get_iter(paths[0])
-        if model.get_value(itera,4) == 1:
-            #directory, do nothin', just turn off view
+        try:
+            itera = model.get_iter(paths[0])
+            if model.get_value(itera,4) == 1:
+                #directory, do nothin', just turn off view
+                if __debug__:
+                    print "[mainwin.py] directory selected"
+            else:
+                #file, show what you got.
+                if __debug__:
+                    print "[mainwin.py] some other thing selected"
+        except:
             if __debug__:
-                print "[mainwin.py] directory selected"
-        else:
-            #file, show what you got.
-            if __debug__:
-                print "[mainwin.py] some other thing selected"
+                print "[mainwin.py] insufficient iterator"
         #}}}
         
     def change_view(self, treeview, path, treecolumn):
@@ -948,7 +973,7 @@ class PyGTKtalog:
         
         self.count = 0
         
-        def __recurse(path,name,wobj,date=0,frac=0,idWhere=1):
+        def __recurse(path,name,wobj,date=0,frac=0,size=0,idWhere=1):
             """recursive scans the path
             path = path string
             name = field name
@@ -958,22 +983,22 @@ class PyGTKtalog:
             idWhere - simple id parent, or "place" where to add node
             """
             #{{{
-            
+            _size = size
             walker = os.walk(path)
             root,dirs,files = walker.next()
             ftype = 1
             self.cur.execute("insert into files(filename, date, size, type) values(?,?,?,?)",(name, date, 0, ftype))
             self.cur.execute("select seq FROM sqlite_sequence WHERE name='files'")
             currentid=self.cur.fetchone()[0]
-            self.cur.execute("insert into files_connect(parent,child,depth) values(?,?,?)",(currentid, currentid, 0))        
+            self.cur.execute("insert into files_connect(parent,child,depth) values(?,?,?)",(currentid, currentid, 0))
             
             if idWhere>0:
                 self.cur.execute("insert into files_connect(parent, child, depth) select r1.parent, r2.child, r1.depth + r2.depth + 1 as depth FROM files_connect r1, files_connect r2 WHERE r1.child = ? AND r2.parent = ? ",(idWhere, currentid))
             
             for i in dirs:
                 st = os.stat(os.path.join(root,i))
-                __recurse(os.path.join(path,i),i,wobj,st.st_mtime,frac,currentid)
-                
+                _size = _size + __recurse(os.path.join(path,i),i,wobj,st.st_mtime,frac,0,currentid)
+            
             for i in files:
                 self.count = self.count + 1
                 st = os.stat(os.path.join(root,i))
@@ -998,6 +1023,8 @@ class PyGTKtalog:
                 # PyGTK FAQ entry 23.20
                 while gtk.events_pending(): gtk.main_iteration()
                 
+                _size = _size + st.st_size
+                
                 self.cur.execute('insert into files(filename, date, size, type) values(?,?,?,?)',(i, st.st_mtime, st.st_size,2))
                 self.cur.execute("select seq FROM sqlite_sequence WHERE name='files'")
                 currentfileid=self.cur.fetchone()[0]
@@ -1005,10 +1032,13 @@ class PyGTKtalog:
                 if currentid>0:
                     self.cur.execute("insert into files_connect(parent, child, depth) select r1.parent, r2.child, r1.depth + r2.depth + 1 as depth FROM files_connect r1, files_connect r2 WHERE r1.child = ? AND r2.parent = ? ",(currentid, currentfileid))
                 self.con.commit()
+            
+            self.cur.execute("update files set size=? where id=?",(_size, currentid))
+            return _size
             #}}}
         
         self.con.commit()
-        fileobj = __recurse(path,label,self,0,frac)
+        __recurse(path,label,self,0,frac)
         self.unsaved_project = True
         self.__display_main_tree()
         
