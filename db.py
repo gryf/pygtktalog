@@ -13,8 +13,8 @@ class dbfile:
         self.cur = cursor
         self.winobj = winobj
         # create tree model
-        self.dirmodel = self.treemodel=gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING)
-        self.filemodel = self.treemodel=gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING)
+        self.dirmodel = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,str)
+        self.filemodel = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING,str)
         
     def getDirectories(self,root=0):
         """get directory tree from DB"""
@@ -37,6 +37,12 @@ class dbfile:
             myiter = self.dirmodel.insert_before(parent,None)
             self.dirmodel.set_value(myiter,0,id)
             self.dirmodel.set_value(myiter,1,name)
+            
+            # isroot?
+            if parent == None:
+                self.dirmodel.set_value(myiter,2,gtk.STOCK_CDROM)
+            else:
+                self.dirmodel.set_value(myiter,2,gtk.STOCK_DIRECTORY)
             self.cur.execute("SELECT o.child, f.filename FROM files_connect o LEFT JOIN files f ON o.child=f.id WHERE o.parent=? AND o.depth=1 AND f.type=1 ORDER BY f.filename",(id,))
             
             # progress
@@ -87,6 +93,7 @@ class dbfile:
             self.filemodel.set_value(myiter,3,datetime.datetime.fromtimestamp(ch[3]))
             self.filemodel.set_value(myiter,4,1)
             self.filemodel.set_value(myiter,5,'direktorja')
+            self.filemodel.set_value(myiter,6,gtk.STOCK_DIRECTORY)
             #print datetime.datetime.fromtimestamp(ch[3])
             
         # all the rest
@@ -99,6 +106,7 @@ class dbfile:
             self.filemodel.set_value(myiter,3,datetime.datetime.fromtimestamp(ch[3]))
             self.filemodel.set_value(myiter,4,ch[4])
             self.filemodel.set_value(myiter,5,'kategoria srategoria')
+            self.filemodel.set_value(myiter,6,gtk.STOCK_FILE)
             #print datetime.datetime.fromtimestamp(ch[3])
         #self.filemodel.set_sort_func(1,self.sort_files_view)
         return self.filemodel
@@ -106,3 +114,13 @@ class dbfile:
     def sort_files_view(self,a,b,c):
         print a,b,c
         return 2
+    
+    def getParent(self, idn):
+        #{{{
+        self.cur.execute("SELECT parent FROM files_connect WHERE child = ? AND depth = 1",idn)
+        
+        parentId = self.cur.fetchone()
+        if parentId:
+            return parentId[0]
+        return None
+        #}}}
