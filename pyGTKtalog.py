@@ -39,6 +39,7 @@ except:
 
 try:
     from pysqlite2 import dbapi2 as sqlite
+    import mx.DateTime
 except:
     print "pyGTKtalog uses SQLite DB.\nYou'll need to get it and the python bindings as well.\nhttp://www.sqlite.org\nhttp://initd.org/tracker/pysqlite"
     sys.exit(1)
