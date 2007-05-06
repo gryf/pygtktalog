@@ -3,4 +3,4 @@
 cd ~/Python/pyGTKtalog/mvc
 #export PYTHONPATH="$PYTHONPATH:/usr/lib/gajim"
 #exec python -OO pyGTKtalog.py $@
-exec python main_window.py $@
+exec python pygtktalog.py $@
