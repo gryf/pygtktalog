@@ -17,13 +17,15 @@ class ConfigController(Controller):
     
     def register_view(self, view):
         Controller.register_view(self, view)
+        
+        self.view['config'].show();
         return
     # Podłącz sygnały:
     # Obserwowalne właściwości
     # funkcje obsługi formularza
     pass # end of class
 
-
+'''
 import sys
 import os
 
@@ -176,3 +178,4 @@ if __name__ == "__main__":
         gtk.main()
     except KeyboardInterrupt:
         gtk.main_quit
+'''

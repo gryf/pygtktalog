@@ -1,20 +1,30 @@
 # This Python file uses the following encoding: utf-8
 
+__version__ = "0.6"
+licence = \
+"""
+GPL v2
+http://www.gnu.org/licenses/gpl.txt
+"""
+
 import utils._importer
 import utils.globals
 from gtkmvc import Controller
-from models.m_config import ConfigModel
+
+from controllers.c_config import ConfigController
+from views.v_config import ConfigView
+
 import views.v_dialogs as Dialogs
+
 import gtk
 
 class MainController(Controller):
     """Kontroler głównego okna aplikacji"""
     db_tmp_filename = None
-    conf = ConfigModel()
     unsaved_project = False
+    
     def __init__(self, model):
         Controller.__init__(self, model)
-        
         return
 
     def register_view(self, view):
@@ -35,20 +45,20 @@ class MainController(Controller):
         self.view['details'].hide()
         
         # załaduj konfigurację/domyślne ustawienia i przypisz je właściwościom
-        self.conf.load()
-        self.view['toolbar1'].set_active(self.conf.confd['showtoolbar'])
-        if self.conf.confd['showtoolbar']:
+        
+        self.view['toolbar1'].set_active(self.model.config.confd['showtoolbar'])
+        if self.model.config.confd['showtoolbar']:
             self.view['maintoolbar'].show()
         else:
             self.view['maintoolbar'].hide()
-        self.view['status_bar1'].set_active(self.conf.confd['showstatusbar'])
-        if self.conf.confd['showstatusbar']:
+        self.view['status_bar1'].set_active(self.model.config.confd['showstatusbar'])
+        if self.model.config.confd['showstatusbar']:
             self.view['statusprogress'].show()
         else:
             self.view['statusprogress'].hide()
-        self.view['hpaned1'].set_position(self.conf.confd['h'])
-        self.view['vpaned1'].set_position(self.conf.confd['v'])
-        self.view['main'].resize(self.conf.confd['wx'],self.conf.confd['wy'])
+        self.view['hpaned1'].set_position(self.model.config.confd['h'])
+        self.view['vpaned1'].set_position(self.model.config.confd['v'])
+        self.view['main'].resize(self.model.config.confd['wx'],self.model.config.confd['wy'])
         
         # zainicjalizuj statusbar
         ContextID = self.view['mainStatus'].get_context_id('detailed res')
@@ -85,10 +95,14 @@ class MainController(Controller):
         self.addDirectory()
         
     def on_about1_activate(self,widget):
-        self.about()
+        Dialogs.Abt("pyGTKtalog", __version__, "About", ["Roman 'gryf' Dobosz"], licence)
+        return
         
-    def on_properties1_activate(self,widget):
-        self.preferences()
+    def on_preferences_activate(self,widget):
+        print 'aaa'
+        c = ConfigController(self.model.config)
+        v = ConfigView(c)
+        return
         
     def on_status_bar1_activate(self,widget):
         self.toggle_status_bar()
@@ -132,7 +146,7 @@ class MainController(Controller):
         #{{{
         # check if any unsaved project is on go.
         if self.unsaved_project:
-            if self.conf.confd['confirmquit']:
+            if self.model.config.confd['confirmquit']:
                 obj = Dialogs.Qst('Quit application - pyGTKtalog','There is not saved database\nDo you really want to quit?')
                 if not obj.run():
                     return
@@ -147,11 +161,11 @@ class MainController(Controller):
     
     def storeSettings(self):
         """Store window size and pane position in config file (using config object)"""
-        if self.conf.confd['savewin']:
-            self.conf.confd['wx'], self.conf.confd['wy'] = self.view['main'].get_size()
-        if self.conf.confd['savepan']:
-            self.conf.confd['h'],self.conf.confd['v'] = self.view['hpaned1'].get_position(), self.view['vpaned1'].get_position()
-        self.conf.save()
+        if self.model.config.confd['savewin']:
+            self.model.config.confd['wx'], self.model.config.confd['wy'] = self.view['main'].get_size()
+        if self.model.config.confd['savepan']:
+            self.model.config.confd['h'],self.model.config.confd['v'] = self.view['hpaned1'].get_position(), self.view['vpaned1'].get_position()
+        self.model.config.save()
         pass
         
     def newDB(self):
@@ -164,6 +178,9 @@ class MainController(Controller):
         pass
         
     def toggle_toolbar(self):
+        pass
+        
+    def toggle_status_bar(self):
         pass
         
     def save(self):

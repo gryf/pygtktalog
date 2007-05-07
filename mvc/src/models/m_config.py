@@ -1,6 +1,11 @@
 # This Python file uses the following encoding: utf-8
+import utils._importer
+import utils.globals
+from gtkmvc import Model
+
 import sys
 import os
+
 from ConfigParser import ConfigParser
 
 class Ini(object):
@@ -22,8 +27,10 @@ class Ini(object):
     def show(self):
         return "\n".join(self.ini)
 
-class ConfigModel(object):
+class ConfigModel(Model):
     ini = Ini()
+    
+    __properties__ = {}
     
     confd = {
         'savewin' : True,
@@ -87,7 +94,7 @@ class ConfigModel(object):
         path = "/tmp"
     
     def __init__(self):
-        pass
+        Model.__init__(self)
         
     def save(self):
         try:
