@@ -75,12 +75,7 @@ if __name__ == "__main__":
         gtk.main()
     except KeyboardInterrupt:
         import os
-        #c.storeSettings()
-        #c.cur.close()
-        #c.con.close()
-        try:
-            os.unlink(c.db_tmp_filename)
-        except:
-            pass
+        m.config.save()
+        m.cleanup()
         gtk.main_quit
     pass
