@@ -6,6 +6,9 @@ from gtkmvc import Model
 import sys
 import os
 
+import gtk
+import gobject
+
 from ConfigParser import ConfigParser
 
 class Ini(object):
@@ -62,7 +65,8 @@ class ConfigModel(Model):
         "vertical panes":"v",
         "export xls":"exportxls",
         "cd drive":"cd",
-        "eject command":"eject",
+        "eject command":"ejectapp",
+        "eject":"eject",
         "image support":"pil",
         'confirm quit':'confirmquit',
         'warn mount/umount errors':'mntwarn',
@@ -86,7 +90,7 @@ class ConfigModel(Model):
              'showstatusbar',
     )
     
-    dstring = ('cd','eject')
+    dstring = ('cd','ejectapp')
     
     try:
         path = os.environ['HOME']
@@ -95,12 +99,15 @@ class ConfigModel(Model):
     
     def __init__(self):
         Model.__init__(self)
+        self.category_tree = gtk.ListStore(gobject.TYPE_STRING)
+        return
         
     def save(self):
         try:
             os.lstat("%s/.pygtktalog" % self.path)
         except:
-            print "Saving preferences to %s/.pygtktalog" % self.path
+            if __debug__:
+                print "Saving preferences to %s/.pygtktalog" % self.path
         newIni = Ini()
         newIni.add_section("pyGTKtalog conf")
         for opt in self.dictconf:
@@ -109,7 +116,8 @@ class ConfigModel(Model):
             f = open("%s/.pygtktalog" % self.path,"w")
             success = True
         except:
-            print "Cannot open config file %s for writing." % (self.path, "/.pygtktalog")
+            if __debug__:
+                print "Cannot open config file %s for writing." % (self.path, "/.pygtktalog")
             success = False
         f.write(newIni.show())
         f.close()
@@ -138,6 +146,7 @@ class ConfigModel(Model):
             if __debug__:
                 print "load config file failed"
             pass
+            
     def __str__(self):
         """show prefs in string way"""
         string = "[varname]\tvalue\n"
