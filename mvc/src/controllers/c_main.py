@@ -9,20 +9,28 @@ http://www.gnu.org/licenses/gpl.txt
 
 import utils._importer
 import utils.globals
+from utils import deviceHelper
 from gtkmvc import Controller
 
-from controllers.c_config import ConfigController
+from c_config import ConfigController
 from views.v_config import ConfigView
+from models.m_config import ConfigModel
 
 import views.v_dialogs as Dialogs
 
 import gtk
 
+import datetime
+
 class MainController(Controller):
     """Kontroler głównego okna aplikacji"""
     db_tmp_filename = None
     unsaved_project = False
-    
+    scan_cd = False
+    widgets = (
+           "discs","files","details",'save1','save_as1','cut1','copy1','paste1',
+           'delete1','add_cd','add_directory1','tb_save','tb_addcd','tb_find'
+        )
     def __init__(self, model):
         Controller.__init__(self, model)
         return
@@ -31,11 +39,7 @@ class MainController(Controller):
         Controller.register_view(self, view)
         
         # deaktywuj na starcie te oto widżety
-        widgets = (
-           "discs","files","details",'save1','save_as1','cut1','copy1','paste1',
-           'delete1','add_cd','add_directory1','tb_save','tb_addcd','tb_find'
-        )
-        for widget in widgets:
+        for widget in self.widgets:
             self.view[widget].set_sensitive(False)
         
         # ustaw domyślne właściwości dla poszczególnych widżetów
@@ -61,8 +65,8 @@ class MainController(Controller):
         self.view['main'].resize(self.model.config.confd['wx'],self.model.config.confd['wy'])
         
         # zainicjalizuj statusbar
-        ContextID = self.view['mainStatus'].get_context_id('detailed res')
-        StatusbarID = self.view['mainStatus'].push(ContextID, "Idle")
+        self.context_id = self.view['mainStatus'].get_context_id('detailed res')
+        self.statusbar_id = self.view['mainStatus'].push(self.context_id, "Idle")
         
         # pokaż główne okno
         self.view['main'].show();
@@ -70,45 +74,54 @@ class MainController(Controller):
 
     # Podłącz sygnały:
     def on_main_destroy_event(self, window, event):
-        self.doQuit()
+        self.__doQuit()
         return True
         
     def on_tb_quit_clicked(self,widget):
-        self.doQuit()
+        self.__doQuit()
         
     def on_quit1_activate(self,widget):
-        self.doQuit()
+        self.__doQuit()
     
     def on_new1_activate(self,widget):
-        self.newDB()
+        self.__newDB()
         
     def on_tb_new_clicked(self,widget):
-        self.newDB()
+        self.__newDB()
         
     def on_add_cd_activate(self,widget):
-        self.addCD()
+        self.__addCD()
         
     def on_tb_addcd_clicked(self,widget):
-        self.addCD()
+        self.__addCD()
         
     def on_add_directory1_activate(self,widget):
-        self.addDirectory()
+        self.__addDirectory()
         
     def on_about1_activate(self,widget):
         Dialogs.Abt("pyGTKtalog", __version__, "About", ["Roman 'gryf' Dobosz"], licence)
         return
         
     def on_preferences_activate(self,widget):
-        print 'aaa'
         c = ConfigController(self.model.config)
         v = ConfigView(c)
         return
         
     def on_status_bar1_activate(self,widget):
-        self.toggle_status_bar()
+        """toggle visibility of statusbat and progress bar"""
+        self.model.config.confd['showstatusbar'] = self.view['status_bar1'].get_active()
+        if self.view['status_bar1'].get_active():
+            self.view['statusprogress'].show()
+        else:
+            self.view['statusprogress'].hide()
         
     def on_toolbar1_activate(self,widget):
-        self.toggle_toolbar()
+        """toggle visibility of toolbar bar"""
+        self.model.config.confd['showtoolbar'] = self.view['toolbar1'].get_active()
+        if self.view['toolbar1'].get_active():
+            self.view['maintoolbar'].show()
+        else:
+            self.view['maintoolbar'].hide()
         
     def on_save1_activate(self,widget):
         self.save()
@@ -141,23 +154,6 @@ class MainController(Controller):
     
     
     # funkcje do obsługi formularza
-    def doQuit(self):
-        """quit and save window parameters to config file"""
-        #{{{
-        # check if any unsaved project is on go.
-        if self.unsaved_project:
-            if self.model.config.confd['confirmquit']:
-                obj = Dialogs.Qst('Quit application - pyGTKtalog','There is not saved database\nDo you really want to quit?')
-                if not obj.run():
-                    return
-        
-        self.storeSettings()
-        gtk.main_quit()
-        try:
-            os.unlink(self.db_tmp_filename)
-        except:
-            pass
-        return False
     
     def storeSettings(self):
         """Store window size and pane position in config file (using config object)"""
@@ -168,20 +164,18 @@ class MainController(Controller):
         self.model.config.save()
         pass
         
-    def newDB(self):
-        pass
-        
-    def addCD(self):
-        pass
-        
-    def addDirectory(self):
-        pass
-        
-    def toggle_toolbar(self):
-        pass
-        
-    def toggle_status_bar(self):
-        pass
+    def __addCD(self):
+        """add directory structure from cd/dvd disc"""
+        self.scan_cd = True
+        mount = deviceHelper.volmount(self.model.config.confd['cd'])
+        if mount == 'ok':
+            guessed_label = deviceHelper.volname(self.model.config.confd['cd'])
+            obj = Dialogs.InputDiskLabel(guessed_label)
+            label = obj.run()
+            if label != None:
+                self.model.scan(self.model.config.confd['cd'],label)
+        else:
+            Dialogs.Wrn("error mounting device - pyGTKtalog","Cannot mount device pointed to %s.\nLast mount message:\n<tt>%s</tt>" % (self.model.config.confd['cd'],mount))
         
     def save(self):
         pass
@@ -203,5 +197,72 @@ class MainController(Controller):
         
     def change_view(self):
         pass
+    
+    #####################
+    # observed properetis
+    def property_statusmsg_value_change(self, model, old, new):
+        if self.statusbar_id != 0:
+            self.view['mainStatus'].remove(self.context_id, self.statusbar_id)
+        self.statusbar_id = self.view['mainStatus'].push(self.context_id, "%s" % new)
+        return
+        
+    def property_busy_value_change(self, model, old, new):
+        if new != old:
+            for w in self.widgets:
+                self.view[w].set_sensitive(not new)
+            if not new and self.scan_cd:
+                self.scan_cd = False
+                # umount/eject cd
+                if self.model.config.confd['eject']:
+                    msg = deviceHelper.eject_cd(self.model.config.confd['ejectapp'],self.model.config.confd['cd'])
+                    if msg != 'ok':
+                        Dialogs.Wrn("error ejecting device - pyGTKtalog","Cannot eject device pointed to %s.\nLast eject message:\n<tt>%s</tt>" % (self.model.config.confd['cd'],msg))
+                else:
+                    msg = deviceHelper.volumount(self.model.config.confd['cd'])
+                    if msg != 'ok':
+                        Dialogs.Wrn("error unmounting device - pyGTKtalog","Cannot unmount device pointed to %s.\nLast umount message:\n<tt>%s</tt>" % (self.model.config.confd['cd'],msg))
+        return
+    
+    def property_progress_value_change(self, model, old, new):
+        self.view['progressbar1'].set_fraction(new)
+        return
+        
+    #########################
+    # private class functions
+    def __addDirectory(self):
+        """add directory structure from given location"""
+        res = Dialogs.PointDirectoryToAdd().run()
+        if res !=(None,None):
+            self.model.scan(res[1],res[0])
+        return
+
+    def __doQuit(self):
+        """quit and save window parameters to config file"""
+        # check if any unsaved project is on go.
+        if self.model.unsaved_project and self.model.config.confd['confirmquit']:
+            if not Dialogs.Qst('Quit application - pyGTKtalog','Current database is not saved\nDo you really want to quit?').run():
+                return
+        
+        self.storeSettings()
+        self.model.cleanup()
+        gtk.main_quit()
+        return False
+
+    def __newDB(self):
+        if self.model.modified:
+            if not Dialogs.Qst('Unsaved data - pyGTKtalog','Current database is not saved\nDo you really want to abandon it?').run():
+                return
+        self.model.new()
+        self.model.unsaved_project = True
+        self.view['main'].set_title("untitled - pyGTKtalog")
+        for widget in self.widgets:
+            try:
+                self.view[widget].set_sensitive(True)
+            except:
+                pass
+        # PyGTK FAQ entry 23.20
+        while gtk.events_pending():
+            gtk.main_iteration()
+        return
     
     pass # end of class
