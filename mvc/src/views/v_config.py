@@ -11,5 +11,4 @@ class ConfigView(View):
     def __init__(self, ctrl):
         View.__init__(self, ctrl, self.GLADE)
         return
-
     pass # end of class

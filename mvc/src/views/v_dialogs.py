@@ -3,7 +3,10 @@
 import gtk
 
 class Qst(object):
-    """Show simple dialog for questions"""
+    """Show simple dialog for questions
+        if "OK" button pressed, return "True"
+        "Cancel" button return "False"
+    """
     def __init__(self, title="", message=""):
         self.dialog = gtk.MessageDialog(
             flags   = gtk.DIALOG_DESTROY_WITH_PARENT,
