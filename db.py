@@ -117,10 +117,24 @@ class dbfile:
     
     def getParent(self, idn):
         #{{{
-        self.cur.execute("SELECT parent FROM files_connect WHERE child = ? AND depth = 1",idn)
+        self.cur.execute("SELECT parent FROM files_connect WHERE child = ? AND depth = 1",(idn,))
         
         parentId = self.cur.fetchone()
         if parentId:
             return parentId[0]
         return None
+        #}}}
+    def getInfo(self,idn):
+        #{{{
+        self.cur.execute("SELECT filename, date, size, type FROM files WHERE id = ?",(idn,))
+        set = self.cur.fetchone()
+        if set == None:
+            return ''
+            
+        string = """Filename: %s
+Date: %s
+Size: %s
+type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
+        return string
+        
         #}}}
