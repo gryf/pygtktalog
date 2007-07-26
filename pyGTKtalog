@@ -1,6 +1,6 @@
 #!/bin/sh
 # Simple wraper to launch python application from desired place.
-cd ~/Python/pyGTKtalog
+cd ~/Devel/Python/pyGTKtalog
 #export PYTHONPATH="$PYTHONPATH:/usr/lib/gajim"
 #exec python -OO pyGTKtalog.py $@
 exec python pyGTKtalog.py $@
