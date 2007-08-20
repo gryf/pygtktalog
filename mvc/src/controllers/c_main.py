@@ -249,6 +249,7 @@ class MainController(Controller):
         return False
 
     def __newDB(self):
+        """Create new database file"""
         if self.model.modified:
             if not Dialogs.Qst('Unsaved data - pyGTKtalog','Current database is not saved\nDo you really want to abandon it?').run():
                 return
