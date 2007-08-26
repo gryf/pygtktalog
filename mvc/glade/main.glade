@@ -17,8 +17,8 @@
   <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
   <property name="focus_on_map">True</property>
   <property name="urgency_hint">False</property>
-  <signal name="destroy" handler="on_main_destroy_event" last_modification_time="Tue, 22 Aug 2006 19:12:49 GMT"/>
-  <signal name="delete_event" handler="on_main_destroy_event" last_modification_time="Mon, 30 Apr 2007 10:54:10 GMT"/>
+  <signal name="destroy" handler="on_main_destroy_event"/>
+  <signal name="delete_event" handler="on_main_destroy_event"/>
 
   <child>
     <widget class="GtkVBox" id="vbox1">
@@ -33,20 +33,20 @@
 	  <property name="child_pack_direction">GTK_PACK_DIRECTION_LTR</property>
 
 	  <child>
-	    <widget class="GtkMenuItem" id="menuitem1">
+	    <widget class="GtkMenuItem" id="file1">
 	      <property name="visible">True</property>
 	      <property name="label" translatable="yes">_File</property>
 	      <property name="use_underline">True</property>
 
 	      <child>
-		<widget class="GtkMenu" id="menuitem1_menu">
+		<widget class="GtkMenu" id="file1_menu">
 
 		  <child>
 		    <widget class="GtkImageMenuItem" id="new1">
 		      <property name="visible">True</property>
 		      <property name="label">gtk-new</property>
 		      <property name="use_stock">True</property>
-		      <signal name="activate" handler="on_new1_activate" last_modification_time="Wed, 09 Aug 2006 17:12:54 GMT"/>
+		      <signal name="activate" handler="on_new1_activate"/>
 		    </widget>
 		  </child>
 
@@ -55,7 +55,7 @@
 		      <property name="visible">True</property>
 		      <property name="label">gtk-open</property>
 		      <property name="use_stock">True</property>
-		      <signal name="activate" handler="on_open1_activate" last_modification_time="Wed, 09 Aug 2006 17:12:54 GMT"/>
+		      <signal name="activate" handler="on_open1_activate"/>
 		    </widget>
 		  </child>
 
@@ -64,7 +64,7 @@
 		      <property name="visible">True</property>
 		      <property name="label">gtk-save</property>
 		      <property name="use_stock">True</property>
-		      <signal name="activate" handler="on_save1_activate" last_modification_time="Wed, 09 Aug 2006 17:12:54 GMT"/>
+		      <signal name="activate" handler="on_save1_activate"/>
 		    </widget>
 		  </child>
 
@@ -73,7 +73,7 @@
 		      <property name="visible">True</property>
 		      <property name="label">gtk-save-as</property>
 		      <property name="use_stock">True</property>
-		      <signal name="activate" handler="on_save_as1_activate" last_modification_time="Wed, 09 Aug 2006 17:12:54 GMT"/>
+		      <signal name="activate" handler="on_save_as1_activate"/>
 		    </widget>
 		  </child>
 
@@ -88,7 +88,7 @@
 		      <property name="visible">True</property>
 		      <property name="label" translatable="yes">Recent files</property>
 		      <property name="use_underline">True</property>
-		      <signal name="activate" handler="on_recent_files1_activate" last_modification_time="Thu, 23 Nov 2006 18:29:26 GMT"/>
+		      <signal name="activate" handler="on_recent_files1_activate"/>
 		    </widget>
 		  </child>
 
@@ -103,7 +103,7 @@
 		      <property name="visible">True</property>
 		      <property name="label">gtk-quit</property>
 		      <property name="use_stock">True</property>
-		      <signal name="activate" handler="on_quit1_activate" last_modification_time="Wed, 09 Aug 2006 17:12:54 GMT"/>
+		      <signal name="activate" handler="on_quit1_activate"/>
 		    </widget>
 		  </child>
 		</widget>
@@ -112,20 +112,20 @@
 	  </child>
 
 	  <child>
-	    <widget class="GtkMenuItem" id="menuitem2">
+	    <widget class="GtkMenuItem" id="edit1">
 	      <property name="visible">True</property>
 	      <property name="label" translatable="yes">_Edit</property>
 	      <property name="use_underline">True</property>
 
 	      <child>
-		<widget class="GtkMenu" id="menuitem2_menu">
+		<widget class="GtkMenu" id="edit1_menu">
 
 		  <child>
 		    <widget class="GtkImageMenuItem" id="cut1">
 		      <property name="visible">True</property>
 		      <property name="label">gtk-cut</property>
 		      <property name="use_stock">True</property>
-		      <signal name="activate" handler="on_cut1_activate" last_modification_time="Wed, 09 Aug 2006 17:12:54 GMT"/>
+		      <signal name="activate" handler="on_cut1_activate"/>
 		    </widget>
 		  </child>
 
@@ -134,7 +134,7 @@
 		      <property name="visible">True</property>
 		      <property name="label">gtk-copy</property>
 		      <property name="use_stock">True</property>
-		      <signal name="activate" handler="on_copy1_activate" last_modification_time="Wed, 09 Aug 2006 17:12:54 GMT"/>
+		      <signal name="activate" handler="on_copy1_activate"/>
 		    </widget>
 		  </child>
 
@@ -143,7 +143,7 @@
 		      <property name="visible">True</property>
 		      <property name="label">gtk-paste</property>
 		      <property name="use_stock">True</property>
-		      <signal name="activate" handler="on_paste1_activate" last_modification_time="Wed, 09 Aug 2006 17:12:54 GMT"/>
+		      <signal name="activate" handler="on_paste1_activate"/>
 		    </widget>
 		  </child>
 
@@ -152,7 +152,7 @@
 		      <property name="visible">True</property>
 		      <property name="label">gtk-delete</property>
 		      <property name="use_stock">True</property>
-		      <signal name="activate" handler="on_delete1_activate" last_modification_time="Wed, 09 Aug 2006 17:12:54 GMT"/>
+		      <signal name="activate" handler="on_delete1_activate"/>
 		    </widget>
 		  </child>
 
@@ -167,7 +167,7 @@
 		      <property name="visible">True</property>
 		      <property name="label">gtk-preferences</property>
 		      <property name="use_stock">True</property>
-		      <signal name="activate" handler="on_preferences_activate" last_modification_time="Mon, 30 Apr 2007 11:32:52 GMT"/>
+		      <signal name="activate" handler="on_preferences_activate"/>
 		    </widget>
 		  </child>
 		</widget>
@@ -189,7 +189,7 @@
 		      <property name="visible">True</property>
 		      <property name="label" translatable="yes">Add CD/DVD</property>
 		      <property name="use_underline">True</property>
-		      <signal name="activate" handler="on_add_cd_activate" last_modification_time="Fri, 24 Nov 2006 14:12:30 GMT"/>
+		      <signal name="activate" handler="on_add_cd_activate"/>
 		      <accelerator key="a" modifiers="GDK_CONTROL_MASK" signal="activate"/>
 		    </widget>
 		  </child>
@@ -199,7 +199,34 @@
 		      <property name="visible">True</property>
 		      <property name="label" translatable="yes">Add Directory</property>
 		      <property name="use_underline">True</property>
-		      <signal name="activate" handler="on_add_directory1_activate" last_modification_time="Fri, 24 Nov 2006 14:12:30 GMT"/>
+		      <signal name="activate" handler="on_add_directory1_activate"/>
+		    </widget>
+		  </child>
+
+		  <child>
+		    <widget class="GtkSeparatorMenuItem" id="separator3">
+		      <property name="visible">True</property>
+		    </widget>
+		  </child>
+
+		  <child>
+		    <widget class="GtkImageMenuItem" id="cancel1">
+		      <property name="visible">True</property>
+		      <property name="label" translatable="yes">Cancel</property>
+		      <property name="use_underline">True</property>
+		      <signal name="activate" handler="on_cancel1_activate" last_modification_time="Fri, 24 Aug 2007 07:50:10 GMT"/>
+
+		      <child internal-child="image">
+			<widget class="GtkImage" id="image1">
+			  <property name="visible">True</property>
+			  <property name="stock">gtk-cancel</property>
+			  <property name="icon_size">1</property>
+			  <property name="xalign">0.5</property>
+			  <property name="yalign">0.5</property>
+			  <property name="xpad">0</property>
+			  <property name="ypad">0</property>
+			</widget>
+		      </child>
 		    </widget>
 		  </child>
 		</widget>
@@ -208,13 +235,13 @@
 	  </child>
 
 	  <child>
-	    <widget class="GtkMenuItem" id="menuitem3">
+	    <widget class="GtkMenuItem" id="view1">
 	      <property name="visible">True</property>
 	      <property name="label" translatable="yes">_View</property>
 	      <property name="use_underline">True</property>
 
 	      <child>
-		<widget class="GtkMenu" id="menuitem3_menu">
+		<widget class="GtkMenu" id="view1_menu">
 
 		  <child>
 		    <widget class="GtkCheckMenuItem" id="toolbar1">
@@ -222,7 +249,7 @@
 		      <property name="label" translatable="yes">Toolbar</property>
 		      <property name="use_underline">True</property>
 		      <property name="active">False</property>
-		      <signal name="activate" handler="on_toolbar1_activate" last_modification_time="Fri, 01 Dec 2006 18:23:32 GMT"/>
+		      <signal name="activate" handler="on_toolbar1_activate"/>
 		    </widget>
 		  </child>
 
@@ -232,7 +259,7 @@
 		      <property name="label" translatable="yes">Status bar</property>
 		      <property name="use_underline">True</property>
 		      <property name="active">False</property>
-		      <signal name="activate" handler="on_status_bar1_activate" last_modification_time="Fri, 01 Dec 2006 18:23:32 GMT"/>
+		      <signal name="activate" handler="on_status_bar1_activate"/>
 		    </widget>
 		  </child>
 		</widget>
@@ -241,20 +268,20 @@
 	  </child>
 
 	  <child>
-	    <widget class="GtkMenuItem" id="menuitem4">
+	    <widget class="GtkMenuItem" id="help1">
 	      <property name="visible">True</property>
 	      <property name="label" translatable="yes">_Help</property>
 	      <property name="use_underline">True</property>
 
 	      <child>
-		<widget class="GtkMenu" id="menuitem4_menu">
+		<widget class="GtkMenu" id="help1_menu">
 
 		  <child>
 		    <widget class="GtkImageMenuItem" id="about1">
 		      <property name="visible">True</property>
 		      <property name="label">gtk-about</property>
 		      <property name="use_stock">True</property>
-		      <signal name="activate" handler="on_about1_activate" last_modification_time="Wed, 09 Aug 2006 17:12:54 GMT"/>
+		      <signal name="activate" handler="on_about1_activate"/>
 		    </widget>
 		  </child>
 		</widget>
@@ -285,7 +312,7 @@
 	      <property name="visible_horizontal">True</property>
 	      <property name="visible_vertical">True</property>
 	      <property name="is_important">False</property>
-	      <signal name="clicked" handler="on_tb_new_clicked" last_modification_time="Fri, 01 Dec 2006 16:59:03 GMT"/>
+	      <signal name="clicked" handler="on_tb_new_clicked"/>
 	    </widget>
 	    <packing>
 	      <property name="expand">False</property>
@@ -301,7 +328,7 @@
 	      <property name="visible_horizontal">True</property>
 	      <property name="visible_vertical">True</property>
 	      <property name="is_important">False</property>
-	      <signal name="clicked" handler="on_tb_open_clicked" last_modification_time="Fri, 01 Dec 2006 16:59:14 GMT"/>
+	      <signal name="clicked" handler="on_tb_open_clicked"/>
 	    </widget>
 	    <packing>
 	      <property name="expand">False</property>
@@ -317,7 +344,7 @@
 	      <property name="visible_horizontal">True</property>
 	      <property name="visible_vertical">True</property>
 	      <property name="is_important">False</property>
-	      <signal name="clicked" handler="on_tb_save_clicked" last_modification_time="Fri, 01 Dec 2006 16:59:20 GMT"/>
+	      <signal name="clicked" handler="on_tb_save_clicked"/>
 	    </widget>
 	    <packing>
 	      <property name="expand">False</property>
@@ -354,7 +381,7 @@
 	      <property name="visible_horizontal">True</property>
 	      <property name="visible_vertical">True</property>
 	      <property name="is_important">False</property>
-	      <signal name="clicked" handler="on_tb_addcd_clicked" last_modification_time="Fri, 01 Dec 2006 16:59:25 GMT"/>
+	      <signal name="clicked" handler="on_tb_addcd_clicked"/>
 	    </widget>
 	    <packing>
 	      <property name="expand">False</property>
@@ -370,7 +397,7 @@
 	      <property name="visible_horizontal">True</property>
 	      <property name="visible_vertical">True</property>
 	      <property name="is_important">False</property>
-	      <signal name="clicked" handler="on_tb_find_clicked" last_modification_time="Fri, 01 Dec 2006 16:59:29 GMT"/>
+	      <signal name="clicked" handler="on_tb_find_clicked"/>
 	    </widget>
 	    <packing>
 	      <property name="expand">False</property>
@@ -398,6 +425,24 @@
 	  </child>
 
 	  <child>
+	    <widget class="GtkToolButton" id="cancel">
+	      <property name="visible">True</property>
+	      <property name="sensitive">False</property>
+	      <property name="label" translatable="yes">Cancel</property>
+	      <property name="use_underline">True</property>
+	      <property name="stock_id">gtk-cancel</property>
+	      <property name="visible_horizontal">True</property>
+	      <property name="visible_vertical">True</property>
+	      <property name="is_important">False</property>
+	      <signal name="clicked" handler="on_cancel_clicked" last_modification_time="Fri, 24 Aug 2007 06:12:57 GMT"/>
+	    </widget>
+	    <packing>
+	      <property name="expand">False</property>
+	      <property name="homogeneous">True</property>
+	    </packing>
+	  </child>
+
+	  <child>
 	    <widget class="GtkToolButton" id="tb_quit">
 	      <property name="visible">True</property>
 	      <property name="tooltip" translatable="yes">Quit pyGTKtalog</property>
@@ -405,7 +450,24 @@
 	      <property name="visible_horizontal">True</property>
 	      <property name="visible_vertical">True</property>
 	      <property name="is_important">False</property>
-	      <signal name="clicked" handler="on_tb_quit_clicked" last_modification_time="Fri, 01 Dec 2006 16:57:57 GMT"/>
+	      <signal name="clicked" handler="on_tb_quit_clicked"/>
+	    </widget>
+	    <packing>
+	      <property name="expand">False</property>
+	      <property name="homogeneous">True</property>
+	    </packing>
+	  </child>
+
+	  <child>
+	    <widget class="GtkToolButton" id="debugbtn">
+	      <property name="visible">True</property>
+	      <property name="label" translatable="yes">Debug</property>
+	      <property name="use_underline">True</property>
+	      <property name="stock_id">gtk-dialog-info</property>
+	      <property name="visible_horizontal">True</property>
+	      <property name="visible_vertical">True</property>
+	      <property name="is_important">False</property>
+	      <signal name="clicked" handler="on_debugbtn_clicked" last_modification_time="Sun, 26 Aug 2007 09:56:05 GMT"/>
 	    </widget>
 	    <packing>
 	      <property name="expand">False</property>
@@ -424,7 +486,6 @@
 	<widget class="GtkHPaned" id="hpaned1">
 	  <property name="visible">True</property>
 	  <property name="can_focus">True</property>
-	  <property name="position">0</property>
 
 	  <child>
 	    <widget class="GtkScrolledWindow" id="scrolledwindow1">
@@ -446,8 +507,8 @@
 		  <property name="fixed_height_mode">False</property>
 		  <property name="hover_selection">False</property>
 		  <property name="hover_expand">False</property>
-		  <signal name="cursor_changed" handler="on_discs_cursor_changed" last_modification_time="Thu, 07 Dec 2006 16:47:17 GMT"/>
-		  <signal name="row_activated" handler="on_discs_row_activated" last_modification_time="Thu, 21 Dec 2006 19:25:39 GMT"/>
+		  <signal name="row_activated" handler="on_discs_row_activated"/>
+		  <signal name="cursor_changed" handler="on_discs_cursor_changed"/>
 		</widget>
 	      </child>
 	    </widget>
@@ -461,7 +522,6 @@
 	    <widget class="GtkVPaned" id="vpaned1">
 	      <property name="visible">True</property>
 	      <property name="can_focus">True</property>
-	      <property name="position">0</property>
 
 	      <child>
 		<widget class="GtkScrolledWindow" id="scrolledwindow2">
@@ -483,8 +543,8 @@
 		      <property name="fixed_height_mode">False</property>
 		      <property name="hover_selection">False</property>
 		      <property name="hover_expand">False</property>
-		      <signal name="cursor_changed" handler="on_files_cursor_changed" last_modification_time="Thu, 07 Dec 2006 16:48:04 GMT"/>
-		      <signal name="row_activated" handler="on_files_row_activated" last_modification_time="Thu, 21 Dec 2006 19:25:53 GMT"/>
+		      <signal name="row_activated" handler="on_files_row_activated"/>
+		      <signal name="cursor_changed" handler="on_files_cursor_changed"/>
 		    </widget>
 		  </child>
 		</widget>
@@ -511,7 +571,7 @@
 		      <property name="overwrite">False</property>
 		      <property name="accepts_tab">False</property>
 		      <property name="justification">GTK_JUSTIFY_LEFT</property>
-		      <property name="wrap_mode">GTK_WRAP_NONE</property>
+		      <property name="wrap_mode">GTK_WRAP_WORD</property>
 		      <property name="cursor_visible">False</property>
 		      <property name="pixels_above_lines">0</property>
 		      <property name="pixels_below_lines">0</property>
