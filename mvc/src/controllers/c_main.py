@@ -28,9 +28,17 @@ class MainController(Controller):
     unsaved_project = False
     scan_cd = False
     widgets = (
-           "discs","files","details",'save1','save_as1','cut1','copy1','paste1',
-           'delete1','add_cd','add_directory1','tb_save','tb_addcd','tb_find'
+           "discs","files","details",
+           'save1','save_as1','cut1','copy1','paste1','delete1','add_cd','add_directory1',
+           'tb_save','tb_addcd','tb_find',
         )
+    widgets_all = (
+           "discs","files","details",
+           'file1','edit1','add_cd','add_directory1','help1',
+           'tb_save','tb_addcd','tb_find','tb_new','tb_open','tb_quit',
+        )
+    widgets_cancel = ('cancel','cancel1')
+    
     def __init__(self, model):
         Controller.__init__(self, model)
         return
@@ -41,6 +49,15 @@ class MainController(Controller):
         # deaktywuj na starcie te oto widżety
         for widget in self.widgets:
             self.view[widget].set_sensitive(False)
+        # dodatkowo deaktywuj knefle 'cancel'
+        for widget in self.widgets_cancel:
+            self.view[widget].set_sensitive(False)
+            
+        # ukryj przycisk "debug", jeśli nie debugujemy.
+        if __debug__:
+            self.view['debugbtn'].show()
+        else:
+            self.view['debugbtn'].hide()
         
         # ustaw domyślne właściwości dla poszczególnych widżetów
         self.view['main'].set_title('pyGTKtalog');
@@ -67,6 +84,12 @@ class MainController(Controller):
         # zainicjalizuj statusbar
         self.context_id = self.view['mainStatus'].get_context_id('detailed res')
         self.statusbar_id = self.view['mainStatus'].push(self.context_id, "Idle")
+        
+        # inicjalizacja drzew
+        self.view['discs'].set_model(self.model.discsTree)
+        self.view['files'].set_model(self.model.filesList)
+        self.__setup_disc_treeview()
+        self.__setup_files_treeview()
         
         # pokaż główne okno
         self.view['main'].show();
@@ -149,9 +172,19 @@ class MainController(Controller):
         
     def on_files_row_activated(self,widget):
         self.change_view()
-    
+        
+    def on_cancel1_activate(self,widget):
+        self.__abort()
+        
+    def on_cancel_clicked(self,widget):
+        self.__abort()
+        
+    def on_tb_find_clicked(self,widget):
+        return
+        
+    def on_debugbtn_clicked(self,widget):
+        print self.model.discsTree
     # Obserwowalne właściwości
-    
     
     # funkcje do obsługi formularza
     
@@ -164,19 +197,6 @@ class MainController(Controller):
         self.model.config.save()
         pass
         
-    def __addCD(self):
-        """add directory structure from cd/dvd disc"""
-        self.scan_cd = True
-        mount = deviceHelper.volmount(self.model.config.confd['cd'])
-        if mount == 'ok':
-            guessed_label = deviceHelper.volname(self.model.config.confd['cd'])
-            obj = Dialogs.InputDiskLabel(guessed_label)
-            label = obj.run()
-            if label != None:
-                self.model.scan(self.model.config.confd['cd'],label)
-        else:
-            Dialogs.Wrn("error mounting device - pyGTKtalog","Cannot mount device pointed to %s.\nLast mount message:\n<tt>%s</tt>" % (self.model.config.confd['cd'],mount))
-        
     def save(self):
         pass
         
@@ -187,6 +207,18 @@ class MainController(Controller):
         pass
         
     def show_files(self):
+        """show files after click on left side disc tree"""
+        model = self.view['discs'].get_model()
+        selected_item = self.model.discsTree.get_value(model.get_iter(self.view['discs'].get_cursor()[0]),0)
+        self.model.get_root_entries(selected_item)
+        
+        self.view['details'].show()
+        txt = self.model.get_file_info(selected_item)
+        buf = self.view['details'].get_buffer()
+        buf.set_text(txt)
+        self.view['details'].set_buffer(buf)
+        if __debug__:
+            print "[mainwin.py] some other thing selected"
         pass
         
     def collapse_expand_branch(self):
@@ -208,19 +240,25 @@ class MainController(Controller):
         
     def property_busy_value_change(self, model, old, new):
         if new != old:
-            for w in self.widgets:
+            for w in self.widgets_all:
                 self.view[w].set_sensitive(not new)
+            for widget in self.widgets_cancel:
+                self.view[widget].set_sensitive(new)
             if not new and self.scan_cd:
                 self.scan_cd = False
                 # umount/eject cd
                 if self.model.config.confd['eject']:
                     msg = deviceHelper.eject_cd(self.model.config.confd['ejectapp'],self.model.config.confd['cd'])
                     if msg != 'ok':
-                        Dialogs.Wrn("error ejecting device - pyGTKtalog","Cannot eject device pointed to %s.\nLast eject message:\n<tt>%s</tt>" % (self.model.config.confd['cd'],msg))
+                        Dialogs.Wrn("error ejecting device - pyGTKtalog",
+                                    "Cannot eject device pointed to %s" % self.model.config.confd['cd'],
+                                    "Last eject message:\n%s" % msg)
                 else:
                     msg = deviceHelper.volumount(self.model.config.confd['cd'])
                     if msg != 'ok':
-                        Dialogs.Wrn("error unmounting device - pyGTKtalog","Cannot unmount device pointed to %s.\nLast umount message:\n<tt>%s</tt>" % (self.model.config.confd['cd'],msg))
+                        Dialogs.Wrn("error unmounting device - pyGTKtalog",
+                                    "Cannot unmount device pointed to %s" % self.model.config.confd['cd'],
+                                    "Last umount message:\n%s" % msg)
         return
     
     def property_progress_value_change(self, model, old, new):
@@ -235,12 +273,31 @@ class MainController(Controller):
         if res !=(None,None):
             self.model.scan(res[1],res[0])
         return
-
+        
+    def __addCD(self):
+        """add directory structure from cd/dvd disc"""
+        mount = deviceHelper.volmount(self.model.config.confd['cd'])
+        if mount == 'ok':
+            guessed_label = deviceHelper.volname(self.model.config.confd['cd'])
+            obj = Dialogs.InputDiskLabel(guessed_label)
+            label = obj.run()
+            if label != None:
+                self.scan_cd = True
+                for widget in self.widgets_all:
+                    self.view[widget].set_sensitive(False)
+                self.model.scan(self.model.config.confd['cd'],label)
+        else:
+            Dialogs.Wrn("Error mounting device - pyGTKtalog",
+                        "Cannot mount device pointed to %s" % self.model.config.confd['cd'],
+                        "Last mount message:\n%s" % mount)
+        
     def __doQuit(self):
         """quit and save window parameters to config file"""
         # check if any unsaved project is on go.
-        if self.model.unsaved_project and self.model.config.confd['confirmquit']:
-            if not Dialogs.Qst('Quit application - pyGTKtalog','Current database is not saved\nDo you really want to quit?').run():
+        if self.model.unsaved_project and self.model.config.confd['confirmquit'] and self.model.modified:
+            if not Dialogs.Qst('Quit application - pyGTKtalog',
+                               'Do you really want to quit?',
+                               "Current database is not saved, any changes will be lost.").run():
                 return
         
         self.storeSettings()
@@ -251,10 +308,19 @@ class MainController(Controller):
     def __newDB(self):
         """Create new database file"""
         if self.model.modified:
-            if not Dialogs.Qst('Unsaved data - pyGTKtalog','Current database is not saved\nDo you really want to abandon it?').run():
+            if not Dialogs.Qst('Unsaved data - pyGTKtalog',
+                               "Current database isn't saved",
+                               'All changes will be lost. Do you really want to abandon it?').run():
                 return
         self.model.new()
+        
+        txt = ""
+        buf = self.view['details'].get_buffer()
+        buf.set_text(txt)
+        self.view['details'].set_buffer(buf)
+        
         self.model.unsaved_project = True
+        self.model.modified = False
         self.view['main'].set_title("untitled - pyGTKtalog")
         for widget in self.widgets:
             try:
@@ -264,6 +330,61 @@ class MainController(Controller):
         # PyGTK FAQ entry 23.20
         while gtk.events_pending():
             gtk.main_iteration()
+        return
+        
+    def __setup_disc_treeview(self):
+        c = gtk.TreeViewColumn('Filename')
+        
+        # one row contains image and text
+        cellpb = gtk.CellRendererPixbuf()
+        cell = gtk.CellRendererText()
+        c.pack_start(cellpb, False)
+        c.pack_start(cell, True)
+        c.set_attributes(cellpb, stock_id=2)
+        c.set_attributes(cell, text=1)
+        
+        self.view['discs'].append_column(c)
+        
+        # registration of treeview signals:
+        
+        return
+        
+    def __setup_files_treeview(self):
+        self.view['files'].get_selection().set_mode(gtk.SELECTION_MULTIPLE)
+        
+        c = gtk.TreeViewColumn('Filename')
+        cellpb = gtk.CellRendererPixbuf()
+        cell = gtk.CellRendererText()
+        c.pack_start(cellpb, False)
+        c.pack_start(cell, True)
+        c.set_attributes(cellpb, stock_id=6)
+        c.set_attributes(cell, text=1)
+                
+        c.set_sort_column_id(1)
+        c.set_resizable(True)
+        self.view['files'].append_column(c)
+        
+        c = gtk.TreeViewColumn('Size',gtk.CellRendererText(), text=2)
+        c.set_sort_column_id(2)
+        c.set_resizable(True)
+        self.view['files'].append_column(c)
+        
+        c = gtk.TreeViewColumn('Date',gtk.CellRendererText(), text=3)
+        c.set_sort_column_id(3)
+        c.set_resizable(True)
+        self.view['files'].append_column(c)
+        
+        c = gtk.TreeViewColumn('Category',gtk.CellRendererText(), text=5)
+        c.set_sort_column_id(5)
+        c.set_resizable(True)
+        self.view['files'].append_column(c)
+        
+        # registration of treeview signals:
+        
+        return
+        
+    def __abort(self):
+        self.model.abort = True
         return
     
     pass # end of class
