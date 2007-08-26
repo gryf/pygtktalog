@@ -7,14 +7,15 @@ class Qst(object):
         if "OK" button pressed, return "True"
         "Cancel" button return "False"
     """
-    def __init__(self, title="", message=""):
+    def __init__(self, title="", message="", secondarymsg=""):
         self.dialog = gtk.MessageDialog(
             flags   = gtk.DIALOG_DESTROY_WITH_PARENT,
             type    = gtk.MESSAGE_QUESTION,
             buttons = gtk.BUTTONS_OK_CANCEL,
+            message_format = message,
         )
         self.dialog.set_title(title)
-        self.dialog.set_markup(message)
+        self.dialog.format_secondary_text(secondarymsg)
     def run(self):
         retval = self.dialog.run()
         self.dialog.destroy()
@@ -24,14 +25,15 @@ class Qst(object):
 
 class Inf(object):
     """Show simple dialog for notices"""
-    def __init__(self, title="", message=""):
+    def __init__(self, title="", message="", secondarymsg=""):
         self.dialog = gtk.MessageDialog(
             flags   = gtk.DIALOG_DESTROY_WITH_PARENT,
             type    = gtk.MESSAGE_INFO,
             buttons = gtk.BUTTONS_OK,
+            message_format = message,
         )
         self.dialog.set_title(title)
-        self.dialog.set_markup(message)
+        self.dialog.format_secondary_text(secondarymsg)
         self.dialog.connect('response', lambda dialog, response: self.ret(response))
         self.dialog.show()
     def ret(self,result):
@@ -40,14 +42,15 @@ class Inf(object):
     
 class Wrn(object):
     """Show simple dialog for warnings"""
-    def __init__(self, title="", message=""):
+    def __init__(self, title="", message="", secondarymsg=""):
         self.dialog = gtk.MessageDialog(
             flags   = gtk.DIALOG_DESTROY_WITH_PARENT,
             type    = gtk.MESSAGE_WARNING,
             buttons = gtk.BUTTONS_CLOSE,
+            message_format = message,
         )
         self.dialog.set_title(title)
-        self.dialog.set_markup(message)
+        self.dialog.format_secondary_text(secondarymsg)
         self.dialog.connect('response', lambda dialog, response: self.ret(response))
         self.dialog.show()
     def ret(self,result):
@@ -56,14 +59,15 @@ class Wrn(object):
     
 class Err(object):
     """Show simple dialog for errors"""
-    def __init__(self, title="", message=""):
+    def __init__(self, title="", message="", secondarymsg=""):
         self.dialog = gtk.MessageDialog(
             flags   = gtk.DIALOG_DESTROY_WITH_PARENT,
             type    = gtk.MESSAGE_ERROR,
             buttons = gtk.BUTTONS_CLOSE,
+            message_format = message,
         )
         self.dialog.set_title(title)
-        self.dialog.set_markup(message)
+        self.dialog.format_secondary_text(secondarymsg)
         self.dialog.connect('response', lambda dialog, response: self.ret(response))
         self.dialog.run()
     def ret(self,result):
@@ -141,7 +145,7 @@ class PointDirectoryToAdd(object):
         result = dialog.run()
         while ch:
             if result == gtk.RESPONSE_OK and (self.volname.get_text()=='' or self.directory.get_text() == ''):
-                a = Err("Error - pyGTKtalog","Cannot add directory without path and disc label.")
+                a = Err("Error - pyGTKtalog","There are fields needed to be filled.","Cannot add directory without path and disc label.")
                 ch = True
                 result = dialog.run()
             else:
