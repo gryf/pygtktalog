@@ -15,7 +15,9 @@ from pysqlite2 import dbapi2 as sqlite
 import datetime
 import mx.DateTime
 import os
+import sys
 import mimetypes
+import bz2
 
 import gtk
 import gobject
@@ -31,7 +33,6 @@ class MainModel(ModelMT):
     unsaved_project = False
     filename = None
     internal_filename = None
-    modified = False
     db_connection = None
     db_cursor = None
     abort = False
@@ -66,7 +67,7 @@ class MainModel(ModelMT):
         pass
         
     def new(self):
-        self.modified = False
+        self.unsaved_project = False
         self.__create_internal_filename()
         self.__connect_to_db()
         self.__create_database()
@@ -83,9 +84,50 @@ class MainModel(ModelMT):
         
         return
         
-    def save(self):
+    def save(self, filename=None):
+        if filename:
+            self.filename = filename
+        self.__compress_and_save()
         return
         
+    def open(self, filename=None):
+        """try to open db file"""
+        self.unsaved_project = False
+        self.__create_internal_filename()
+        print self.internal_filename
+        self.filename = filename
+        
+        source = bz2.BZ2File(filename, 'rb')
+        destination = open(self.internal_filename, 'wb')
+        while True:
+            try:
+                data = source.read(1024000)
+            except:
+                # smth went wrong
+                if __debug__:
+                    print "something goes bad"
+                self.filename = None
+                self.internal_filename = None
+                try:
+                    self.discsTree.clear()
+                except:
+                    pass
+                    
+                try:
+                    self.filesList.clear()
+                except:
+                    pass
+                return False
+            if not data: break
+            destination.write(data)
+        destination.close()
+        source.close()
+        
+        self.__connect_to_db()
+        self.__fetch_db_into_treestore()
+        
+        return True
+            
     def scan(self,path,label):
         """scan files in separated thread"""
         
@@ -99,20 +141,6 @@ class MainModel(ModelMT):
             return
         self.thread = _threading.Thread(target=self.__scan)
         self.thread.start()
-        return
-        
-    def refresh_tree(self):
-        """generate tree model from discs tree"""
-        if __debug__:
-            print "refreshing"
-        # flush buffer to release db lock.
-        self.db_connection.commit()
-        
-        if self.busy:
-            return
-        self.thread = _threading.Thread(target=self.__prepare_discs_treemodel)
-        self.thread.start()
-        
         return
         
     def get_root_entries(self,id=None):
@@ -162,10 +190,7 @@ class MainModel(ModelMT):
         if set == None:
             return ''
             
-        string = """Filename: %s
-Date: %s
-Size: %s
-type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
+        string = "Filename: %s\nDate: %s\nSize: %s\ntype: %s" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
         return string
         
     # private class functions
@@ -177,8 +202,10 @@ type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
     def __close_db_connection(self):
         if self.db_cursor != None:
             self.db_cursor.close()
+            self.db_cursor = None
         if self.db_connection != None:
             self.db_connection.close()
+            self.db_connection = None
         return
         
     def __create_internal_filename(self):
@@ -186,7 +213,18 @@ type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
         self.internal_filename = "/tmp/pygtktalog%d.db" % datetime.datetime.now().microsecond
         return
     
-    def __compress(self):
+    def __compress_and_save(self):
+        source = open(self.internal_filename, 'rb')
+        destination = bz2.BZ2File(self.filename, 'w')
+            
+        while True:
+            data = source.read(1024000)
+            if not data: break
+            destination.write(data)
+            
+        destination.close()
+        source.close()
+        self.unsaved_project = False
         return
     
     def __create_database(self):
@@ -198,12 +236,11 @@ type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
         
     def __scan(self):
         """scan content of the given path"""
-        # TODO: zmienić sposób pobierania danych do bazy, bo wooolne to jak pies!
+        # TODO: Recursive data processing is damn slow! Think about different, faster solution
         self.busy = True
         
         # jako, że to jest w osobnym wątku, a sqlite się przypieprza, że musi mieć
         # konekszyn dla tego samego wątku, więc robimy osobne połączenie dla tego zadania.
-        
         db_connection = sqlite.connect("%s" % self.internal_filename,
                                        detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES,
                                        isolation_level="IMMEDIATE")
@@ -217,8 +254,6 @@ type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
         
         # count files in directory tree
         count = 0
-        #if self.sbid != 0:
-        #    self.status.remove(self.sbSearchCId, self.sbid)
         self.statusmsg = "Calculating number of files in directory tree..."
         
         for root,kat,plik in os.walk(self.path):
@@ -230,6 +265,9 @@ type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
             step = 1.0
         self.count = 0
         
+        # guess filesystem encoding
+        self.fsenc = sys.getfilesystemencoding()
+        
         def __recurse(path,name,wobj,date=0,frac=0,size=0,idWhere=1):
             """recursive scans the path
             path = path string
@@ -239,13 +277,14 @@ type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
             frac - kolejny krok potrzebny w np. statusbarze.
             idWhere - simple id parent, or "place" where to add node
             """
-            #{{{
             if self.abort:
                 return -1
+            # TODO: wielkość pliku jest jakoś dziwnie obsługiwana w sqlite - do sprawdzenia
             _size = size
             walker = os.walk(path)
             root,dirs,files = walker.next()
             ftype = 1
+            
             db_cursor.execute("insert into files(filename, date, size, type) values(?,?,?,?)",(name, date, 0, ftype))
             db_cursor.execute("select seq FROM sqlite_sequence WHERE name='files'")
             currentid=db_cursor.fetchone()[0]
@@ -255,8 +294,12 @@ type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
                 db_cursor.execute("insert into files_connect(parent, child, depth) select r1.parent, r2.child, r1.depth + r2.depth + 1 as depth FROM files_connect r1, files_connect r2 WHERE r1.child = ? AND r2.parent = ? ",(idWhere, currentid))
             
             for i in dirs:
+                if self.fsenc:
+                    j = i.decode(self.fsenc)
+                else:
+                    j = i
                 st = os.stat(os.path.join(root,i))
-                dirsize = __recurse(os.path.join(path,i),i,wobj,st.st_mtime,frac,0,currentid)
+                dirsize = __recurse(os.path.join(path,i),j,wobj,st.st_mtime,frac,0,currentid)
                 if dirsize == -1:
                     break
                 else:
@@ -283,14 +326,17 @@ type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
                 ### progress/status
                 # if wobj.sbid != 0:
                     # wobj.status.remove(wobj.sbSearchCId, wobj.sbid)
-                self.statusmsg = "Scannig: %s" % (os.path.join(root,i))
-                self.progress = frac * self.count
+                if self.count % 32 == 0:
+                    self.statusmsg = "Scannig: %s" % (os.path.join(root,i))
+                    self.progress = frac * self.count
                 # # PyGTK FAQ entry 23.20
                 # while gtk.events_pending(): gtk.main_iteration()
                 
                 _size = _size + st.st_size
-                
-                db_cursor.execute('insert into files(filename, date, size, type) values(?,?,?,?)',(i, st.st_mtime, st.st_size,2))
+                j = i
+                if self.fsenc:
+                    j = i.decode(self.fsenc)
+                db_cursor.execute('insert into files(filename, date, size, type) values(?,?,?,?)',(j, st.st_mtime, st.st_size,2))
                 db_cursor.execute("select seq FROM sqlite_sequence WHERE name='files'")
                 currentfileid=db_cursor.fetchone()[0]
                 db_cursor.execute("insert into files_connect(parent,child,depth) values(?,?,?)",(currentfileid, currentfileid, 0))
@@ -302,7 +348,6 @@ type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
                 return -1
             else:
                 return _size
-            #}}}
         
         if __recurse(self.path,self.label,self,0,step) == -1:
             db_cursor.close()
@@ -310,23 +355,21 @@ type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
         else:
             db_cursor.close()
             db_connection.commit()
-            self.__prepare_discs_treemodel()
+            self.__fetch_db_into_treestore()
         db_connection.close()
         
         if __debug__:
             print "scan time: ", (datetime.datetime.now() - timestamp)
         
-        self.modified = True
+        self.unsaved_project = True
         self.busy = False
-        #self.__display_main_tree()
         
         self.statusmsg = "Idle"
         self.progress = 0
         self.abort = False
             
-    def __prepare_discs_treemodel(self):
+    def __fetch_db_into_treestore(self):
         """load data from DB to tree model"""
-        
         # cleanup treeStore
         self.discsTree.clear()
         
@@ -334,52 +377,34 @@ type: %s""" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
         db_connection = sqlite.connect("%s" % self.internal_filename,
                                        detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
         db_cursor = db_connection.cursor()
-        db_cursor.execute("select count(id) from files where type=1")
-        count = db_cursor.fetchone()[0]
-        if count>0:
-            step = 1.0/self.count
-        else:
-            step = 1.0
-        count = 0
         
-        self.statusmsg = "Fetching data from catalog file"
-            
-        def get_children(id, name, parent):
+        # fetch all the directories
+        db_cursor.execute("SELECT f.id,o.parent,o.child, f.filename FROM files_connect o LEFT JOIN files f ON o.child=f.id WHERE o.depth=1 AND f.type=1 ORDER BY o.parent,f.filename")
+        data = db_cursor.fetchall()
+        
+        def get_children(parent_id = 1, iterator = None):
             """fetch all children and place them in model"""
-            #{{{
-            myiter = self.discsTree.insert_before(parent,None)
-            self.discsTree.set_value(myiter,0,id)
-            self.discsTree.set_value(myiter,1,name)
-            
-            # isroot?
-            if parent == None:
-                self.discsTree.set_value(myiter,2,gtk.STOCK_CDROM)
-            else:
-                self.discsTree.set_value(myiter,2,gtk.STOCK_DIRECTORY)
-            db_cursor.execute("SELECT o.child, f.filename FROM files_connect o LEFT JOIN files f ON o.child=f.id WHERE o.parent=? AND o.depth=1 AND f.type=1 ORDER BY f.filename",(id,))
-            
-            # progress
-            self.progress = step * self.count
-            
-            for cid,name in db_cursor.fetchall():
-                get_children(cid, name, myiter)
-            #}}}
-            
-        # get initial roots from first, default root (id: 1) in the tree,
-        # and then add other subroots to tree model
+            for row in data:
+                if row[1] == parent_id:
+                    myiter = self.discsTree.insert_before(iterator,None)
+                    self.discsTree.set_value(myiter,0,row[0])
+                    self.discsTree.set_value(myiter,1,row[3])
+                    get_children(row[0], myiter)
+                    
+                    # isroot?
+                    if iterator == None:
+                        self.discsTree.set_value(myiter,2,gtk.STOCK_CDROM)
+                    else:
+                        self.discsTree.set_value(myiter,2,gtk.STOCK_DIRECTORY)
+            return
+           
         if __debug__:
-            data = datetime.datetime.now()
-        db_cursor.execute("SELECT o.child, f.filename FROM files_connect o LEFT JOIN files f ON o.child=f.id WHERE o.parent=1 AND o.depth=1 AND f.type=1 ORDER BY f.filename")
-        
-        # real volumes:
-        for id,name in db_cursor.fetchall():
-            get_children(id,name,None)
+            start_date = datetime.datetime.now()
+        # launch scanning.
+        get_children()
         if __debug__:
-            print "tree generation time: ", (datetime.datetime.now() - data)
-        
-        self.statusmsg = "Idle"
-        self.progress = 0
-        
+            print "tree generation time: ", (datetime.datetime.now() - start_date)
+        db_connection.close()
         return
         
     pass # end of class
