@@ -2,7 +2,8 @@
 
 def setup_path():
     """Sets up the python include paths to include src"""
-    import os.path; import sys
+    import os.path
+    import sys
 
     if sys.argv[0]:
         top_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -70,7 +71,6 @@ if __name__ == "__main__":
     c = MainController(m)
     v = MainView(c)
     
-    import gtk
     try:
         gtk.main()
     except KeyboardInterrupt:
