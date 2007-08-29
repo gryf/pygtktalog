@@ -1,6 +1,7 @@
 # This Python file uses the following encoding: utf-8
 
 import gtk
+import os
 
 class Qst(object):
     """Show simple dialog for questions
@@ -155,3 +156,102 @@ class PointDirectoryToAdd(object):
             return self.volname.get_text(),self.directory.get_text()
         else:
             return None,None
+
+class ChooseDBFilename(object):
+    """Sepcific dialog for quering user for selecting filename for database"""
+    def __init__(self):
+        self.dialog = gtk.FileChooserDialog(
+            title="Save catalog as...",
+            action=gtk.FILE_CHOOSER_ACTION_SAVE,
+            buttons=(
+                gtk.STOCK_CANCEL,
+                gtk.RESPONSE_CANCEL,
+                gtk.STOCK_SAVE,
+                gtk.RESPONSE_OK
+            )
+        )
+        
+        self.dialog.set_action(gtk.FILE_CHOOSER_ACTION_SAVE)
+        self.dialog.set_default_response(gtk.RESPONSE_OK)
+        self.dialog.set_do_overwrite_confirmation(True)
+        self.dialog.set_title('Save catalog to file...')
+        
+        f = gtk.FileFilter()
+        f.set_name("Catalog files")
+        f.add_pattern("*.pgt")
+        self.dialog.add_filter(f)
+        f = gtk.FileFilter()
+        f.set_name("All files")
+        f.add_pattern("*.*")
+        self.dialog.add_filter(f)
+        
+    def show_dialog(self):
+        response = self.dialog.run()
+        if response == gtk.RESPONSE_OK:
+            filename = self.dialog.get_filename()
+            if filename[-4] == '.':
+                if filename[-3:].lower() != 'pgt':
+                    filename = filename + '.pgt'
+                else:
+                    filename = filename[:-3] + 'pgt'
+            else:
+                filename = filename + '.pgt'
+            self.dialog.destroy()
+            return filename
+        else:
+            self.dialog.destroy()
+            return None
+    pass
+class LoadDBFile(object):
+    """Specific class for displaying openFile dialog. It has veryfication for file existence."""
+    def __init__(self):
+        self.dialog = gtk.FileChooserDialog(
+            title="Open catalog",
+            action=gtk.FILE_CHOOSER_ACTION_OPEN,
+            buttons=(
+                gtk.STOCK_CANCEL,
+                gtk.RESPONSE_CANCEL,
+                gtk.STOCK_OPEN,
+                gtk.RESPONSE_OK
+            )
+        )
+        
+        self.dialog.set_default_response(gtk.RESPONSE_OK)
+        
+        f = gtk.FileFilter()
+        f.set_name("Catalog files")
+        f.add_pattern("*.pgt")
+        self.dialog.add_filter(f)
+        f = gtk.FileFilter()
+        f.set_name("All files")
+        f.add_pattern("*.*")
+        self.dialog.add_filter(f)
+        
+    def show_dialog(self):
+        response = self.dialog.run()
+        filename = None
+        if response == gtk.RESPONSE_OK:
+            try:
+                filename = self.dialog.get_filename()
+            except:
+                pass
+            #self.dialog.destroy()
+            return 'ok',filename
+        else:
+            return 'cancel',None
+            
+    def run(self):
+        res,filename = self.show_dialog()
+        ch = True
+        while ch:
+            if res == 'cancel':
+                self.dialog.destroy()
+                return None
+            try:
+                os.stat(filename)
+                self.dialog.destroy()
+                return filename
+            except:
+                a = Err("Error - pyGTKtalog","File doesn't exist.","The file that you choose does not exist. Choose another one, or cancel operation.")
+                ch = True
+                res,filename = self.show_dialog()
