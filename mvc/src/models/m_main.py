@@ -37,7 +37,7 @@ class MainModel(ModelMT):
     db_cursor = None
     abort = False
     discsTree = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,str)
-    filesList = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING,str)
+    filesList = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_UINT64, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING,str)
     
     def __init__(self):
         ModelMT.__init__(self)
@@ -51,15 +51,13 @@ class MainModel(ModelMT):
                 os.unlink(self.internal_filename)
             except:
                 if __debug__:
-                    print "m_db.py: 31"
-                    print self.internal_filename
+                    print "cleanup()", self.internal_filename
                 pass
             try:
                 os.unlink(self.internal_filename + '-journal')
             except:
                 if __debug__:
-                    print "m_db.py: 38"
-                    print self.internal_filename+'-journal'
+                    print "cleanup()", self.internal_filename+'-journal'
                 pass
         return
         
@@ -94,7 +92,6 @@ class MainModel(ModelMT):
         """try to open db file"""
         self.unsaved_project = False
         self.__create_internal_filename()
-        print self.internal_filename
         self.filename = filename
         
         source = bz2.BZ2File(filename, 'rb')
@@ -279,7 +276,7 @@ class MainModel(ModelMT):
             """
             if self.abort:
                 return -1
-            # TODO: wielkość pliku jest jakoś dziwnie obsługiwana w sqlite - do sprawdzenia
+            
             _size = size
             walker = os.walk(path)
             root,dirs,files = walker.next()
