@@ -168,7 +168,8 @@ class MainController(Controller):
         """Show files on right treeview, after clicking the left disc treeview."""
         model = self.view['discs'].get_model()
         selected_item = self.model.discsTree.get_value(self.model.discsTree.get_iter(self.view['discs'].get_cursor()[0]),0)
-        print "on_discs_cursor_changed ",selected_item
+        if __debug__:
+            print "on_discs_cursor_changed ",selected_item
         self.model.get_root_entries(selected_item)
         
         self.view['details'].show()
