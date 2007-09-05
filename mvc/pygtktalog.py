@@ -45,11 +45,15 @@ if __name__ == "__main__":
     
     try:
         from pysqlite2 import dbapi2 as sqlite
-        import mx.DateTime
     except:
         print "pyGTKtalog uses SQLite DB.\nYou'll need to get it and the python bindings as well.\nhttp://www.sqlite.org\nhttp://initd.org/tracker/pysqlite"
         sys.exit(1)
-    
+    try:
+        import mx.DateTime
+    except:
+        print "pyGTKtalog uses Egenix mx.DateTime.\nYou can instal it from your distribution repositry,\nor get it at: http://www.egenix.com"
+        sys.exit(1)
+        
     if conf.confd['exportxls']:
         try:
             import pyExcelerator
