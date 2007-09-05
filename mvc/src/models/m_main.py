@@ -36,8 +36,14 @@ class MainModel(ModelMT):
     db_connection = None
     db_cursor = None
     abort = False
+    # Drzewo katalogów: id, nazwa
     discsTree = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,str)
+    # Lista plików wskazanego katalogu: child_id (?), filename, size, date, typ, ikonka
     filesList = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_UINT64, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING,str)
+    
+    LAB = 0 # label/nazwa kolekcji --- najwyższy poziom drzewa przypiętego do korzenia
+    DIR = 1 # katalog - podlega innemu katalogu lub lejbelu
+    FIL = 2 # plik - podleka katalogu lub lejbelu
     
     def __init__(self):
         ModelMT.__init__(self)
@@ -154,8 +160,9 @@ class MainModel(ModelMT):
         #    print datetime.datetime.fromtimestamp(ch[3])
         
         # directories first
-        self.db_cursor.execute("SELECT o.child, f.filename, f.size, f.date FROM files_connect o LEFT JOIN files f ON o.child=f.id WHERE o.parent=? AND o.depth=1 AND f.type=1 ORDER BY f.filename",(id,))
-        for ch in self.db_cursor.fetchall():
+        self.db_cursor.execute("SELECT id, filename, size, date FROM files WHERE parent_id=? AND type=1 ORDER BY filename",(id,))
+        data = self.db_cursor.fetchall()
+        for ch in data:
             myiter = self.filesList.insert_before(None,None)
             self.filesList.set_value(myiter,0,ch[0])
             self.filesList.set_value(myiter,1,ch[1])
@@ -164,11 +171,11 @@ class MainModel(ModelMT):
             self.filesList.set_value(myiter,4,1)
             self.filesList.set_value(myiter,5,'direktorja')
             self.filesList.set_value(myiter,6,gtk.STOCK_DIRECTORY)
-            #print datetime.datetime.fromtimestamp(ch[3])
             
         # all the rest
-        self.db_cursor.execute("SELECT o.child, f.filename, f.size, f.date, f.type FROM files_connect o LEFT JOIN files f ON o.child=f.id WHERE o.parent=? AND o.depth=1 AND f.type!=1 ORDER BY f.filename",(id,))
-        for ch in self.db_cursor.fetchall():
+        self.db_cursor.execute("SELECT id, filename, size, date, type FROM files WHERE parent_id=? AND type!=1 ORDER BY filename",(id,))
+        data = self.db_cursor.fetchall()
+        for ch in data:
             myiter = self.filesList.insert_before(None,None)
             self.filesList.set_value(myiter,0,ch[0])
             self.filesList.set_value(myiter,1,ch[1])
@@ -226,10 +233,15 @@ class MainModel(ModelMT):
     
     def __create_database(self):
         """make all necessary tables in db file"""
-        self.db_cursor.execute("create table files(id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, date datetime, size integer, type integer);")
-        self.db_cursor.execute("create table files_connect(id INTEGER PRIMARY KEY AUTOINCREMENT, parent numeric, child numeric, depth numeric);")
-        self.db_cursor.execute("insert into files values(1, 'root', 0, 0, 0);")
-        self.db_cursor.execute("insert into files_connect values(1, 1, 1, 0);")
+        self.db_cursor.execute("""create table 
+                               files(id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                     parent_id INTEGER,
+                                     filename TEXT,
+                                     filepath TEXT,
+                                     date datetime,
+                                     size integer,
+                                     type integer);""")
+        self.db_cursor.execute("insert into files values(1, 1, 'root', null, 0, 0, 0);")
         
     def __scan(self):
         """scan content of the given path"""
@@ -240,7 +252,7 @@ class MainModel(ModelMT):
         # konekszyn dla tego samego wątku, więc robimy osobne połączenie dla tego zadania.
         db_connection = sqlite.connect("%s" % self.internal_filename,
                                        detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES,
-                                       isolation_level="IMMEDIATE")
+                                       isolation_level="EXCLUSIVE")
         db_cursor = db_connection.cursor()
         
         timestamp = datetime.datetime.now()
@@ -265,38 +277,31 @@ class MainModel(ModelMT):
         # guess filesystem encoding
         self.fsenc = sys.getfilesystemencoding()
         
-        def __recurse(path,name,wobj,date=0,frac=0,size=0,idWhere=1):
-            """recursive scans the path
-            path = path string
-            name = field name
-            wobj = obiekt katalogu
-            date = data pliku
-            frac - kolejny krok potrzebny w np. statusbarze.
-            idWhere - simple id parent, or "place" where to add node
-            """
+        def __recurse(parent_id, name, path, date, size, filetype):
+            """recursive scans the path"""
             if self.abort:
                 return -1
             
             _size = size
-            walker = os.walk(path)
-            root,dirs,files = walker.next()
-            ftype = 1
-            
-            db_cursor.execute("insert into files(filename, date, size, type) values(?,?,?,?)",(name, date, 0, ftype))
+            db_cursor.execute("insert into files(parent_id, filename, filepath, date, size, type) values(?,?,?,?,?,?)",
+                              (parent_id, name, path, date, size, filetype))
             db_cursor.execute("select seq FROM sqlite_sequence WHERE name='files'")
             currentid=db_cursor.fetchone()[0]
-            db_cursor.execute("insert into files_connect(parent,child,depth) values(?,?,?)",(currentid, currentid, 0))
-            
-            if idWhere>0:
-                db_cursor.execute("insert into files_connect(parent, child, depth) select r1.parent, r2.child, r1.depth + r2.depth + 1 as depth FROM files_connect r1, files_connect r2 WHERE r1.child = ? AND r2.parent = ? ",(idWhere, currentid))
+            root,dirs,files = os.walk(path).next()
             
             for i in dirs:
                 if self.fsenc:
                     j = i.decode(self.fsenc)
                 else:
                     j = i
-                st = os.stat(os.path.join(root,i))
-                dirsize = __recurse(os.path.join(path,i),j,wobj,st.st_mtime,frac,0,currentid)
+                try:
+                    st = os.stat(os.path.join(root,i))
+                    st_mtime = st.st_mtime
+                except OSError:
+                    st_mtime = 0
+                    
+                dirsize = __recurse(currentid, j, os.path.join(path,i), st_mtime, 0, self.DIR)
+                
                 if dirsize == -1:
                     break
                 else:
@@ -306,8 +311,14 @@ class MainModel(ModelMT):
                 if self.abort:
                     break
                 self.count = self.count + 1
-                st = os.stat(os.path.join(root,i))
-                
+                try:
+                    st = os.stat(os.path.join(root,i))
+                    st_mtime = st.st_mtime
+                    st_size = st.st_size
+                except OSError:
+                    st_mtime = 0
+                    st_size = 0
+                    
                 ### scan files
                 # if i[-3:].lower() in mov_ext or \
                 # mime.guess_type(i)!= (None,None) and \
@@ -325,20 +336,16 @@ class MainModel(ModelMT):
                     # wobj.status.remove(wobj.sbSearchCId, wobj.sbid)
                 if self.count % 32 == 0:
                     self.statusmsg = "Scannig: %s" % (os.path.join(root,i))
-                    self.progress = frac * self.count
+                    self.progress = step * self.count
                 # # PyGTK FAQ entry 23.20
                 # while gtk.events_pending(): gtk.main_iteration()
                 
-                _size = _size + st.st_size
+                _size = _size + st_size
                 j = i
                 if self.fsenc:
                     j = i.decode(self.fsenc)
-                db_cursor.execute('insert into files(filename, date, size, type) values(?,?,?,?)',(j, st.st_mtime, st.st_size,2))
-                db_cursor.execute("select seq FROM sqlite_sequence WHERE name='files'")
-                currentfileid=db_cursor.fetchone()[0]
-                db_cursor.execute("insert into files_connect(parent,child,depth) values(?,?,?)",(currentfileid, currentfileid, 0))
-                if currentid>0:
-                    db_cursor.execute("insert into files_connect(parent, child, depth) select r1.parent, r2.child, r1.depth + r2.depth + 1 as depth FROM files_connect r1, files_connect r2 WHERE r1.child = ? AND r2.parent = ? ",(currentid, currentfileid))
+                db_cursor.execute("insert into files(parent_id, filename, filepath, date, size, type) values(?,?,?,?,?,?)",
+                                  (currentid, j, os.path.join(path,i), st_mtime, st_size, self.FIL))
             
             db_cursor.execute("update files set size=? where id=?",(_size, currentid))
             if self.abort:
@@ -346,10 +353,14 @@ class MainModel(ModelMT):
             else:
                 return _size
         
-        if __recurse(self.path,self.label,self,0,step) == -1:
+        if __recurse(1, self.label, self.path, 0, 0, self.DIR) == -1:
+            if __debug__:
+                print "__scan: __recurse returns -1"
             db_cursor.close()
             db_connection.rollback()
         else:
+            if __debug__:
+                print "__scan: __recurse returns something else"
             db_cursor.close()
             db_connection.commit()
             self.__fetch_db_into_treestore()
@@ -376,8 +387,9 @@ class MainModel(ModelMT):
         db_cursor = db_connection.cursor()
         
         # fetch all the directories
-        db_cursor.execute("SELECT f.id,o.parent,o.child, f.filename FROM files_connect o LEFT JOIN files f ON o.child=f.id WHERE o.depth=1 AND f.type=1 ORDER BY o.parent,f.filename")
+        db_cursor.execute("SELECT id, parent_id, filename FROM files WHERE type=1 ORDER BY parent_id, filename")
         data = db_cursor.fetchall()
+        print data
         
         def get_children(parent_id = 1, iterator = None):
             """fetch all children and place them in model"""
@@ -385,7 +397,7 @@ class MainModel(ModelMT):
                 if row[1] == parent_id:
                     myiter = self.discsTree.insert_before(iterator,None)
                     self.discsTree.set_value(myiter,0,row[0])
-                    self.discsTree.set_value(myiter,1,row[3])
+                    self.discsTree.set_value(myiter,1,row[2])
                     get_children(row[0], myiter)
                     
                     # isroot?
