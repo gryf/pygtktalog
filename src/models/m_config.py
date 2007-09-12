@@ -90,6 +90,9 @@ class ConfigModel(Model):
              'showstatusbar',
     )
     
+    recent = []
+    RECENT_MAX = 10
+    
     dstring = ('cd','ejectapp')
     
     try:
@@ -107,17 +110,28 @@ class ConfigModel(Model):
             os.lstat("%s/.pygtktalog" % self.path)
         except:
             if __debug__:
-                print "Saving preferences to %s/.pygtktalog" % self.path
+                print "m_config.py: save() Saving preferences to %s/.pygtktalog" % self.path
         newIni = Ini()
         newIni.add_section("pyGTKtalog conf")
         for opt in self.dictconf:
             newIni.add_key(opt,self.confd[self.dictconf[opt]])
+        newIni.add_section("pyGTKtalog recent")
+        
+        count = 1
+        max_count = self.RECENT_MAX + 1
+        
+        for opt in self.recent:
+            if count < max_count:
+                newIni.add_key(count, opt)
+            else:
+                break
+            count+=1
         try:
             f = open("%s/.pygtktalog" % self.path,"w")
             success = True
         except:
             if __debug__:
-                print "Cannot open config file %s for writing." % (self.path, "/.pygtktalog")
+                print "m_config.py: save() Cannot open config file %s for writing." % (self.path, "/.pygtktalog")
             success = False
         f.write(newIni.show())
         f.close()
@@ -125,9 +139,11 @@ class ConfigModel(Model):
         
     def load(self):
         try:
-            # try to read config file
+        # try to read config file
             parser = ConfigParser()
             parser.read("%s/.pygtktalog" % self.path)
+            r = {}
+            self.recent = []
             for sec in parser.sections():
                 if sec == 'pyGTKtalog conf':
                     for opt in parser.options(sec):
@@ -140,13 +156,40 @@ class ConfigModel(Model):
                                 self.confd[self.dictconf[opt]] = parser.getint(sec,opt)
                         except:
                             if __debug__:
-                                print "failed to parse option:", opt
+                                print "m_config.py: load() failed to parse option:", opt
                             pass
+                elif sec == 'pyGTKtalog recent':
+                    
+                    for opt in parser.options(sec):
+                        try:
+                            r[int(opt)] = parser.get(sec,opt)
+                        except:
+                            if __debug__:
+                                print "m_config.py: load() failed to parse option:", opt
+                            pass
+            for i in range(1, self.RECENT_MAX + 1):
+                if r.has_key(i):
+                    self.recent.append(r[i])
+                
         except:
             if __debug__:
-                print "load config file failed"
+                print "m_config.py: load() load config file failed"
             pass
+
+    def add_recent(self, path):
+        if not path:
+            return
             
+        if  path in self.recent:
+            self.recent.remove(path)
+            self.recent.insert(0,path)
+            return
+            
+        self.recent.insert(0,path)
+        if len(self.recent) > self.RECENT_MAX:
+            self.recent = self.recent[:self.RECENT_MAX]
+        return
+        
     def __str__(self):
         """show prefs in string way"""
         string = "[varname]\tvalue\n"
