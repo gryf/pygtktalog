@@ -115,7 +115,8 @@ class ConfigController(Controller):
         
         response = dialog.run()
         if response == gtk.RESPONSE_OK:
-            print dialog.get_filename()
+            if __debug__:
+                print "c_config.py: __show_filechooser()", dialog.get_filename()
             self.view['ejt_entry'].set_text(dialog.get_filename())
         
         dialog.destroy()
