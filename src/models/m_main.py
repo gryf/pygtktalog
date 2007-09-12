@@ -8,7 +8,7 @@ try:
     import threading as _threading
 except ImportError:
     if __debug__:
-        print "import exception: _threading"
+        print "m_main.py: import exception: _threading"
     import dummy_threading as _threading
 
 from pysqlite2 import dbapi2 as sqlite
@@ -37,9 +37,9 @@ class MainModel(ModelMT):
     db_cursor = None
     abort = False
     # Drzewo katalogów: id, nazwa
-    discsTree = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,str)
+    discsTree = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING, str, gobject.TYPE_INT)
     # Lista plików wskazanego katalogu: child_id (?), filename, size, date, typ, ikonka
-    filesList = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_UINT64, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING,str)
+    filesList = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_UINT64, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING, str)
     
     LAB = 0 # label/nazwa kolekcji --- najwyższy poziom drzewa przypiętego do korzenia
     DIR = 1 # katalog - podlega innemu katalogu lub lejbelu
@@ -57,13 +57,13 @@ class MainModel(ModelMT):
                 os.unlink(self.internal_filename)
             except:
                 if __debug__:
-                    print "cleanup()", self.internal_filename
+                    print "m_main.py: cleanup()", self.internal_filename
                 pass
             try:
                 os.unlink(self.internal_filename + '-journal')
             except:
                 if __debug__:
-                    print "cleanup()", self.internal_filename+'-journal'
+                    print "m_main.py: cleanup()", self.internal_filename+'-journal'
                 pass
         return
         
@@ -100,15 +100,23 @@ class MainModel(ModelMT):
         self.__create_internal_filename()
         self.filename = filename
         
-        source = bz2.BZ2File(filename, 'rb')
+        try:
+            source = bz2.BZ2File(filename, 'rb')
+        except:
+            print "%s: file cannot be read!" % self.filename
+            self.filename = None
+            self.internal_filename = None
+            return
+        
         destination = open(self.internal_filename, 'wb')
         while True:
             try:
                 data = source.read(1024000)
             except:
                 # smth went wrong
+                print "%s: Wrong database format!" % self.filename
                 if __debug__:
-                    print "something goes bad"
+                    print "m_main.py: open() something goes bad"
                 self.filename = None
                 self.internal_filename = None
                 try:
@@ -128,6 +136,7 @@ class MainModel(ModelMT):
         
         self.__connect_to_db()
         self.__fetch_db_into_treestore()
+        self.config.add_recent(filename)
         
         return True
             
@@ -355,19 +364,19 @@ class MainModel(ModelMT):
         
         if __recurse(1, self.label, self.path, 0, 0, self.DIR) == -1:
             if __debug__:
-                print "__scan: __recurse returns -1"
+                print "m_main.py: __scan() __recurse() returns -1"
             db_cursor.close()
             db_connection.rollback()
         else:
             if __debug__:
-                print "__scan: __recurse returns something else"
+                print "m_main.py: __scan() __recurse() returns something else"
             db_cursor.close()
             db_connection.commit()
             self.__fetch_db_into_treestore()
         db_connection.close()
         
         if __debug__:
-            print "scan time: ", (datetime.datetime.now() - timestamp)
+            print "m_main.py: __scan() time: ", (datetime.datetime.now() - timestamp)
         
         self.unsaved_project = True
         self.busy = False
@@ -387,9 +396,16 @@ class MainModel(ModelMT):
         db_cursor = db_connection.cursor()
         
         # fetch all the directories
-        db_cursor.execute("SELECT id, parent_id, filename FROM files WHERE type=1 ORDER BY parent_id, filename")
-        data = db_cursor.fetchall()
-        print data
+        try:
+            db_cursor.execute("SELECT id, parent_id, filename FROM files WHERE type=1 ORDER BY parent_id, filename")
+            data = db_cursor.fetchall()
+        except:
+            # cleanup
+            self.cleanup()
+            self.filename = None
+            self.internal_filename = None
+            print "%s: Wrong database format!" % self.filename
+            return
         
         def get_children(parent_id = 1, iterator = None):
             """fetch all children and place them in model"""
@@ -398,6 +414,7 @@ class MainModel(ModelMT):
                     myiter = self.discsTree.insert_before(iterator,None)
                     self.discsTree.set_value(myiter,0,row[0])
                     self.discsTree.set_value(myiter,1,row[2])
+                    self.discsTree.set_value(myiter,3,row[1])
                     get_children(row[0], myiter)
                     
                     # isroot?
@@ -412,7 +429,7 @@ class MainModel(ModelMT):
         # launch scanning.
         get_children()
         if __debug__:
-            print "tree generation time: ", (datetime.datetime.now() - start_date)
+            print "m_main.py: __fetch_db_into_treestore() tree generation time: ", (datetime.datetime.now() - start_date)
         db_connection.close()
         return
         
