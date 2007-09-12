@@ -9,6 +9,7 @@ http://www.gnu.org/licenses/gpl.txt
 
 import utils._importer
 import utils.globals
+import os.path
 from utils import deviceHelper
 from gtkmvc import Controller
 
@@ -48,6 +49,7 @@ class MainController(Controller):
         # deaktywuj na starcie te oto widżety
         for widget in self.widgets:
             self.view[widget].set_sensitive(False)
+        
         # dodatkowo deaktywuj knefle 'cancel'
         for widget in self.widgets_cancel:
             self.view[widget].set_sensitive(False)
@@ -61,11 +63,12 @@ class MainController(Controller):
         # ustaw domyślne właściwości dla poszczególnych widżetów
         self.view['main'].set_title('pyGTKtalog');
         self.view['main'].set_icon_list(gtk.gdk.pixbuf_new_from_file("pixmaps/mainicon.png"))
-        self.view['detailplace'].set_sensitive(False)
+        #self.view['detailplace'].set_sensitive(False)
         self.view['details'].hide()
+        self.view['exifTab'].hide()
+        self.view['animeTab'].hide()
         
         # załaduj konfigurację/domyślne ustawienia i przypisz je właściwościom
-        
         self.view['toolbar1'].set_active(self.model.config.confd['showtoolbar'])
         if self.model.config.confd['showtoolbar']:
             self.view['maintoolbar'].show()
@@ -88,8 +91,14 @@ class MainController(Controller):
         self.__setup_disc_treeview()
         self.__setup_files_treeview()
         
+        # w przypadku podania jako argument z linii komend bazy, odblokuj cały ten staff
+        if self.model.filename != None:
+            self.__activateUI(self.model.filename)
+        
+        self.__generate_recent_menu()
         # Show main window
         self.view['main'].show();
+        
         return
         
     #########################################################################
@@ -164,12 +173,12 @@ class MainController(Controller):
     def on_open1_activate(self,widget):
         self.__open()
         
-    def on_discs_cursor_changed(self,widget):
+    def on_discs_cursor_changed(self, widget):
         """Show files on right treeview, after clicking the left disc treeview."""
         model = self.view['discs'].get_model()
         selected_item = self.model.discsTree.get_value(self.model.discsTree.get_iter(self.view['discs'].get_cursor()[0]),0)
         if __debug__:
-            print "on_discs_cursor_changed ",selected_item
+            print "c_main.py, on_discs_cursor_changed()",selected_item
         self.model.get_root_entries(selected_item)
         
         self.view['details'].show()
@@ -185,6 +194,56 @@ class MainController(Controller):
             treeview.collapse_row(path)
         else:
             treeview.expand_row(path,False)
+        return
+    
+    def on_discs_button_press_event(self, treeview, event):
+        try:
+            path, column, x, y = treeview.get_path_at_pos(int(event.x), int(event.y))
+        except TypeError:
+            treeview.get_selection().unselect_all()
+            return False
+                
+        if event.button == 3:
+            """show context menu"""
+            try:
+                model, list_of_paths = treeview.get_selection().get_selected_rows()
+            except TypeError:
+                list_of_paths = []
+                pass
+                
+            if path not in list_of_paths:
+                treeview.get_selection().unselect_all()
+                treeview.get_selection().select_path(path)
+            
+            if self.model.discsTree.get_value(self.model.discsTree.get_iter(path),3) == 1:
+                # if ancestor is 'root', then activate "update" menu item
+                self.view['update1'].set_sensitive(True)
+            else:
+                self.view['update1'].set_sensitive(False)
+            self.__popup_discs_menu(event)
+            
+        # elif event.button == 1: # Left click
+            # """Show files on right treeview, after clicking the left disc treeview."""
+            # model = self.view['discs'].get_model()
+            # selected_item = self.model.discsTree.get_value(self.model.discsTree.get_iter(path),0)
+            # if __debug__:
+                # print "c_main.py, on_discs_cursor_changed()",selected_item
+            # self.model.get_root_entries(selected_item)
+            # 
+            # self.view['details'].show()
+            # txt = self.model.get_file_info(selected_item)
+            # buf = self.view['details'].get_buffer()
+            # buf.set_text(txt)
+            # self.view['details'].set_buffer(buf)
+            # return
+            
+    def on_expand_all1_activate(self, menuitem):
+        self.view['discs'].expand_all()
+        return
+        
+    def on_collapse_all1_activate(self, menuitem):
+        self.view['discs'].collapse_all()
+        return
         
     def on_files_cursor_changed(self,treeview):
         """Show details of selected file"""
@@ -198,7 +257,7 @@ class MainController(Controller):
                 buf.set_text('')
                 self.view['details'].set_buffer(buf)
                 if __debug__:
-                    print "on_files_cursor_changed: directory selected"
+                    print "c_main.py: on_files_cursor_changed() directory selected"
             else:
                 #file, show what you got.
                 self.view['details'].show()
@@ -209,10 +268,10 @@ class MainController(Controller):
                 buf.set_text(txt)
                 self.view['details'].set_buffer(buf)
                 if __debug__:
-                    print "on_files_cursor_changed: some other thing selected"
+                    print "c_main.py: on_files_cursor_changed() some other thing selected"
         except:
             if __debug__:
-                print "on_files_cursor_changed: insufficient iterator"
+                print "c_main.py: on_files_cursor_changed() insufficient iterator"
         return
         
     def on_files_row_activated(self, files_obj, row, column):
@@ -238,26 +297,31 @@ class MainController(Controller):
                     new_iter = self.model.discsTree.iter_next(new_iter)
         return
         
-    def on_cancel1_activate(self,widget):
+    def on_cancel1_activate(self, widget):
         self.__abort()
         
-    def on_cancel_clicked(self,widget):
+    def on_cancel_clicked(self, widget):
         self.__abort()
         
-    def on_tb_find_clicked(self,widget):
+    def on_tb_find_clicked(self, widget):
         # TODO: zaimplementować wyszukiwarkę
+        return
+        
+    def recent_item_response(self, path):
+        self.__open(path)
         return
         
     def on_debugbtn_clicked(self,widget):
         """Debug, do usunięcia w wersji stable, włącznie z kneflem w GUI"""
         if __debug__:
-            print "\ndebug:"
+            print "\nc_main.py: on_debugbtn_clicked()"
             print "------"
             print "unsaved_project = %s" % self.model.unsaved_project
             print "filename = %s" % self.model.filename
             print "internal_filename = %s" % self.model.internal_filename
             print "db_connection = %s" % self.model.db_connection
             print "abort = %s" % self.model.abort
+            print "self.model.config.recent = %s" % self.model.config.recent
             
     #####################
     # observed properetis
@@ -296,19 +360,24 @@ class MainController(Controller):
         
     #########################
     # private class functions
-    def __open(self):
+    def __open(self, path=None):
         """Open catalog file"""
         if self.model.unsaved_project and self.model.config.confd['confirmabandon']:
             obj = dialogs.Qst('Unsaved data - pyGTKtalog','There is not saved database','Pressing "Ok" will abandon catalog.')
             if not obj.run():
                 return
-        path = Dialogs.LoadDBFile().run()
+        
+        if not path:
+            path = Dialogs.LoadDBFile().run()
+        
         if path:
             if not self.model.open(path):
                 Dialogs.Err("Error opening file - pyGTKtalog","Cannot open file %s." % self.opened_catalog)
             else:
+                self.__generate_recent_menu()
                 self.__activateUI(path)
-    
+        return
+        
     def __save(self):
         """Save catalog to file"""
         #{{{
@@ -324,6 +393,7 @@ class MainController(Controller):
         if path:
             self.view['main'].set_title("%s - pyGTKtalog" % path)
             self.model.save(path)
+            self.model.config.add_recent(path)
         pass
         
     def __addCD(self):
@@ -459,6 +529,24 @@ class MainController(Controller):
         if self.model.config.confd['savepan']:
             self.model.config.confd['h'],self.model.config.confd['v'] = self.view['hpaned1'].get_position(), self.view['vpaned1'].get_position()
         self.model.config.save()
-        pass
-    
+        return
+        
+    def __popup_discs_menu(self, event):
+        self.view['discs_popup'].popup(None, None, None, event.button, event.time)
+        self.view['discs_popup'].show_all()
+        return
+        
+    def __generate_recent_menu(self):
+        self.recent_menu = gtk.Menu()
+        for i in self.model.config.recent:
+            name = os.path.basename(i)
+            if name.endswith(".pgt"):
+                name = name[:-4]
+            item = gtk.MenuItem("%s" % name)
+            item.connect_object("activate", self.recent_item_response, i)
+            self.recent_menu.append(item)
+            item.show()
+        self.view['recent_files1'].set_submenu(self.recent_menu)
+        return
+        
     pass # end of class
