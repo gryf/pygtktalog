@@ -71,7 +71,10 @@ if __name__ == "__main__":
     from models.m_main import MainModel
     from controllers.c_main import MainController
     from views.v_main import MainView
+    
     m = MainModel()
+    if len(sys.argv) > 2:
+        m.open(os.path.join(sys.argv[1],sys.argv[2]))
     c = MainController(m)
     v = MainView(c)
     
