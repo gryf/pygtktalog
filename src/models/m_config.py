@@ -54,6 +54,7 @@ class ConfigModel(Model):
         'confirmabandon':True,
         'showtoolbar':True,
         'showstatusbar':True,
+        'delwarn':True,
     }
     
     dictconf = {
@@ -70,6 +71,7 @@ class ConfigModel(Model):
         "image support":"pil",
         'confirm quit':'confirmquit',
         'warn mount/umount errors':'mntwarn',
+        'warn on delete':'delwarn',
         'confirm abandon current catalog':'confirmabandon',
         'show toolbar':'showtoolbar',
         'show statusbar and progress bar':'showstatusbar',
@@ -85,6 +87,7 @@ class ConfigModel(Model):
              'exif',
              'confirmquit',
              'mntwarn',
+             'delwarn',
              'confirmabandon',
              'showtoolbar',
              'showstatusbar',
