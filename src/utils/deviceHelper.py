@@ -5,7 +5,6 @@ device (cd, dvd) helper
 
 import string
 import os
-import popen2
 
 def volname(mntp):
     """read volume name from cd/dvd"""
@@ -23,7 +22,7 @@ def volname(mntp):
     
 def volmount(mntp):
     """mount device, return True/False"""
-    _in,_out,_err = popen2.popen3("mount %s" % mntp)
+    _in,_out,_err = os.popen3("mount %s" % mntp)
     inf = _err.readlines()
     if len(inf) > 0:
         for i in inf:
@@ -34,7 +33,7 @@ def volmount(mntp):
 
 def volumount(mntp):
     """mount device, return True/False"""
-    _in,_out,_err = popen2.popen3("umount %s" % mntp)
+    _in,_out,_err = os.popen3("umount %s" % mntp)
     inf = _err.readlines()
     if len(inf) > 0:
         for error in inf:
@@ -68,17 +67,19 @@ def mountpoint_to_dev(mntp):
     fstab.close()
     return None
     
-def eject_cd(eject_app,cd):
+def eject_cd(eject_app, cd):
     """mount device, return True/False"""
     if len(eject_app) > 0:
-        _in,_out,_err = popen2.popen3("%s %s" %(eject_app,cd))
+        _in,_out,_err = os.popen3("%s %s" % (eject_app, cd))
         inf = _err.readlines()
         error = ''
+        
         for error in inf:
             error.strip()
+            
+        if error !='':
+            return error
         
-        if error.strip()[:6] == 'eject:':
-            return error.strip()
-        else:
-            return 'ok'
-    return "Mount point does'nt exist in fstab"
+        return 'ok'
+    return "Eject program not specified"
+    
