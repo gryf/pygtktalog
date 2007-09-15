@@ -125,11 +125,9 @@ class MainController(Controller):
     def on_tb_addcd_clicked(self,widget):
         self.__addCD()
         
-    def on_add_directory1_activate(self,widget):
+    def on_add_directory1_activate(self, widget):
         """Show dialog for choose drectory to add from filesystem."""
-        res = Dialogs.PointDirectoryToAdd().run()
-        if res !=(None,None):
-            self.model.scan(res[1],res[0])
+        self.__addDirectory()
         return
         
     def on_about1_activate(self,widget):
@@ -137,12 +135,12 @@ class MainController(Controller):
         Dialogs.Abt("pyGTKtalog", __version__, "About", ["Roman 'gryf' Dobosz"], licence)
         return
         
-    def on_preferences_activate(self,widget):
+    def on_preferences_activate(self, widget):
         c = ConfigController(self.model.config)
         v = ConfigView(c)
         return
         
-    def on_status_bar1_activate(self,widget):
+    def on_status_bar1_activate(self, widget):
         """Toggle visibility of statusbat and progress bar."""
         self.model.config.confd['showstatusbar'] = self.view['status_bar1'].get_active()
         if self.view['status_bar1'].get_active():
@@ -150,7 +148,7 @@ class MainController(Controller):
         else:
             self.view['statusprogress'].hide()
         
-    def on_toolbar1_activate(self,widget):
+    def on_toolbar1_activate(self, widget):
         """Toggle visibility of toolbar bar."""
         self.model.config.confd['showtoolbar'] = self.view['toolbar1'].get_active()
         if self.view['toolbar1'].get_active():
@@ -158,19 +156,19 @@ class MainController(Controller):
         else:
             self.view['maintoolbar'].hide()
         
-    def on_save1_activate(self,widget):
+    def on_save1_activate(self, widget):
         self.__save()
         
-    def on_tb_save_clicked(self,widget):
+    def on_tb_save_clicked(self, widget):
         self.__save()
         
-    def on_save_as1_activate(self,widget):
+    def on_save_as1_activate(self, widget):
         self.__save_as()
         
-    def on_tb_open_clicked(self,widget):
+    def on_tb_open_clicked(self, widget):
         self.__open()
         
-    def on_open1_activate(self,widget):
+    def on_open1_activate(self, widget):
         self.__open()
         
     def on_discs_cursor_changed(self, widget):
@@ -311,6 +309,39 @@ class MainController(Controller):
         self.__open(path)
         return
         
+    def on_update1_activate(self, menu_item):
+        path = self.view['discs'].get_cursor()
+        filepath, label = self.model.get_label_and_filepath(path)
+        
+        if self.model.get_source(path) == self.model.CD:
+            if self.__addCD(label):
+                self.model.delete(self.model.discsTree.get_iter(path[0],0))
+                pass
+        elif self.model.get_source(path) == self.model.DR:
+            if self.__addDirectory(filepath, label):
+                self.model.delete(self.model.discsTree.get_iter(path[0]))
+                pass
+        return
+        
+    def on_delete2_activate(self, menu_item):
+        model = self.view['discs'].get_model()
+        try:
+            selected_iter = self.model.discsTree.get_iter(self.view['discs'].get_cursor()[0])
+        except:
+            return
+        if self.model.config.confd['delwarn']:
+            name = self.model.discsTree.get_value(selected_iter,1)
+            obj = Dialogs.Qst('Delete %s' % name, 'Delete %s?' % name, 'Object will be permanently removed.')
+            if not obj.run():
+                return
+        self.model.delete(selected_iter)
+        self.model.unsaved_project = True
+        if self.model.filename != None:
+            self.view['main'].set_title("%s - pyGTKtalog *" % self.model.filename)
+        else:
+            self.view['main'].set_title("untitled - pyGTKtalog *")
+        return
+
     def on_debugbtn_clicked(self,widget):
         """Debug, do usunięcia w wersji stable, włącznie z kneflem w GUI"""
         if __debug__:
@@ -322,6 +353,12 @@ class MainController(Controller):
             print "db_connection = %s" % self.model.db_connection
             print "abort = %s" % self.model.abort
             print "self.model.config.recent = %s" % self.model.config.recent
+            it = self.model.discsTree.get_iter_first()
+            myit = self.model.discsTree.insert_before(None,None)
+            self.model.discsTree.set_value(myit,0,0)
+            self.model.discsTree.set_value(myit,1,"nazwa")
+            self.model.discsTree.set_value(myit,3,3)
+            self.model.discsTree.set_value(myit,2,gtk.STOCK_INFO)
             
     #####################
     # observed properetis
@@ -340,7 +377,7 @@ class MainController(Controller):
             if not new and self.scan_cd:
                 self.scan_cd = False
                 # umount/eject cd
-                if self.model.config.confd['eject']:
+                if self.model.config.confd['eject'] and self.model.config.confd['ejectapp']:
                     msg = deviceHelper.eject_cd(self.model.config.confd['ejectapp'],self.model.config.confd['cd'])
                     if msg != 'ok':
                         Dialogs.Wrn("error ejecting device - pyGTKtalog",
@@ -363,7 +400,7 @@ class MainController(Controller):
     def __open(self, path=None):
         """Open catalog file"""
         if self.model.unsaved_project and self.model.config.confd['confirmabandon']:
-            obj = dialogs.Qst('Unsaved data - pyGTKtalog','There is not saved database','Pressing "Ok" will abandon catalog.')
+            obj = Dialogs.Qst('Unsaved data - pyGTKtalog','There is not saved database','Pressing "Ok" will abandon catalog.')
             if not obj.run():
                 return
         
@@ -383,6 +420,7 @@ class MainController(Controller):
         #{{{
         if self.model.filename:
             self.model.save()
+            self.view['main'].set_title("%s - pyGTKtalog *" % self.model.filename)
         else:
             self.__save_as()
         pass
@@ -396,21 +434,49 @@ class MainController(Controller):
             self.model.config.add_recent(path)
         pass
         
-    def __addCD(self):
+    def __addCD(self, label=None):
         """Add directory structure from cd/dvd disc"""
         mount = deviceHelper.volmount(self.model.config.confd['cd'])
         if mount == 'ok':
             guessed_label = deviceHelper.volname(self.model.config.confd['cd'])
-            label = Dialogs.InputDiskLabel(guessed_label).run()
+            if not label:
+                label = Dialogs.InputDiskLabel(guessed_label).run()
             if label != None:
                 self.scan_cd = True
                 for widget in self.widgets_all:
                     self.view[widget].set_sensitive(False)
+                self.model.source = self.model.CD
                 self.model.scan(self.model.config.confd['cd'],label)
+                self.unsaved_project = True
+                if self.model.filename != None:
+                    self.view['main'].set_title("%s - pyGTKtalog *" % self.model.filename)
+                else:
+                    self.view['main'].set_title("untitled - pyGTKtalog *")
+            return True
         else:
             Dialogs.Wrn("Error mounting device - pyGTKtalog",
                         "Cannot mount device pointed to %s" % self.model.config.confd['cd'],
                         "Last mount message:\n%s" % mount)
+            return False
+    
+    def __addDirectory(self, path=None, label=None):
+        if not label or not path:
+            res = Dialogs.PointDirectoryToAdd().run()
+            if res !=(None,None):
+                path = res[1]
+                label = res[0]
+            else:
+                return False
+        
+        self.scan_cd = False
+        self.model.source = self.model.DR
+        self.model.scan(path, label)
+        self.unsaved_project = True
+        if self.model.filename != None:
+            self.view['main'].set_title("%s - pyGTKtalog *" % self.model.filename)
+        else:
+            self.view['main'].set_title("untitled - pyGTKtalog *")
+        return True
         
     def __doQuit(self):
         """Quit and save window parameters to config file"""
