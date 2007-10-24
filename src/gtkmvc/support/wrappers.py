@@ -15,7 +15,8 @@
 #
 #  You should have received a copy of the GNU Lesser General Public
 #  License along with this library; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor,
+#  Boston, MA 02110, USA.
 #
 #  For more information on pygtkmvc see <http://pygtkmvc.sourceforge.net>
 #  or email to the author Roberto Cavada <cavada@irst.itc.it>.
@@ -28,6 +29,11 @@ import new
 
 # ----------------------------------------------------------------------
 class ObsWrapperBase (object):
+    """
+    This class is a base class wrapper for user-defined classes and
+    containers like lists and maps.
+    """
+    
     def __init__(self):
         self.__prop_name = None
         self.__gtkmvc_model = None
@@ -58,6 +64,10 @@ class ObsWrapperBase (object):
 
 # ----------------------------------------------------------------------
 class ObsWrapper (ObsWrapperBase):
+    """
+    Base class for wrappers, like user-classes and sequences. 
+    """
+
 
     def __init__(self, obj, method_names):
         ObsWrapperBase.__init__(self)
@@ -66,7 +76,7 @@ class ObsWrapper (ObsWrapperBase):
         self.__doc__ = obj.__doc__
 
         for name in method_names:
-            if hasattr(self._obj, name) and not hasattr(self, name):
+            if hasattr(self._obj, name):
                 src = self.__get_wrapper_code(name)
                 exec src
                 
@@ -87,7 +97,7 @@ class ObsWrapper (ObsWrapperBase):
  return res""" % {'name' : name}
 
     # For all fall backs
-    def __getattr__(self, name): return self._obj.__getattr__(name)
+    def __getattr__(self, name): return getattr(self._obj, name)
     def __repr__(self): return self._obj.__repr__()
     def __str__(self): return self._obj.__str__()
     
@@ -104,13 +114,13 @@ class ObsSeqWrapper (ObsWrapper):
         
         self._notify_method_before(self._obj, "__setitem__", (key,val), {})
         res = self._obj.__setitem__(key, val)
-        self._notify_method_after(self._obj, res, "__setitem__", (key,val), {})
+        self._notify_method_after(self._obj, "__setitem__", res, (key,val), {})
         return res
 
     def __delitem__(self, key):
         self._notify_method_before(self._obj, "__delitem__", (key,), {})
         res = self._obj.__delitem__(key)
-        self._notify_method_after(self._obj, res, "__delitem__", (key,), {})
+        self._notify_method_after(self._obj, "__delitem__", res, (key,), {})
         return res
 
 

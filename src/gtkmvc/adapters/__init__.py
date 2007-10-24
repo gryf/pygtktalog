@@ -1,6 +1,6 @@
 #  Author: Roberto Cavada <cavada@irst.itc.it>
 #
-#  Copyright (c) 2005 by Roberto Cavada
+#  Copyright (c) 2007 by Roberto Cavada
 #
 #  pygtkmvc is free software; you can redistribute it and/or
 #  modify it under the terms of the GNU Lesser General Public
@@ -14,11 +14,12 @@
 #
 #  You should have received a copy of the GNU Lesser General Public
 #  License along with this library; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307  USA.
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor,
+#  Boston, MA 02110, USA.
 #
 #  For more information on pygtkmvc see <http://pygtkmvc.sourceforge.net>
 #  or email to the author Roberto Cavada <cavada@irst.itc.it>.
 #  Please report bugs to <cavada@irst.itc.it>.
 
-
-__all__ = ["metaclass_base", "metaclasses", "wrappers", "decorators"]
+from gtkmvc.adapters.basic import Adapter, UserClassAdapter, RoUserClassAdapter
+from gtkmvc.adapters.containers import StaticContainerAdapter
