@@ -1,4 +1,26 @@
 # This Python file uses the following encoding: utf-8
+#
+#  Author: Roman 'gryf' Dobosz  gryf@elysium.pl
+#
+#  Copyright (C) 2007 by Roman 'gryf' Dobosz
+#
+#  This file is part of pyGTKtalog.
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+
+#  -------------------------------------------------------------------------
 
 __version__ = "0.7"
 licence = \
@@ -7,8 +29,6 @@ GPL v2
 http://www.gnu.org/licenses/gpl.txt
 """
 
-import utils._importer
-import utils.globals
 import os.path
 from utils import deviceHelper
 from gtkmvc import Controller
@@ -62,7 +82,7 @@ class MainController(Controller):
         
         # ustaw domyślne właściwości dla poszczególnych widżetów
         self.view['main'].set_title('pyGTKtalog');
-        self.view['main'].set_icon_list(gtk.gdk.pixbuf_new_from_file("pixmaps/mainicon.png"))
+#        self.view['main'].set_icon_list(gtk.gdk.pixbuf_new_from_file("pixmaps/mainicon.png"))
         #self.view['detailplace'].set_sensitive(False)
         self.view['details'].hide()
         self.view['exifTab'].hide()
@@ -310,6 +330,9 @@ class MainController(Controller):
         return
         
     def on_update1_activate(self, menu_item):
+        """Update disc under cursor position"""
+        
+        # determine origin label and filepath
         path = self.view['discs'].get_cursor()
         filepath, label = self.model.get_label_and_filepath(path)
         
