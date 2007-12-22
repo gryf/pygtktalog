@@ -66,11 +66,11 @@ class MainController(Controller):
     def register_view(self, view):
         Controller.register_view(self, view)
         
-        # deaktywuj na starcie te oto widżety
+        # Make widget set non active
         for widget in self.widgets:
             self.view[widget].set_sensitive(False)
         
-        # dodatkowo deaktywuj knefle 'cancel'
+        # Make not active "Cancel" button and menuitem
         for widget in self.widgets_cancel:
             self.view[widget].set_sensitive(False)
             
