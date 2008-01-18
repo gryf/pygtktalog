@@ -44,7 +44,7 @@ import gtk
 import datetime
 
 class MainController(Controller):
-    """Kontroler głównego okna aplikacji"""
+    """Controller for main application window"""
     scan_cd = False
     widgets = (
            "discs","files","details",
@@ -199,11 +199,7 @@ class MainController(Controller):
             print "c_main.py, on_discs_cursor_changed()",selected_item
         self.model.get_root_entries(selected_item)
         
-        self.view['details'].show()
-        txt = self.model.get_file_info(selected_item)
-        buf = self.view['details'].get_buffer()
-        buf.set_text(txt)
-        self.view['details'].set_buffer(buf)
+        self.__getItemInfo(selected_item)
         return
         
     def on_discs_row_activated(self, treeview, path, treecolumn):
@@ -278,13 +274,8 @@ class MainController(Controller):
                     print "c_main.py: on_files_cursor_changed() directory selected"
             else:
                 #file, show what you got.
-                self.view['details'].show()
                 selected_item = self.model.filesList.get_value(model.get_iter(treeview.get_cursor()[0]),0)
-                txt = self.model.get_file_info(selected_item)
-                
-                buf = self.view['details'].get_buffer()
-                buf.set_text(txt)
-                self.view['details'].set_buffer(buf)
+                self.__getItemInfo(selected_item)
                 if __debug__:
                     print "c_main.py: on_files_cursor_changed() some other thing selected"
         except:
@@ -366,7 +357,7 @@ class MainController(Controller):
         return
 
     def on_debugbtn_clicked(self,widget):
-        """Debug, do usunięcia w wersji stable, włącznie z kneflem w GUI"""
+        """Debug. To remove in stable version including button in GUI"""
         if __debug__:
             print "\nc_main.py: on_debugbtn_clicked()"
             print "------"
@@ -638,4 +629,11 @@ class MainController(Controller):
         self.view['recent_files1'].set_submenu(self.recent_menu)
         return
         
+    def __getItemInfo(self, item):
+        self.view['details'].show()
+        txt = self.model.get_file_info(item)
+        buf = self.view['details'].get_buffer()
+        buf.set_text(txt)
+        self.view['details'].set_buffer(buf)
+        return
     pass # end of class
