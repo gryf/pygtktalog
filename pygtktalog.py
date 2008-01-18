@@ -26,8 +26,9 @@ import gtk
 
 def setup_path():
     """Sets up the python include paths to include needed directories"""
-    import os.path; import sys
-    from src.utils.globals import TOPDIR 
+    import os.path
+    import sys
+    from src.utils.globals import TOPDIR
     sys.path = [os.path.join(TOPDIR, "src")] + sys.path
     return
 
