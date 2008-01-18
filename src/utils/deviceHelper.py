@@ -43,7 +43,7 @@ def volname(mntp):
     return None
     
 def volmount(mntp):
-    """mount device, return True/False"""
+    """mount device, return 'ok' or error message"""
     _in,_out,_err = os.popen3("mount %s" % mntp)
     inf = _err.readlines()
     if len(inf) > 0:
@@ -54,7 +54,7 @@ def volmount(mntp):
         return 'ok'
 
 def volumount(mntp):
-    """mount device, return True/False"""
+    """mount device, return 'ok' or error message"""
     _in,_out,_err = os.popen3("umount %s" % mntp)
     inf = _err.readlines()
     if len(inf) > 0:
@@ -90,7 +90,7 @@ def mountpoint_to_dev(mntp):
     return None
     
 def eject_cd(eject_app, cd):
-    """mount device, return True/False"""
+    """mount device, return 'ok' or error message"""
     if len(eject_app) > 0:
         _in,_out,_err = os.popen3("%s %s" % (eject_app, cd))
         inf = _err.readlines()
