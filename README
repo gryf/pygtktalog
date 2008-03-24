@@ -1,0 +1,77 @@
+pyGTKtalog 0.8
+==============
+
+pyGTKtalog Linux/FreeBSD program for indexing CD/DVD or directories on
+filesystem. It is similar to gtktalog <http://www.nongnu.org/gtktalog/> or
+gwhere <http://www.gwhere.org/home.php3>. There is no coincidence in name of
+application, because it's ment to be replacement (in some way) for gtktalog,
+which seems to be dead project for years.
+
+FEATURES
+========
+
+- scanning for files in selected media
+- generating thumbnails
+- tagging files <http://en.wikipedia.org/wiki/Tag_%28metadata%29>
+
+REQUIREMENTS
+============
+
+pyGTKtalog is written in python with following dependencies:
+
+- pygtk <http://www.pygtk.org>
+- pysqlite2 <http://pysqlite.org/> (unnecessary, if python 2.5 is used)
+# - mx.DateTime <http://www.egenix.com>
+
+Optional modules:
+
+- PIL <http://www.pythonware.com/products/pil/index.htm> for image manipulation
+
+- pyExcelerator <http://sourceforge.net/projects/pyexcelerator> for export to
+  excel capability
+
+Additional pyGTKtalog uses EXIF module by Gene Cash which is included in 
+sources.
+
+pyGTKtalog extensivly uses external programs in unix spirit, however there is
+small possibility of using it Windows (probably with liitations) and quite big
+possiblity to run it on other sofisticated unix-like systems (i.e.
+BeOS/ZETA/Haiku, QNX or MacOSX).
+
+INSTALATION
+===========
+
+All you have to do is:
+
+- put pyGTKtalog directory into your destination of choice (/usr/local/share,
+  /opt or ~/ is typical choice)
+- modify pyGTKtalog/pyGTKtalog line 4 to match right directory
+- copy/link pyGTKtalog/pyGTKtalog shell script to /usr/bin, /usr/local/bin or in
+  other place, where PATH variable is pointing or you feel like.
+
+Then, just run pyGTKtalog script.
+  
+TODO
+====
+
+- searching database
+- taggin files
+- files properties
+- adding images
+- generating/saving thumbnails
+- command line query support (text output)
+- internationalization support
+- statistics
+- moving hardcoded files extensions into config
+
+NOTES
+=====
+
+Catalog file is tared and optionaly compressed sqlite database and directory
+with thumbnails. If there are more images, the size of catalog file will grow.
+So be carefull with adding big images in your catalog file!
+
+BUGS
+====
+
+All bugs please report to Roman 'gryf' Dobosz <roman.dobosz@gmail.com>

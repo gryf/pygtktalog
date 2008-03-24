@@ -1,7 +1,11 @@
 #!/bin/sh
 # Simple wraper to launch python application from desired place.
+# adjust to your needs:
+data_dir="/home/gryf/Devel/Python/pyGTKtalog"
+python_intrpreter="/usr/bin/python"
+
+# don't change anything below.
 current_dir="`pwd`"
-cd ~/Devel/Python/pyGTKtalog
-#export PYTHONPATH="$PYTHONPATH:/home/gryf/Devel/Python/pyGTKtalog/mvc"
-#exec python -OO pygtktalog.py $@
-exec python pygtktalog.py "$current_dir" "$@"
+cd $data_dir
+#exec $python_intrpreter -OO pygtktalog.py "$current_dir" "$@"
+exec $python_intrpreter pygtktalog.py "$current_dir" "$@"

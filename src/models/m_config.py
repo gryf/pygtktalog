@@ -76,6 +76,7 @@ class ConfigModel(Model):
         'showtoolbar':True,
         'showstatusbar':True,
         'delwarn':True,
+        'compress':True,
     }
     
     dictconf = {
@@ -96,6 +97,7 @@ class ConfigModel(Model):
         'confirm abandon current catalog':'confirmabandon',
         'show toolbar':'showtoolbar',
         'show statusbar and progress bar':'showstatusbar',
+        'compress collection':'compress',
     }
     
     dbool = (
@@ -112,6 +114,8 @@ class ConfigModel(Model):
              'confirmabandon',
              'showtoolbar',
              'showstatusbar',
+             'delwarn',
+             'compress',
     )
     
     recent = []
