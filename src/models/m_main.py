@@ -510,6 +510,8 @@ class MainModel(ModelMT):
                     st_size = 0
                     
                 ### TODO: scan files
+                if self.config.confd['retrive']:
+                    pass
                 #if i.split('.').[-1].lower() in mov_ext:
                     # # video only
                     # info = filetypeHelper.guess_video(os.path.join(root,i))
