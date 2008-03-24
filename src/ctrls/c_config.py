@@ -26,8 +26,13 @@ from gtkmvc import Controller
 import gtk
 
 class ConfigController(Controller):
-    category_dict = {'Disk options':'disk_group','General':'general_group','Scan options':'scan_group'}
-    category_order = ['General','Disk options','Scan options']
+    category_dict = {
+        'Disk options':'disk_group',
+        'General':'general_group',
+        'Scan options':'scan_group',
+        'Files extensions':'ft_group',
+    }
+    category_order = ['General', 'Disk options', 'Scan options', 'Files extensions']
     
     def __init__(self, model):
         Controller.__init__(self, model)
@@ -47,13 +52,21 @@ class ConfigController(Controller):
         self.view['ch_wrnmount'].set_active(self.model.confd['mntwarn'])
         self.view['ch_wrndel'].set_active(self.model.confd['delwarn'])
         self.view['ch_warnnew'].set_active(self.model.confd['confirmabandon'])
-        self.view['ch_thumb'].set_active(self.model.confd['pil'])
+        self.view['ch_thumb'].set_active(self.model.confd['thumbs'])
         self.view['ch_exif'].set_active(self.model.confd['exif'])
         self.view['ch_gthumb'].set_active(self.model.confd['gthumb'])
         self.view['ch_compress'].set_active(self.model.confd['compress'])
+        self.view['ch_retrive'].set_active(self.model.confd['retrive'])
+        
+        self.__toggle_scan_group()
         
         # initialize tree view
         self.__setup_category_tree()
+        
+        # initialize models for files extensions
+        self.view['ext_choose'].set_model(self.model.ext_list)
+        self.view['ext_choose'].set_active(0)
+        
         self.view['config'].show();
         return
     # Podłącz sygnały:
@@ -63,14 +76,14 @@ class ConfigController(Controller):
     def on_category_tree_cursor_changed(self, tree):
         """change view to selected row corresponding to group of properties"""
         model = tree.get_model()
-        selected = model.get_value(model.get_iter(tree.get_cursor()[0]),0)
+        selected = model.get_value(model.get_iter(tree.get_cursor()[0]), 0)
         iterator = tree.get_model().get_iter_first();
         while iterator != None:
-            if model.get_value(iterator,0) == selected:
-                self.view[self.category_dict[model.get_value(iterator,0)]].show()
+            if model.get_value(iterator, 0) == selected:
+                self.view[self.category_dict[model.get_value(iterator, 0)]].show()
                 self.view['desc'].set_markup("<b>%s</b>" % selected)
             else:
-                self.view[self.category_dict[model.get_value(iterator,0)]].hide()
+                self.view[self.category_dict[model.get_value(iterator, 0)]].hide()
             iterator = tree.get_model().iter_next(iterator);
         return
     
@@ -90,10 +103,11 @@ class ConfigController(Controller):
         self.model.confd['mntwarn'] = self.view['ch_wrnmount'].get_active()
         self.model.confd['delwarn'] = self.view['ch_wrndel'].get_active()
         self.model.confd['confirmabandon'] = self.view['ch_warnnew'].get_active()
-        self.model.confd['pil'] = self.view['ch_thumb'].get_active()
+        self.model.confd['thumbs'] = self.view['ch_thumb'].get_active()
         self.model.confd['exif'] = self.view['ch_exif'].get_active()
         self.model.confd['gthumb'] = self.view['ch_gthumb'].get_active()
         self.model.confd['compress'] = self.view['ch_compress'].get_active()
+        self.model.confd['retrive'] = self.view['ch_retrive'].get_active()
         self.model.save()
         self.view['config'].destroy()
         return
@@ -107,16 +121,38 @@ class ConfigController(Controller):
         return
         
     def on_ch_retrive_toggled(self, widget):
+        self.__toggle_scan_group()
+        return
+        
+    def on_ext_choose_changed(self, widget):
+        self.__setup_extension_tree()
         return
     
     ############################
     # private controller methods
+    def __setup_extension_tree(self):
+        if self.view['ext_choose'].get_active() == 0:
+            self.view['extension_tree'].set_model(self.model.images_tree)
+        else:
+            self.view['extension_tree'].set_model(self.model.movies_tree)
+        
+        for i in self.view['extension_tree'].get_columns():
+            self.view['extension_tree'].remove_column(i)
+        cell = gtk.CellRendererText()
+        column = gtk.TreeViewColumn("Extensions", cell, text=0)
+        column.set_resizable(True)
+        self.view['extension_tree'].append_column(column)
+        
+    def __toggle_scan_group(self):
+        for i in ('ch_thumb','ch_exif','ch_gthumb'):
+            self.view[i].set_sensitive(self.view['ch_retrive'].get_active())
+        return
     def __setup_category_tree(self):
         category_tree = self.view['category_tree']
         category_tree.set_model(self.model.category_tree)
         
         self.model.category_tree.clear()
-        for i in ['General','Disk options','Scan options']:
+        for i in self.category_order:
             myiter = self.model.category_tree.insert_before(None,None)
             self.model.category_tree.set_value(myiter,0,i)
         
@@ -171,4 +207,4 @@ class ConfigController(Controller):
         dialog.destroy()
         
     pass # end of class
-
+    

@@ -56,6 +56,8 @@ class ConfigModel(Model):
     
     __properties__ = {}
     
+    extensions_list = ['Images extensions', 'Movies extesions']
+    
     confd = {
         'savewin' : True,
         'savepan' : True,
@@ -67,7 +69,7 @@ class ConfigModel(Model):
         'cd' : '/cdrom',
         'ejectapp' : 'eject -r',
         'eject' : True,
-        'pil': False,
+        'thumbs': False,
         'gthumb':False,
         'exif':False,
         'confirmquit':True,
@@ -77,6 +79,10 @@ class ConfigModel(Model):
         'showstatusbar':True,
         'delwarn':True,
         'compress':True,
+        'compress':True,
+        'retrive':False,
+        'mov_ext':['mkv', 'avi', 'ogg', 'mpg', 'wmv', 'mp4', 'mpeg'],
+        'img_ext':['jpg','jpeg','png','gif','bmp','tga','tif','tiff','ilbm','iff','pcx'],
     }
     
     dictconf = {
@@ -90,7 +96,7 @@ class ConfigModel(Model):
         "cd drive":"cd",
         "eject command":"ejectapp",
         "eject":"eject",
-        "image support":"pil",
+        "image support":"thumbs",
         'confirm quit':'confirmquit',
         'warn mount/umount errors':'mntwarn',
         'warn on delete':'delwarn',
@@ -98,11 +104,14 @@ class ConfigModel(Model):
         'show toolbar':'showtoolbar',
         'show statusbar and progress bar':'showstatusbar',
         'compress collection':'compress',
+        'retrive extra informatin':'retrive',
+        'scan exif data':'exif',
+        'include gthumb image description':'gthumb',
     }
     
     dbool = (
              'exportxls',
-             'pil',
+             'thumbs',
              'savewin',
              'savepan',
              'eject',
@@ -116,6 +125,7 @@ class ConfigModel(Model):
              'showstatusbar',
              'delwarn',
              'compress',
+             'retrive',
     )
     
     recent = []
@@ -131,6 +141,21 @@ class ConfigModel(Model):
     def __init__(self):
         Model.__init__(self)
         self.category_tree = gtk.ListStore(gobject.TYPE_STRING)
+        self.images_tree = gtk.ListStore(gobject.TYPE_STRING)
+        self.confd['img_ext'].sort()
+        for i in self.confd['img_ext']:
+            myiter = self.images_tree.insert_before(None,None)
+            self.images_tree.set_value(myiter,0,i)
+        self.movies_tree = gtk.ListStore(gobject.TYPE_STRING)
+        self.confd['mov_ext'].sort()
+        for i in self.confd['mov_ext']:
+            myiter = self.movies_tree.insert_before(None,None)
+            self.movies_tree.set_value(myiter,0,i)
+            
+        self.ext_list = gtk.ListStore(gobject.TYPE_STRING)
+        for i in self.extensions_list:
+            myiter = self.ext_list.insert_before(None,None)
+            self.ext_list.set_value(myiter,0,i)
         return
         
     def save(self):
@@ -140,20 +165,38 @@ class ConfigModel(Model):
             if __debug__:
                 print "m_config.py: save() Saving preferences to %s/.pygtktalog" % self.path
         newIni = Ini()
+        
+        # main section
         newIni.add_section("pyGTKtalog conf")
         for opt in self.dictconf:
             newIni.add_key(opt,self.confd[self.dictconf[opt]])
+            
+        # recent section
         newIni.add_section("pyGTKtalog recent")
         
         count = 1
         max_count = self.RECENT_MAX + 1
-        
         for opt in self.recent:
             if count < max_count:
                 newIni.add_key(count, opt)
             else:
                 break
             count+=1
+        
+        # extensions sections
+        newIni.add_section("images extensions")
+        count = 1
+        for i in self.confd['img_ext']:
+            newIni.add_key(count, i)
+            count+=1
+            
+        newIni.add_section("movies extensions")
+        count = 1
+        for i in self.confd['mov_ext']:
+            newIni.add_key(count, i)
+            count+=1
+            
+        # write config
         try:
             f = open("%s/.pygtktalog" % self.path,"w")
             success = True
@@ -187,7 +230,6 @@ class ConfigModel(Model):
                                 print "m_config.py: load() failed to parse option:", opt
                             pass
                 elif sec == 'pyGTKtalog recent':
-                    
                     for opt in parser.options(sec):
                         try:
                             r[int(opt)] = parser.get(sec,opt)
@@ -195,6 +237,26 @@ class ConfigModel(Model):
                             if __debug__:
                                 print "m_config.py: load() failed to parse option:", opt
                             pass
+                elif sec == 'images extensions':
+                    self.confd['img_ext'] = []
+                    for opt in parser.options(sec):
+                        try:
+                            self.confd['img_ext'].append(parser.get(sec,opt))
+                        except:
+                            if __debug__:
+                                print "m_config.py: load() failed to parse option:", opt
+                            pass
+                
+                elif sec == 'movies extensions':
+                    self.confd['mov_ext'] = []
+                    for opt in parser.options(sec):
+                        try:
+                            self.confd['mov_ext'].append(parser.get(sec,opt))
+                        except:
+                            if __debug__:
+                                print "m_config.py: load() failed to parse option:", opt
+                            pass
+                    
             for i in range(1, self.RECENT_MAX + 1):
                 if r.has_key(i):
                     self.recent.append(r[i])
