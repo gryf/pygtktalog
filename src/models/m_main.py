@@ -22,76 +22,107 @@
 
 #  -------------------------------------------------------------------------
 
+import os
+import sys
+import base64
+import shutil
+import tarfile
+
+import gtk
+import gobject
+
 from gtkmvc.model_mt import ModelMT
 
+from pysqlite2 import dbapi2 as sqlite
+from datetime import datetime
+#import mx.DateTime
 try:
     import threading as _threading
 except ImportError:
     if __debug__:
         print "m_main.py: import exception: _threading"
     import dummy_threading as _threading
+try:
+    import Image, ImageEnhance
+except:
+    if __debug__:
+        print "m_main.py: import exception: Image|ImageEnhance"
+    pass
 
-from pysqlite2 import dbapi2 as sqlite
-import datetime
-import mx.DateTime
-import os
-import sys
-import mimetypes
-import bz2
-
-import gtk
-import gobject
+from utils import EXIF
 
 from m_config import ConfigModel
+from m_details import DetailsModel
+
+class Thumbnail(object):
+    def __init__(self, *args):
+        self.x = None
+        self.y = None
+    
+class Picture(object):
+    def __init__(self, *args):
+        self.x = None
+        self.y = None
 
 class MainModel(ModelMT):
-    """Create, load, save, manipulate db file which is container for our data"""
+    """Create, load, save, manipulate db file which is container for data"""
     
     __properties__ = {'busy': False, 'statusmsg': '', 'progress': 0}
     
-    config = ConfigModel()
-    unsaved_project = False
-    filename = None
-    internal_filename = None
-    db_connection = None
-    db_cursor = None
-    abort = False
+    # constants instead of dictionary tables
+    # type of files
+    LAB = 0 # root of the tree - label/collection name
+    DIR = 1 # directory
+    FIL = 2 # file
+    LIN = 3 # symbolic link
     
+    # filetype kind of
+    F_UNK = 0 # unknown - default
+    F_IMG = 1 # images - jpg, gif, tiff itd
+    F_MOV = 2 # movies and clips - mpg, ogm, mkv, avi, asf, wmv itd
+    F_MUS = 4 # music - flac, mp3, mpc, ogg itd
+    F_APP = 5 # applications
+    F_DOC = 6 # all kind of documents txt/pdf/doc/odf itd
     
-    # Drzewo katalogów: id, nazwa, ikonka, typ
-    discsTree = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING, str, gobject.TYPE_INT)
-    # Lista plików wskazanego katalogu: child_id (?), filename, size, date, typ, ikonka
-    filesList = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING, gobject.TYPE_UINT64, gobject.TYPE_STRING, gobject.TYPE_INT, gobject.TYPE_STRING, str)
-    
-    LAB = 0 # label/nazwa kolekcji --- najwyższy poziom drzewa przypiętego do korzenia
-    DIR = 1 # katalog - podlega innemu katalogu lub lejbelu
-    FIL = 2 # plik - podleka katalogu lub lejbelu
-    
-    CD = 1 # podczas skanowania, wstawiane jest źródło na płytę CD/DVD
-    DR = 2 # podczas skanowania, wstawiane jest źródło na katalog w fs
-    
-    # default source is CD/DVD
-    source = CD
+    CD = 1 # sorce: cd/dvd
+    DR = 2 # source: filesystem
     
     def __init__(self):
         ModelMT.__init__(self)
+        self.config = ConfigModel()
+        self.unsaved_project = False
+        self.filename = None # collection saved/opened filename
+        self.internal_dirname = None
+        self.db_connection = None
+        self.db_cursor = None
+        self.abort = False
+        self.source = self.CD
         self.config.load()
+        self.details = DetailsModel()
+        
+        # Directory tree: id, nazwa, ikonka, typ
+        self.discs_tree = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,
+                                        str, gobject.TYPE_INT)
+        # File list of selected directory: child_id(?), filename, size,
+        # date, type, icon
+        self.files_list = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING,
+                                        gobject.TYPE_UINT64,
+                                        gobject.TYPE_STRING, gobject.TYPE_INT,
+                                        gobject.TYPE_STRING, str)
+        # Tag list: id, name, count
+        self.tags_list = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING,
+                                       gobject.TYPE_UINT64, str)
+        
         return
         
     def cleanup(self):
         self.__close_db_connection()
-        if self.internal_filename != None:
+        if self.internal_dirname != None:
             try:
-                os.unlink(self.internal_filename)
+                shutil.rmtree(self.internal_dirname)
             except:
                 if __debug__:
-                    print "m_main.py: cleanup()", self.internal_filename
-                pass
-            try:
-                os.unlink(self.internal_filename + '-journal')
-            except:
-                if __debug__:
-                    print "m_main.py: cleanup()", self.internal_filename+'-journal'
+                    print "m_main.py: cleanup()", self.internal_dirname
                 pass
         return
         
@@ -100,19 +131,11 @@ class MainModel(ModelMT):
         
     def new(self):
         self.unsaved_project = False
-        self.__create_internal_filename()
+        self.__create_internal_dirname()
         self.__connect_to_db()
         self.__create_database()
         
-        try:
-            self.discsTree.clear()
-        except:
-            pass
-            
-        try:
-            self.filesList.clear()
-        except:
-            pass
+        self.__clear_trees()
         
         return
         
@@ -125,42 +148,23 @@ class MainModel(ModelMT):
     def open(self, filename=None):
         """try to open db file"""
         self.unsaved_project = False
-        self.__create_internal_filename()
+        self.__create_internal_dirname()
         self.filename = filename
         
         try:
-            source = bz2.BZ2File(filename, 'rb')
+            tar = tarfile.open(filename, "r:gz")
         except:
-            print "%s: file cannot be read!" % self.filename
-            self.filename = None
-            self.internal_filename = None
-            return
-        
-        destination = open(self.internal_filename, 'wb')
-        while True:
             try:
-                data = source.read(1024000)
+                tar = tarfile.open(filename, "r")
             except:
-                # smth went wrong
-                print "%s: Wrong database format!" % self.filename
-                if __debug__:
-                    print "m_main.py: open() something goes bad"
+                print "%s: file cannot be read!" % filename
                 self.filename = None
-                self.internal_filename = None
-                try:
-                    self.discsTree.clear()
-                except:
-                    pass
-                    
-                try:
-                    self.filesList.clear()
-                except:
-                    pass
-                return False
-            if not data: break
-            destination.write(data)
-        destination.close()
-        source.close()
+                self.internal_dirname = None
+                return
+                
+        os.chdir(self.internal_dirname)
+        tar.extractall()
+        tar.close()
         
         self.__connect_to_db()
         self.__fetch_db_into_treestore()
@@ -168,7 +172,7 @@ class MainModel(ModelMT):
         
         return True
             
-    def scan(self,path,label):
+    def scan(self, path, label):
         """scan files in separated thread"""
         
         # flush buffer to release db lock.
@@ -183,9 +187,10 @@ class MainModel(ModelMT):
         self.thread.start()
         return
         
-    def get_root_entries(self,id=None):
+    def get_root_entries(self, id=None):
+        """Get all children down from sepcified root"""
         try:
-            self.filesList.clear()
+            self.files_list.clear()
         except:
             pass
         # parent for virtual '..' dir
@@ -194,50 +199,61 @@ class MainModel(ModelMT):
         #self.filemodel.set_value(myiter,0,self.cur.fetchone()[0])
         #self.filemodel.set_value(myiter,1,'..')
         #if __debug__:
-        #    print datetime.datetime.fromtimestamp(ch[3])
+        #    print datetime.fromtimestamp(ch[3])
         
         # directories first
-        self.db_cursor.execute("SELECT id, filename, size, date FROM files WHERE parent_id=? AND type=1 ORDER BY filename",(id,))
+        self.db_cursor.execute("SELECT id, filename, size, date FROM files \
+                               WHERE parent_id=? AND type=1 \
+                               ORDER BY filename", (id,))
         data = self.db_cursor.fetchall()
         for ch in data:
-            myiter = self.filesList.insert_before(None,None)
-            self.filesList.set_value(myiter,0,ch[0])
-            self.filesList.set_value(myiter,1,ch[1])
-            self.filesList.set_value(myiter,2,ch[2])
-            self.filesList.set_value(myiter,3,datetime.datetime.fromtimestamp(ch[3]))
-            self.filesList.set_value(myiter,4,1)
-            self.filesList.set_value(myiter,5,'direktorja')
-            self.filesList.set_value(myiter,6,gtk.STOCK_DIRECTORY)
+            myiter = self.files_list.insert_before(None, None)
+            self.files_list.set_value(myiter, 0, ch[0])
+            self.files_list.set_value(myiter, 1, ch[1])
+            self.files_list.set_value(myiter, 2, ch[2])
+            self.files_list.set_value(myiter, 3,
+                                      datetime.fromtimestamp(ch[3]))
+            self.files_list.set_value(myiter, 4, 1)
+            self.files_list.set_value(myiter, 5, 'direktorja')
+            self.files_list.set_value(myiter, 6, gtk.STOCK_DIRECTORY)
             
         # all the rest
-        self.db_cursor.execute("SELECT id, filename, size, date, type FROM files WHERE parent_id=? AND type!=1 ORDER BY filename",(id,))
+        self.db_cursor.execute("SELECT id, filename, size, date, type \
+                               FROM files WHERE parent_id=? AND type!=1 \
+                               ORDER BY filename", (id,))
         data = self.db_cursor.fetchall()
         for ch in data:
-            myiter = self.filesList.insert_before(None,None)
-            self.filesList.set_value(myiter,0,ch[0])
-            self.filesList.set_value(myiter,1,ch[1])
-            self.filesList.set_value(myiter,2,ch[2])
-            self.filesList.set_value(myiter,3,datetime.datetime.fromtimestamp(ch[3]))
-            self.filesList.set_value(myiter,4,ch[4])
-            self.filesList.set_value(myiter,5,'kategoria srategoria')
-            self.filesList.set_value(myiter,6,gtk.STOCK_FILE)
-            #print datetime.datetime.fromtimestamp(ch[3])
+            myiter = self.files_list.insert_before(None, None)
+            self.files_list.set_value(myiter, 0, ch[0])
+            self.files_list.set_value(myiter, 1, ch[1])
+            self.files_list.set_value(myiter, 2, ch[2])
+            self.files_list.set_value(myiter, 3, datetime.fromtimestamp(ch[3]))
+            self.files_list.set_value(myiter, 4, ch[4])
+            self.files_list.set_value(myiter, 5, 'kategoria srategoria')
+            if ch[4] == self.FIL:
+                self.files_list.set_value(myiter, 6, gtk.STOCK_FILE)
+            elif ch[4] == self.LIN:
+                self.files_list.set_value(myiter, 6, gtk.STOCK_INDEX)
         return
         
     def get_file_info(self, id):
         """get file info from database"""
-        self.db_cursor.execute("SELECT filename, date, size, type FROM files WHERE id = ?",(id,))
+        self.db_cursor.execute("SELECT filename, date, size, type \
+                               FROM files WHERE id = ?", (id,))
         set = self.db_cursor.fetchone()
         if set == None:
             return ''
             
-        string = "Filename: %s\nDate: %s\nSize: %s\ntype: %s" % (set[0],datetime.datetime.fromtimestamp(set[1]),set[2],set[3])
+        string = "Filename: %s\nDate: %s\nSize: %s\ntype: %s" % \
+            (set[0], datetime.fromtimestamp(set[1]), set[2], set[3])
         return string
         
     def get_source(self, path):
         """get source of top level directory"""
-        bid = self.discsTree.get_value(self.discsTree.get_iter(path[0]),0)
-        self.db_cursor.execute("select source from files where id = ?", (bid,))
+        bid = self.discs_tree.get_value(self.discs_tree.get_iter(path[0]),
+                                        0)
+        self.db_cursor.execute("select source from files where id = ?",
+                               (bid,))
         res = self.db_cursor.fetchone()
         if res == None:
             return False
@@ -245,8 +261,10 @@ class MainModel(ModelMT):
         
     def get_label_and_filepath(self, path):
         """get source of top level directory"""
-        bid = self.discsTree.get_value(self.discsTree.get_iter(path[0]),0)
-        self.db_cursor.execute("select filepath, filename from files where id = ? and parent_id = 1", (bid,))
+        bid = self.discs_tree.get_value(self.discs_tree.get_iter(path[0]),
+                                        0)
+        self.db_cursor.execute("select filepath, filename from files \
+                               where id = ? and parent_id = 1", (bid,))
         res = self.db_cursor.fetchone()
         if res == None:
             return None, None
@@ -255,13 +273,38 @@ class MainModel(ModelMT):
     def delete(self, branch_iter):
         if not branch_iter:
             return
-        self.__remove_branch_form_db(self.discsTree.get_value(branch_iter,0))
-        self.discsTree.remove(branch_iter)
+        self.__remove_branch_form_db(self.discs_tree.get_value(branch_iter,0))
+        self.discs_tree.remove(branch_iter)
         return
         
     # private class functions
+    def __clear_trees(self):
+        self.__clear_tags_tree()
+        self.__clear_files_tree()
+        self.__clear_discs_tree()
+        
+    def __clear_tags_tree(self):
+        try:
+            self.tags_list.clear()
+        except:
+            pass
+    
+    def __clear_discs_tree(self):
+        try:
+            self.discs_tree.clear()
+        except:
+            pass
+            
+    def __clear_files_tree(self):
+        try:
+            self.files_list.clear()
+        except:
+            pass
+            
     def __connect_to_db(self):
-        self.db_connection = sqlite.connect("%s" % self.internal_filename, detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
+        self.db_connection = sqlite.connect("%s" % \
+                    (self.internal_dirname + '/db.sqlite'),
+                    detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
         self.db_cursor = self.db_connection.cursor()
         return
     
@@ -274,22 +317,28 @@ class MainModel(ModelMT):
             self.db_connection = None
         return
         
-    def __create_internal_filename(self):
+    def __create_internal_dirname(self):
         self.cleanup()
-        self.internal_filename = "/tmp/pygtktalog%d.db" % datetime.datetime.now().microsecond
+        self.internal_dirname = "/tmp/pygtktalog%d" % datetime.now().microsecond
+        try:
+            os.mkdir(self.internal_dirname)
+        except:
+            if __debug__:
+                print "m_main.py: __create_internal_dirname(): cannot create \
+                temporary directory, or directory exists"
+            pass
         return
     
     def __compress_and_save(self):
-        source = open(self.internal_filename, 'rb')
-        destination = bz2.BZ2File(self.filename, 'w')
+        if self.config.confd['compress']:
+            tar = tarfile.open(self.filename, "w:gz")
+        else:
+            tar = tarfile.open(self.filename, "w")
+        
+        os.chdir(self.internal_dirname)
+        tar.add('.')
+        tar.close()
             
-        while True:
-            data = source.read(1024000)
-            if not data: break
-            destination.write(data)
-            
-        destination.close()
-        source.close()
         self.unsaved_project = False
         return
     
@@ -303,24 +352,44 @@ class MainModel(ModelMT):
                                      date datetime,
                                      size integer,
                                      type integer,
-                                     source integer);""")
-        self.db_cursor.execute("insert into files values(1, 1, 'root', null, 0, 0, 0, 0);")
+                                     source integer,
+                                     size_x integer,
+                                     size_y integer,
+                                     filetype integer,
+                                     note TEXT);""")
+        self.db_cursor.execute("""create table 
+                               tags(id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    file_id INTEGER,
+                                    tag TEXT);""")
+        self.db_cursor.execute("""create table 
+                               descriptions(id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                            file_id INTEGER,
+                                            desc TEXT,
+                                            image TEXT,
+                                            image_x INTEGER,
+                                            image_y INTEGER,
+                                            thumb TEXT,
+                                            thumb_x INTEGER,
+                                            thumb_y INTEGER,
+                                            thumb_mode TEXT);""")
+        self.db_cursor.execute("insert into files values(1, 1, 'root', null, \
+                               0, 0, 0, 0, null, null, null, null);")
         
     def __scan(self):
         """scan content of the given path"""
         self.busy = True
         
-        # jako, że to jest w osobnym wątku, a sqlite się przypieprza, że musi mieć
-        # konekszyn dla tego samego wątku, więc robimy osobne połączenie dla tego zadania.
-        db_connection = sqlite.connect("%s" % self.internal_filename,
-                                       detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES,
-                                       isolation_level="EXCLUSIVE")
+        # new conection for this task, because it's running in separate thread
+        db_connection = sqlite.connect("%s" % \
+                   (self.internal_dirname + '/db.sqlite'),
+                   detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES,
+                   isolation_level="EXCLUSIVE")
         db_cursor = db_connection.cursor()
         
-        timestamp = datetime.datetime.now()
+        timestamp = datetime.now()
         
-        mime = mimetypes.MimeTypes()
-        mov_ext = ('mkv','avi','ogg','mpg','wmv','mp4','mpeg')
+        # TODO: file types has to be moved to configuration model
+        mov_ext = ('mkv', 'avi', 'ogg', 'mpg', 'wmv', 'mp4', 'mpeg')
         img_ext = ('jpg','jpeg','png','gif','bmp','tga','tif','tiff','ilbm','iff','pcx')
         
         # count files in directory tree
@@ -328,8 +397,13 @@ class MainModel(ModelMT):
         self.statusmsg = "Calculating number of files in directory tree..."
         
         count = 0
-        for root, dirs, files in os.walk(self.path):
-            count += len(files)
+        try:
+            for root, dirs, files in os.walk(self.path):
+                count += len(files)
+        except:
+            if __debug__:
+                print 'm_main.py: os.walk in %s' % self.path
+            pass
         
         if count > 0:
             step = 1.0/count
@@ -342,45 +416,81 @@ class MainModel(ModelMT):
         
         self.fresh_disk_iter = None
         
-        def __recurse(parent_id, name, path, date, size, filetype, discs_tree_iter=None):
-            """recursive scans the path"""
+        def __recurse(parent_id, name, path, date, size, filetype,
+                      discs_tree_iter=None):
+            """recursive scans given path"""
             if self.abort:
                 return -1
             
             _size = size
             
-            myit = self.discsTree.append(discs_tree_iter,None)
+            myit = self.discs_tree.append(discs_tree_iter,None)
             
             if parent_id == 1:
                 self.fresh_disk_iter = myit
-                self.discsTree.set_value(myit,2,gtk.STOCK_CDROM)
-                db_cursor.execute("insert into files(parent_id, filename, filepath, date, size, type, source) values(?,?,?,?,?,?,?)",
-                                  (parent_id, name, path, date, size, filetype, self.source))
+                self.discs_tree.set_value(myit,2,gtk.STOCK_CDROM)
+                sql = """insert into 
+                    files(parent_id, filename, filepath, date, size, type, source)
+                    values(?,?,?,?,?,?,?)"""
+                db_cursor.execute(sql, (parent_id, name, path, date, size,
+                                        filetype, self.source))
             else:
-                self.discsTree.set_value(myit,2,gtk.STOCK_DIRECTORY)
-                db_cursor.execute("insert into files(parent_id, filename, filepath, date, size, type) values(?,?,?,?,?,?)",
+                self.discs_tree.set_value(myit,2,gtk.STOCK_DIRECTORY)
+                sql = """
+                insert into
+                files(parent_id, filename, filepath, date, size, type)
+                values(?,?,?,?,?,?)
+                """
+                db_cursor.execute(sql,
                                   (parent_id, name, path, date, size, filetype))
-            db_cursor.execute("select seq FROM sqlite_sequence WHERE name='files'")
+                
+            sql = """select seq FROM sqlite_sequence WHERE name='files'"""
+            db_cursor.execute(sql)
             currentid=db_cursor.fetchone()[0]
             
-            self.discsTree.set_value(myit,0,currentid)
-            self.discsTree.set_value(myit,1,name)
-            self.discsTree.set_value(myit,3,parent_id)
+            self.discs_tree.set_value(myit,0,currentid)
+            self.discs_tree.set_value(myit,1,name)
+            self.discs_tree.set_value(myit,3,parent_id)
             
-            root,dirs,files = os.walk(path).next()
-            
+            try:
+                root,dirs,files = os.walk(path).next()
+            except:
+                if __debug__:
+                    print "m_main.py: cannot access ", path
+                #return -1
+                return 0
+                
             for i in dirs:
                 if self.fsenc:
                     j = i.decode(self.fsenc)
                 else:
                     j = i
+                
                 try:
                     st = os.stat(os.path.join(root,i))
                     st_mtime = st.st_mtime
                 except OSError:
                     st_mtime = 0
                     
-                dirsize = __recurse(currentid, j, os.path.join(path,i), st_mtime, 0, self.DIR, myit)
+                # do NOT follow symbolic links
+                if os.path.islink(os.path.join(root,i)):
+                    l = os.readlink(os.path.join(root,i))
+                    if self.fsenc:
+                        l = l.decode(self.fsenc)
+                    else:
+                        l = l
+                        
+                    sql = """
+                    insert into files(parent_id, filename, filepath, date, size, type)
+                    values(?,?,?,?,?,?)
+                    """
+                    db_cursor.execute(sql, (currentid, j + " -> " + l,
+                                            os.path.join(path,i), st_mtime, 0,
+                                            self.LIN))
+                    dirsize = 0
+                else:
+                    dirsize = __recurse(currentid, j, os.path.join(path,i),
+                                        st_mtime, 0, self.DIR, myit)
                 
                 if dirsize == -1:
                     break
@@ -399,15 +509,20 @@ class MainModel(ModelMT):
                     st_mtime = 0
                     st_size = 0
                     
-                ### scan files
-                # if i[-3:].lower() in mov_ext or \
-                # mime.guess_type(i)!= (None,None) and \
-                # mime.guess_type(i)[0].split("/")[0] == 'video':
+                ### TODO: scan files
+                #if i.split('.').[-1].lower() in mov_ext:
                     # # video only
                     # info = filetypeHelper.guess_video(os.path.join(root,i))
-                # elif i[-3:].lower() in img_ext or \
-                # mime.guess_type(i)!= (None,None) and \
-                # mime.guess_type(i)[0].split("/")[0] == 'image':
+                    
+                
+                if i.split('.')[-1].lower() in img_ext:
+                    exif_info = EXIF.process_file(open(os.path.join(path,i),
+                                                       'rb'))
+                    if exif_info.has_key('JPEGThumbnail'):
+                        print "%s got thumbnail" % i
+                    else:
+                        print "%s has not got thumbnail" % i
+                    
                     # pass
                 ### end of scan
                 
@@ -424,20 +539,26 @@ class MainModel(ModelMT):
                 j = i
                 if self.fsenc:
                     j = i.decode(self.fsenc)
-                db_cursor.execute("insert into files(parent_id, filename, filepath, date, size, type) values(?,?,?,?,?,?)",
-                                  (currentid, j, os.path.join(path,i), st_mtime, st_size, self.FIL))
+                    
+                sql = """
+                insert into files(parent_id, filename, filepath, date, size, type)
+                values(?,?,?,?,?,?)
+                """
+                db_cursor.execute(sql, (currentid, j, os.path.join(path,i),
+                                        st_mtime, st_size, self.FIL))
             
-            db_cursor.execute("update files set size=? where id=?",(_size, currentid))
+            sql = """update files set size=? where id=?"""
+            db_cursor.execute(sql,(_size, currentid))
             if self.abort:
                 return -1
             else:
                 return _size
         
-        
         if __recurse(1, self.label, self.path, 0, 0, self.DIR) == -1:
             if __debug__:
-                print "m_main.py: __scan() __recurse() interrupted self.abort = True"
-            self.discsTree.remove(self.fresh_disk_iter)
+                print "m_main.py: __scan() __recurse() \
+                interrupted self.abort = True"
+            self.discs_tree.remove(self.fresh_disk_iter)
             db_cursor.close()
             db_connection.rollback()
         else:
@@ -447,7 +568,7 @@ class MainModel(ModelMT):
             db_connection.commit()
         db_connection.close()
         if __debug__:
-            print "m_main.py: __scan() time: ", (datetime.datetime.now() - timestamp)
+            print "m_main.py: __scan() time: ", (datetime.now() - timestamp)
         
         self.busy = False
         
@@ -458,22 +579,27 @@ class MainModel(ModelMT):
     def __fetch_db_into_treestore(self):
         """load data from DB to tree model"""
         # cleanup treeStore
-        self.discsTree.clear()
+        self.__clear_discs_tree()
         
         #connect
-        db_connection = sqlite.connect("%s" % self.internal_filename,
+        db_connection = sqlite.connect("%s" % \
+                                       (self.internal_dirname + '/db.sqlite'),
                                        detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
         db_cursor = db_connection.cursor()
         
         # fetch all the directories
         try:
-            db_cursor.execute("SELECT id, parent_id, filename FROM files WHERE type=1 ORDER BY parent_id, filename")
+            sql = """
+            SELECT id, parent_id, filename FROM files 
+            WHERE type=1 ORDER BY parent_id, filename
+            """
+            db_cursor.execute(sql)
             data = db_cursor.fetchall()
         except:
             # cleanup
             self.cleanup()
             self.filename = None
-            self.internal_filename = None
+            self.internal_dirname = None
             print "%s: Wrong database format!" % self.filename
             return
         
@@ -481,36 +607,40 @@ class MainModel(ModelMT):
             """fetch all children and place them in model"""
             for row in data:
                 if row[1] == parent_id:
-                    myiter = self.discsTree.insert_before(iterator,None)
-                    self.discsTree.set_value(myiter,0,row[0]) # id
-                    self.discsTree.set_value(myiter,1,row[2]) # name
-                    self.discsTree.set_value(myiter,3,row[1]) # parent_id
+                    myiter = self.discs_tree.insert_before(iterator, None)
+                    self.discs_tree.set_value(myiter, 0, row[0]) # id
+                    self.discs_tree.set_value(myiter, 1, row[2]) # name
+                    self.discs_tree.set_value(myiter, 3, row[1]) # parent_id
                     get_children(row[0], myiter)
                     
                     # isroot?
                     if iterator == None:
-                        self.discsTree.set_value(myiter,2,gtk.STOCK_CDROM)
+                        self.discs_tree.set_value(myiter, 2, gtk.STOCK_CDROM)
                     else:
-                        self.discsTree.set_value(myiter,2,gtk.STOCK_DIRECTORY)
+                        self.discs_tree.set_value(myiter, 2,
+                                                  gtk.STOCK_DIRECTORY)
             return
            
         if __debug__:
-            start_date = datetime.datetime.now()
+            start_date = datetime.now()
         # launch scanning.
         get_children()
         if __debug__:
-            print "m_main.py: __fetch_db_into_treestore() tree generation time: ", (datetime.datetime.now() - start_date)
+            print "m_main.py: __fetch_db_into_treestore() tree generation time: ",
+            (datetime.now() - start_date)
         db_connection.close()
         return
         
     def __remove_branch_form_db(self, root_id):
         parent_ids = [root_id,]
-        self.db_cursor.execute("select id from files where parent_id = ? and type = 1", (root_id,))
+        sql = """select id from files where parent_id = ? and type = 1"""
+        self.db_cursor.execute(sql, (root_id,))
         ids = self.db_cursor.fetchall()
         
         def get_children(fid):
             parent_ids.append(fid)
-            self.db_cursor.execute("select id from files where parent_id = ? and type = 1", (fid,))
+            sql = """select id from files where parent_id = ? and type = 1"""
+            self.db_cursor.execute(sql, (fid,))
             res = self.db_cursor.fetchall()
             for i in res:
                 get_children(i[0])
@@ -522,8 +652,10 @@ class MainModel(ModelMT):
             for c in parent_ids:
                 yield (c,)
             
-        self.db_cursor.executemany("delete from files where type = 1 and parent_id = ?", generator())
-        self.db_cursor.executemany("delete from files where id = ?",generator())
+        sql = """delete from files where type = 1 and parent_id = ?"""
+        self.db_cursor.executemany(sql, generator())
+        sql = """delete from files where id = ?"""
+        self.db_cursor.executemany(sql, generator())
         self.db_connection.commit()
         return
         
@@ -531,36 +663,40 @@ class MainModel(ModelMT):
     def __append_added_volume(self):
         """append branch from DB to existing tree model"""
         #connect
-        db_connection = sqlite.connect("%s" % self.internal_filename,
+        db_connection = sqlite.connect("%s" % \
+                                       (self.internal_dirname + '/db.sqlite'),
                                        detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
         db_cursor = db_connection.cursor()
         
-        db_cursor.execute("SELECT id, parent_id, filename FROM files WHERE type=1 ORDER BY parent_id, filename")
+        sql = """SELECT id, parent_id, filename FROM files WHERE type=1 ORDER BY parent_id, filename"""
+        db_cursor.execute(sql)
         data = db_cursor.fetchall()
         
         def get_children(parent_id = 1, iterator = None):
             """fetch all children and place them in model"""
             for row in data:
                 if row[1] == parent_id:
-                    myiter = self.discsTree.insert_before(iterator,None)
-                    self.discsTree.set_value(myiter,0,row[0])
-                    self.discsTree.set_value(myiter,1,row[2])
-                    self.discsTree.set_value(myiter,3,row[1])
+                    myiter = self.discs_tree.insert_before(iterator, None)
+                    self.discs_tree.set_value(myiter, 0, row[0])
+                    self.discs_tree.set_value(myiter, 1, row[2])
+                    self.discs_tree.set_value(myiter, 3, row[1])
                     get_children(row[0], myiter)
                     
                     # isroot?
                     if iterator == None:
-                        self.discsTree.set_value(myiter,2,gtk.STOCK_CDROM)
+                        self.discs_tree.set_value(myiter, 2, gtk.STOCK_CDROM)
                     else:
-                        self.discsTree.set_value(myiter,2,gtk.STOCK_DIRECTORY)
+                        self.discs_tree.set_value(myiter, 2,
+                                                  gtk.STOCK_DIRECTORY)
             return
            
         if __debug__:
-            start_date = datetime.datetime.now()
+            start_date = datetime.now()
         # launch scanning.
         get_children()
         if __debug__:
-            print "m_main.py: __fetch_db_into_treestore() tree generation time: ", (datetime.datetime.now() - start_date)
+            print "m_main.py: __fetch_db_into_treestore() tree generation time: ",
+            (datetime.now() - start_date)
         db_connection.close()
         return
         

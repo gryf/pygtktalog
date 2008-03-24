@@ -22,25 +22,22 @@
 
 #  -------------------------------------------------------------------------
 
+from gtkmvc import View
 import os.path
 import utils.globals
-from gtkmvc import View
-from v_details import DetailsView
 
-class MainView(View):
-    """This handles only the graphical representation of the
-    application. The widgets set is loaded from glade file"""
-    
+class DetailsView(View):
+    """ """
     GLADE = os.path.join(utils.globals.GLADE_DIR, "main.glade")
-    def __init__(self, ctrl):
-        View.__init__(self, ctrl, self.GLADE)
-        self.details = None
+    def __init__(self, ctrl, stand_alone=True):
+        top_widget = "hbox_details"
+        if stand_alone:
+            top_widget = "window_details"
+            
+        View.__init__(self, ctrl, self.GLADE, top_widget)
         return
-
-    def create_sub_view(self, details_ctrl):
-        """attach sub view"""
-        self.details = DetailsView(details_ctrl, False)
-        vpan = self['vpaned1']
-        vpan.add2(self.details.get_top_widget())
-        return
+        
+    def is_stand_alone(self):
+        return self["window_details"] is not None
+        
     pass # end of class

@@ -23,24 +23,15 @@
 #  -------------------------------------------------------------------------
 
 import os.path
-import utils.globals
-from gtkmvc import View
-from v_details import DetailsView
+from utils import deviceHelper
+from gtkmvc import Controller
 
-class MainView(View):
-    """This handles only the graphical representation of the
-    application. The widgets set is loaded from glade file"""
-    
-    GLADE = os.path.join(utils.globals.GLADE_DIR, "main.glade")
-    def __init__(self, ctrl):
-        View.__init__(self, ctrl, self.GLADE)
-        self.details = None
+class DetailsController(Controller):
+    """Controller for details view"""
+    def __init__(self, model):
+        """Initialize controller"""
+        Controller.__init__(self, model)
         return
-
-    def create_sub_view(self, details_ctrl):
-        """attach sub view"""
-        self.details = DetailsView(details_ctrl, False)
-        vpan = self['vpaned1']
-        vpan.add2(self.details.get_top_widget())
-        return
-    pass # end of class
+        
+    def register_view(self, view):
+        Controller.register_view(self, view)
