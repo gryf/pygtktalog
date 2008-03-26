@@ -55,9 +55,159 @@ from m_config import ConfigModel
 from m_details import DetailsModel
 
 class Thumbnail(object):
-    def __init__(self, *args):
-        self.x = None
-        self.y = None
+    def __init__(self, filename=None, x=160, y=120, root='thumbnails', base=''):
+        self.root = root
+        self.x = x
+        self.y = y
+        self.filename = filename
+        self.base = base
+        
+    def save(self, image_id):
+        """Save thumbnail into specific directory structure
+        return full path to the file and exif object or None"""
+        filepath = os.path.join(self.base, self.__get_and_make_path(image_id))
+        f = open(self.filename, 'rb')
+        exif = None
+        returncode = -1
+        try:
+            exif = EXIF.process_file(f)
+            f.close()
+            if exif.has_key('JPEGThumbnail'):
+                thumbnail = exif['JPEGThumbnail']
+                f = open(filepath,'wb')
+                f.write(thumbnail)
+                f.close()
+                if exif.has_key('Image Orientation'):
+                    orientation = exif['Image Orientation'].values[0]
+                    if orientation > 1:
+                        t = "/tmp/thumb%d.jpg" % datetime.now().microsecond
+                        im_in = Image.open(filepath)
+                        im_out = None
+                        if orientation == 8:
+                            # Rotated 90 CCW
+                            im_out = im_in.transpose(Image.ROTATE_90)
+                        elif orientation == 6:
+                            # Rotated 90 CW
+                            im_out = im_in.transpose(Image.ROTATE_270)
+                        elif orientation == 3:
+                            # Rotated 180
+                            im_out = im_in.transpose(Image.ROTATE_180)
+                        elif orientation == 2:
+                            # Mirrored horizontal
+                            im_out = im_in.transpose(Image.FLIP_LEFT_RIGHT)
+                        elif orientation == 4:
+                            # Mirrored vertical
+                            im_out = im_in.transpose(Image.FLIP_TOP_BOTTOM)
+                        elif orientation == 5:
+                            # Mirrored horizontal then rotated 90 CCW
+                            im_out = im_in.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.ROTATE_90)
+                        elif orientation == 7:
+                            # Mirrored horizontal then rotated 90 CW
+                            im_out = im_in.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.ROTATE_270)
+                            
+                        if im_out:
+                            im_out.save(t, 'JPEG')
+                            shutil.move(t, filepath)
+                        else:
+                            f.close()
+                returncode = 0
+            else:
+                im = self.__scale_image(True)
+                if im:
+                    im.save(filepath, "JPEG")
+                    returncode = 1
+        except:
+            f.close()
+            im = self.__scale_image(True)
+            if im:
+                im.save(filepath, "JPEG")
+                returncode = 2
+        return filepath, exif, returncode
+        
+    # private class functions
+    def __get_and_make_path(self, img_id):
+        """Make directory structure regards of id
+        and return filepath WITHOUT extension"""
+        t = os.path.join(self.base, self.root)
+        try: os.mkdir(t)
+        except: pass
+        h = hex(img_id)
+        if len(h[2:])>6:
+            try: os.mkdir(os.path.join(t, h[2:4]))
+            except: pass
+            try: os.mkdir(os.path.join(t, h[2:4], h[4:6]))
+            except: pass
+            path = os.path.join(t, h[2:4], h[4:6], h[6:8])
+            try: os.mkdir(path)
+            except: pass
+            img = "%s.%s" % (h[8:], 'jpg')
+        elif len(h[2:])>4:
+            try: os.mkdir(os.path.join(t, h[2:4]))
+            except: pass
+            path = os.path.join(t, h[2:4], h[4:6])
+            try: os.mkdir(path)
+            except: pass
+            img = "%s.%s" % (h[6:], 'jpg')
+        elif len(h[2:])>2:
+            path = os.path.join(t, h[2:4])
+            try: os.mkdir(path)
+            except: pass
+            img = "%s.%s" %(h[4:], 'jpg')
+        else:
+            path = t
+            img = "%s.%s" %(h[2:], 'jpg')
+        return(os.path.join(t, img))
+        
+    def __scale_image(self, factor=False):
+        """generate scaled Image object for given file
+        args:
+            factor - if False, adjust height into self.y
+                     if True, use self.x for scale portrait pictures height.
+            returns Image object, or False
+        """
+        try:
+            im = Image.open(self.filename).convert('RGB')
+        except:
+            return False
+        x, y = im.size
+        
+        if x > self.x or y > self.y:
+            if x==y:
+                # square
+                imt = im.resize((self.y, self.y), Image.ANTIALIAS)
+            elif x > y:
+                # landscape
+                if int(y/(x/float(self.x))) > self.y:
+                    # landscape image: height is non standard
+                    self.x1 = int(float(self.y) * self.y / self.x)
+                    if float(self.y) * self.y / self.x - self.x1 > 0.49:
+                        self.x1 += 1
+                    imt = im.resize(((int(x/(y/float(self.y))),self.y)),Image.ANTIALIAS)
+                elif x/self.x==y/self.y:
+                    # aspect ratio ok
+                    imt = im.resize((self.x, self.y), Image.ANTIALIAS)
+                else:
+                    imt = im.resize((self.x,int(y/(x/float(self.x)))), 1)
+            else:
+                # portrait
+                if factor:
+                    if y>self.x:
+                        imt = im.resize(((int(x/(y/float(self.x))),self.x)),Image.ANTIALIAS)
+                    else:
+                        imt = im
+                else:
+                    self.x1 = int(float(self.y) * self.y / self.x)
+                    if float(self.y) * self.y / self.x - self.x1 > 0.49:
+                        self.x1 += 1
+                    
+                    if x/self.x1==y/self.y:
+                        # aspect ratio ok
+                        imt = im.resize((self.x1,self.y),Image.ANTIALIAS)
+                    else:
+                        imt = im.resize(((int(x/(y/float(self.y))),self.y)),Image.ANTIALIAS)
+            return imt
+        else:
+            return im
     
 class Picture(object):
     def __init__(self, *args):
@@ -163,7 +313,39 @@ class MainModel(ModelMT):
                 return
                 
         os.chdir(self.internal_dirname)
-        tar.extractall()
+        try:
+            tar.extractall()
+        except AttributeError:
+            # python's 2.4 tarfile module lacks of method extractall()
+            directories = []
+            for tarinfo in tar:
+                if tarinfo.isdir():
+                    # Extract directory with a safe mode, so that
+                    # all files below can be extracted as well.
+                    try:
+                        os.makedirs(os.path.join(path, tarinfo.name), 0777)
+                    except EnvironmentError:
+                        pass
+                    directories.append(tarinfo)
+                else:
+                    tar.extract(tarinfo, '.')
+
+            # Reverse sort directories.
+            directories.sort(lambda a, b: cmp(a.name, b.name))
+            directories.reverse()
+
+            # Set correct owner, mtime and filemode on directories.
+            for tarinfo in directories:
+                path = os.path.join(path, tarinfo.name)
+                try:
+                    os.chown(tarinfo, '.')
+                    os.utime(tarinfo, '.')
+                    os.chmod(tarinfo, '.')
+                except ExtractError, e:
+                    if tar.errorlevel > 1:
+                        raise
+                    else:
+                        tar._dbg(1, "tarfile: %s" % e)
         tar.close()
         
         self.__connect_to_db()
@@ -218,9 +400,12 @@ class MainModel(ModelMT):
             self.files_list.set_value(myiter, 6, gtk.STOCK_DIRECTORY)
             
         # all the rest
-        self.db_cursor.execute("SELECT id, filename, size, date, type \
-                               FROM files WHERE parent_id=? AND type!=1 \
-                               ORDER BY filename", (id,))
+        self.db_cursor.execute("SELECT f.id, f.filename, f.size, f.date, \
+                               f.type, f.filetype, t.filename \
+                               FROM files f \
+                               LEFT JOIN thumbnails t ON f.id = t.file_id \
+                               WHERE f.parent_id=? AND f.type!=1 \
+                               ORDER BY f.filename", (id,))
         data = self.db_cursor.fetchall()
         for ch in data:
             myiter = self.files_list.insert_before(None, None)
@@ -231,7 +416,10 @@ class MainModel(ModelMT):
             self.files_list.set_value(myiter, 4, ch[4])
             self.files_list.set_value(myiter, 5, 'kategoria srategoria')
             if ch[4] == self.FIL:
-                self.files_list.set_value(myiter, 6, gtk.STOCK_FILE)
+                if ch[5] == self.F_IMG and ch[6] != None:
+                    self.files_list.set_value(myiter, 6, gtk.STOCK_FILE)
+                else:
+                    self.files_list.set_value(myiter, 6, gtk.STOCK_FILE)
             elif ch[4] == self.LIN:
                 self.files_list.set_value(myiter, 6, gtk.STOCK_INDEX)
         return
@@ -372,6 +560,10 @@ class MainModel(ModelMT):
                                             thumb_x INTEGER,
                                             thumb_y INTEGER,
                                             thumb_mode TEXT);""")
+        self.db_cursor.execute("""create table 
+                               thumbnails(id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                            file_id INTEGER,
+                                            filename TEXT);""")
         self.db_cursor.execute("insert into files values(1, 1, 'root', null, \
                                0, 0, 0, 0, null, null, null, null);")
         
@@ -387,10 +579,6 @@ class MainModel(ModelMT):
         db_cursor = db_connection.cursor()
         
         timestamp = datetime.now()
-        
-        # TODO: file types has to be moved to configuration model
-        mov_ext = ('mkv', 'avi', 'ogg', 'mpg', 'wmv', 'mp4', 'mpeg')
-        img_ext = ('jpg','jpeg','png','gif','bmp','tga','tif','tiff','ilbm','iff','pcx')
         
         # count files in directory tree
         count = 0
@@ -409,6 +597,7 @@ class MainModel(ModelMT):
             step = 1.0/count
         else:
             step = 1.0
+            
         self.count = 0
         
         # guess filesystem encoding
@@ -424,7 +613,7 @@ class MainModel(ModelMT):
             
             _size = size
             
-            myit = self.discs_tree.append(discs_tree_iter,None)
+            myit = self.discs_tree.append(discs_tree_iter, None)
             
             if parent_id == 1:
                 self.fresh_disk_iter = myit
@@ -453,7 +642,7 @@ class MainModel(ModelMT):
             self.discs_tree.set_value(myit,3,parent_id)
             
             try:
-                root,dirs,files = os.walk(path).next()
+                root, dirs, files = os.walk(path).next()
             except:
                 if __debug__:
                     print "m_main.py: cannot access ", path
@@ -501,42 +690,15 @@ class MainModel(ModelMT):
                 if self.abort:
                     break
                 self.count = self.count + 1
+                current_path = os.path.join(root,i)
                 try:
-                    st = os.stat(os.path.join(root,i))
+                    st = os.stat(current_path)
                     st_mtime = st.st_mtime
                     st_size = st.st_size
                 except OSError:
                     st_mtime = 0
                     st_size = 0
                     
-                ### TODO: scan files
-                if self.config.confd['retrive']:
-                    pass
-                #if i.split('.').[-1].lower() in mov_ext:
-                    # # video only
-                    # info = filetypeHelper.guess_video(os.path.join(root,i))
-                    
-                
-                if i.split('.')[-1].lower() in img_ext:
-                    exif_info = EXIF.process_file(open(os.path.join(path,i),
-                                                       'rb'))
-                    if exif_info.has_key('JPEGThumbnail'):
-                        print "%s got thumbnail" % i
-                    else:
-                        print "%s has not got thumbnail" % i
-                    
-                    # pass
-                ### end of scan
-                
-                ### progress/status
-                # if wobj.sbid != 0:
-                    # wobj.status.remove(wobj.sbSearchCId, wobj.sbid)
-                if self.count % 32 == 0:
-                    self.statusmsg = "Scannig: %s" % (os.path.join(root,i))
-                    self.progress = step * self.count
-                # # PyGTK FAQ entry 23.20
-                # while gtk.events_pending(): gtk.main_iteration()
-                
                 _size = _size + st_size
                 j = i
                 if self.fsenc:
@@ -548,7 +710,36 @@ class MainModel(ModelMT):
                 """
                 db_cursor.execute(sql, (currentid, j, os.path.join(path,i),
                                         st_mtime, st_size, self.FIL))
-            
+                
+                if self.count % 32 == 0:
+                    update = True
+                else:
+                    update = False
+                    
+                ###########################
+                # fetch details about files
+                if self.config.confd['retrive']:
+                    update = True
+                    sql = """select seq FROM sqlite_sequence WHERE name='files'"""
+                    db_cursor.execute(sql)
+                    fileid=db_cursor.fetchone()[0]
+                    if i.split('.')[-1].lower() in self.config.confd['img_ext']:
+                        sql = """UPDATE files set filetype = ? where id = ?"""
+                        db_cursor.execute(sql, (self.F_IMG, fileid))
+                        if self.config.confd['thumbs']:
+                            path, exif, ret_code = Thumbnail(current_path, base=self.internal_dirname).save(fileid)
+                            if ret_code != -1:
+                                sql = """insert into thumbnails(file_id, filename) values (?, ?)"""
+                                db_cursor.execute(sql, (fileid, path.split(self.internal_dirname)[1][1:]))
+                            
+                    #if i.split('.').[-1].lower() in mov_ext:
+                        # # video only
+                        # info = filetypeHelper.guess_video(os.path.join(root,i))
+                    ### end of scan
+                if update:
+                    self.statusmsg = "Scannig: %s" % current_path
+                    self.progress = step * self.count
+                    
             sql = """update files set size=? where id=?"""
             db_cursor.execute(sql,(_size, currentid))
             if self.abort:
@@ -628,8 +819,7 @@ class MainModel(ModelMT):
         # launch scanning.
         get_children()
         if __debug__:
-            print "m_main.py: __fetch_db_into_treestore() tree generation time: ",
-            (datetime.now() - start_date)
+            print "m_main.py: __fetch_db_into_treestore() tree generation time: ", (datetime.now() - start_date)
         db_connection.close()
         return
         
@@ -697,8 +887,7 @@ class MainModel(ModelMT):
         # launch scanning.
         get_children()
         if __debug__:
-            print "m_main.py: __fetch_db_into_treestore() tree generation time: ",
-            (datetime.now() - start_date)
+            print "m_main.py: __fetch_db_into_treestore() tree generation time: ", (datetime.now() - start_date)
         db_connection.close()
         return
         

@@ -56,33 +56,39 @@ class ConfigModel(Model):
     
     __properties__ = {}
     
-    extensions_list = ['Images extensions', 'Movies extesions']
+    filetype_list = ['Images', 'Movies']
     
     confd = {
-        'savewin' : True,
-        'savepan' : True,
-        'wx' : 800,
-        'wy' : 600,
-        'h' : 200,
-        'v' : 300,
-        'exportxls' : False,
-        'cd' : '/cdrom',
-        'ejectapp' : 'eject -r',
-        'eject' : True,
-        'thumbs': False,
-        'gthumb':False,
-        'exif':False,
-        'confirmquit':True,
-        'mntwarn':True,
-        'confirmabandon':True,
+        'savewin': True,
+        'savepan': True,
+        'wx': 800,
+        'wy': 600,
+        'h': 200,
+        'v': 300,
+        'eject': True,
+        'compress': True,
+        
+        'exportxls': False,
+        
+        'confirmquit': True,
+        'confirmabandon': True,
+        'mntwarn': True,
+        'delwarn': True,
+        
+        'cd': '/cdrom',
+        'ejectapp': 'eject -r',
+        
+        'retrive': False,
+        
+        'thumbs': True,
+        'exif': True,
+        'gthumb': False,
+        
+        'mov_ext': ['avi', 'mkv', 'mpg', 'mpeg', 'wmv'],
+        'img_ext': ['bmp', 'gif', 'jpg', 'jpeg', 'png'],
+        
         'showtoolbar':True,
         'showstatusbar':True,
-        'delwarn':True,
-        'compress':True,
-        'compress':True,
-        'retrive':False,
-        'mov_ext':['mkv', 'avi', 'ogg', 'mpg', 'wmv', 'mp4', 'mpeg'],
-        'img_ext':['jpg','jpeg','png','gif','bmp','tga','tif','tiff','ilbm','iff','pcx'],
     }
     
     dictconf = {
@@ -141,27 +147,27 @@ class ConfigModel(Model):
     def __init__(self):
         Model.__init__(self)
         self.category_tree = gtk.ListStore(gobject.TYPE_STRING)
-        self.images_tree = gtk.ListStore(gobject.TYPE_STRING)
-        self.confd['img_ext'].sort()
-        for i in self.confd['img_ext']:
-            myiter = self.images_tree.insert_before(None,None)
-            self.images_tree.set_value(myiter,0,i)
-        self.movies_tree = gtk.ListStore(gobject.TYPE_STRING)
-        self.confd['mov_ext'].sort()
-        for i in self.confd['mov_ext']:
-            myiter = self.movies_tree.insert_before(None,None)
-            self.movies_tree.set_value(myiter,0,i)
-            
         self.ext_list = gtk.ListStore(gobject.TYPE_STRING)
-        for i in self.extensions_list:
+        for i in self.filetype_list:
             myiter = self.ext_list.insert_before(None,None)
             self.ext_list.set_value(myiter,0,i)
+            
+        self.refresh_ext('img_ext')
         return
+    
+        
+    def refresh_ext(self, key):
+        self.ext_tree = gtk.ListStore(gobject.TYPE_STRING)
+        self.confd[key].sort()
+        for i in self.confd[key]:
+            myiter = self.ext_tree.insert_before(None,None)
+            self.ext_tree.set_value(myiter,0,i)
         
     def save(self):
         try:
             os.lstat("%s/.pygtktalog" % self.path)
         except:
+            print "Saving preferences to %s/.pygtktalog" % self.path
             if __debug__:
                 print "m_config.py: save() Saving preferences to %s/.pygtktalog" % self.path
         newIni = Ini()
