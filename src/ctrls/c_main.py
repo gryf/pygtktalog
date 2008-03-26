@@ -669,4 +669,30 @@ class MainController(Controller):
         else:
             self.view['thumb'].hide()
         return
+        
+    def __tag_cloud(self):
+        """generate tag cloud"""
+        # TODO: checkit!
+        def tag_cloud_click(tag, textview, event, iter, e):
+            """react on click on connected tag items"""
+            if event.type == gtk.gdk.BUTTON_RELEASE:
+                print tag.get_property('name')
+                
+        def insert_blank(b, iter):
+            if b.is_end() and b.is_start():
+                iter = b.get_end_iter()
+            else:
+                b.insert(iter, " ")
+                iter = b.get_end_iter()
+            return iter
+            
+        if len(self.model.tag_cloud) > 0:
+            buff = self.view['keyword_textview'].get_buffer()
+            for cloud in self.model.tag_cloud:
+                iter = insert_blank(buff, buff.get_end_iter())
+                tag = buff.create_tag(cloud['id'])
+                tag.set_property('size-points', cloud['size'])
+                tag.connect('event', foo, tag)
+                buff.insert_with_tags(iter, cloud['name'], tag)
+            self.view['keyword_textview'].set_buffer(buff)
     pass # end of class

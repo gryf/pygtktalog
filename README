@@ -21,7 +21,6 @@ pyGTKtalog is written in python with following dependencies:
 
 - pygtk <http://www.pygtk.org>
 - pysqlite2 <http://pysqlite.org/> (unnecessary, if python 2.5 is used)
-# - mx.DateTime <http://www.egenix.com>
 
 Optional modules:
 
@@ -57,6 +56,11 @@ For version 1.0 following aims have to be done:
 
 - searching database
 - tagging files
+- filetypes handling
+	- movies
+	- images
+	- archives
+	- documents
 - file details:
 	- files properties
 		x thumbnail
