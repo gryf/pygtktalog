@@ -34,13 +34,11 @@ class MainView(View):
     GLADE = os.path.join(utils.globals.GLADE_DIR, "main.glade")
     def __init__(self, ctrl):
         View.__init__(self, ctrl, self.GLADE)
-        self.details = None
+        
+        # hide v2.0 features
+        self['separatormenuitem4'].hide()
+        self['list1'].hide()
+        self['thumbnails1'].hide()
         return
 
-    def create_sub_view(self, details_ctrl):
-        """attach sub view"""
-        self.details = DetailsView(details_ctrl, False)
-        vpan = self['vpaned1']
-        vpan.add2(self.details.get_top_widget())
-        return
     pass # end of class

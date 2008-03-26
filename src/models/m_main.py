@@ -426,15 +426,23 @@ class MainModel(ModelMT):
         
     def get_file_info(self, id):
         """get file info from database"""
-        self.db_cursor.execute("SELECT filename, date, size, type \
-                               FROM files WHERE id = ?", (id,))
+        retval = {}
+        self.db_cursor.execute("SELECT filename, date, size, type, filetype, \
+                               id FROM files WHERE id = ?", (id,))
         set = self.db_cursor.fetchone()
-        if set == None:
-            return ''
+        if set:
+            string = "Filename: %s\nDate: %s\nSize: %s\ntype: %s" % \
+                (set[0], datetime.fromtimestamp(set[1]), set[2], set[3])
+            retval['description'] = string
             
-        string = "Filename: %s\nDate: %s\nSize: %s\ntype: %s" % \
-            (set[0], datetime.fromtimestamp(set[1]), set[2], set[3])
-        return string
+            if set[4] == self.F_IMG:
+                self.db_cursor.execute("SELECT filename FROM thumbnails \
+                                       WHERE file_id = ?",
+                                       (id,))
+                set = self.db_cursor.fetchone()
+                if set:
+                    retval['thumbnail'] = os.path.join(self.internal_dirname, set[0])
+        return retval
         
     def get_source(self, path):
         """get source of top level directory"""
