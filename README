@@ -26,7 +26,6 @@ pyGTKtalog is written in python with following dependencies:
 Optional modules:
 
 - PIL <http://www.pythonware.com/products/pil/index.htm> for image manipulation
-
 - pyExcelerator <http://sourceforge.net/projects/pyexcelerator> for export to
   excel capability
 
@@ -54,15 +53,38 @@ Then, just run pyGTKtalog script.
 TODO
 ====
 
+For version 1.0 following aims have to be done:
+
 - searching database
-- taggin files
-- files properties
-- adding images
-- generating/saving thumbnails
-- command line query support (text output)
+- tagging files
+- file details:
+	- files properties
+		x thumbnail
+		- description
+		- file information (date, size, etc) (50%)
+	- exif information
+	- keywords
+	- anime/movie
+		- title
+		- alt title
+		- type (anime movie, movie, anime oav, anime tv series, tv series, etc)
+		- cover/images
+		- genre
+		- lang
+		- sub lang
+		- release date (from - to)
+		- anidb link/imdb link
+- adding images (60% done)
+x generating/saving thumbnails
+x moving hardcoded files extensions into config
+
+Legend: [-] not done, [x] done.
+
+For version 2.0:
+- Icon grid in files view
+- command line support: query, adding media to collection etc
 - internationalization support
 - statistics
-- moving hardcoded files extensions into config
 
 NOTES
 =====
@@ -75,3 +97,4 @@ BUGS
 ====
 
 All bugs please report to Roman 'gryf' Dobosz <roman.dobosz@gmail.com>
+

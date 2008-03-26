@@ -34,7 +34,6 @@ from utils import deviceHelper
 from gtkmvc import Controller
 
 from c_config import ConfigController
-from c_details import DetailsController
 from views.v_config import ConfigView
 from models.m_config import ConfigModel
 
@@ -48,21 +47,22 @@ class MainController(Controller):
     """Controller for main application window"""
     scan_cd = False
     widgets = (
-           "discs","files",
-           'save1','save_as1','cut1','copy1','paste1','delete1','add_cd','add_directory1',
-           'tb_save','tb_addcd','tb_find',
+               "discs","files",
+               'save1','save_as1','cut1','copy1','paste1','delete1','add_cd','add_directory1',
+               'tb_save','tb_addcd','tb_find','keywords','description',
         )
     widgets_all = (
-           "discs","files",
-           'file1','edit1','add_cd','add_directory1','help1',
-           'tb_save','tb_addcd','tb_find','tb_new','tb_open','tb_quit',
+                   "discs","files",
+                   'file1','edit1','add_cd','add_directory1','help1',
+                   'tb_save','tb_addcd','tb_find','tb_new','tb_open','tb_quit',
+                   'keywords','description',
         )
+                            
     widgets_cancel = ('cancel','cancel1')
     
     def __init__(self, model):
         """Initialize controller"""
         Controller.__init__(self, model)
-        self.details = DetailsController(model.details)
         return
 
     def register_view(self, view):
@@ -115,11 +115,9 @@ class MainController(Controller):
         if self.model.filename != None:
             self.__activateUI(self.model.filename)
         
-        # register detail subview
-        #self.view.create_sub_view(self.details)
-        
         # generate recent menu
         self.__generate_recent_menu()
+        
         # Show main window
         self.view['main'].show();
         return
@@ -277,6 +275,7 @@ class MainController(Controller):
                     print "c_main.py: on_files_cursor_changed() directory selected"
             else:
                 #file, show what you got.
+                #self.details.get_top_widget()
                 selected_item = self.model.files_list.get_value(model.get_iter(treeview.get_cursor()[0]),0)
                 self.__get_item_info(selected_item)
                 if __debug__:
@@ -654,10 +653,20 @@ class MainController(Controller):
         return
         
     def __get_item_info(self, item):
-        '''self.view['details'].show()
-        txt = self.model.get_file_info(item)
-        buf = self.view['details'].get_buffer()
-        buf.set_text(txt)
-        self.view['details'].set_buffer(buf)'''
+        self.view['description'].show()
+        set = self.model.get_file_info(item)
+        
+        buf = self.view['description'].get_buffer()
+        if set.has_key('description'):
+            buf.set_text(set['description'])
+        else:
+            buf.set_text('')
+        self.view['description'].set_buffer(buf)
+        
+        if set.has_key('thumbnail'):
+            self.view['thumb'].set_from_file(set['thumbnail'])
+            self.view['thumb'].show()
+        else:
+            self.view['thumb'].hide()
         return
     pass # end of class
