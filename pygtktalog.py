@@ -68,11 +68,6 @@ def check_requirements():
     except:
         print "pyGTKtalog uses SQLite DB.\nYou'll need to get it and the python bindings as well.\nhttp://www.sqlite.org\nhttp://initd.org/tracker/pysqlite"
         sys.exit(1)
-    #try:
-    #    import mx.DateTime
-    #except:
-    #    print "pyGTKtalog uses Egenix mx.DateTime.\nYou can instal it from your distribution repositry,\nor get it at: http://www.egenix.com"
-    #    sys.exit(1)
         
     if conf.confd['exportxls']:
         try:
@@ -93,7 +88,7 @@ def get_parameters():
     """Determine application command line options, return db full pathname"""
     import sys, os
     # if we've got two arguments, shell script passed through command line
-    # options: current path and probably filename of compressed db
+    # options: current path and probably filename of compressed collection
     if len(sys.argv) > 2:
         return os.path.join(sys.argv[1],sys.argv[2])
     return False

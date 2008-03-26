@@ -259,10 +259,7 @@ class MainModel(ModelMT):
                                         gobject.TYPE_UINT64,
                                         gobject.TYPE_STRING, gobject.TYPE_INT,
                                         gobject.TYPE_STRING, str)
-        # Tag list: id, name, count
-        self.tags_list = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING,
-                                       gobject.TYPE_UINT64, str)
-        
+        self.tag_cloud = []
         return
         
     def cleanup(self):
@@ -475,15 +472,8 @@ class MainModel(ModelMT):
         
     # private class functions
     def __clear_trees(self):
-        self.__clear_tags_tree()
         self.__clear_files_tree()
         self.__clear_discs_tree()
-        
-    def __clear_tags_tree(self):
-        try:
-            self.tags_list.clear()
-        except:
-            pass
     
     def __clear_discs_tree(self):
         try:
