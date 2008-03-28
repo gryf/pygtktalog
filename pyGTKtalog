@@ -7,5 +7,5 @@ python_intrpreter="/usr/bin/python"
 # don't change anything below.
 current_dir="`pwd`"
 cd $data_dir
-#exec $python_intrpreter -OO pygtktalog.py "$current_dir" "$@"
-exec $python_intrpreter pygtktalog.py "$current_dir" "$@"
+exec $python_intrpreter -OO pygtktalog.py "$current_dir" "$@"
+#exec $python_intrpreter pygtktalog.py "$current_dir" "$@"

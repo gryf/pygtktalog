@@ -344,7 +344,7 @@ class MainModel(ModelMT):
         
     def __create_internal_dirname(self):
         self.cleanup()
-        self.internal_dirname = "/tm/pygtktalog%d" % datetime.now().microsecond
+        self.internal_dirname = "/tmp/pygtktalog%d" % datetime.now().microsecond
         try:
             os.mkdir(self.internal_dirname)
         except IOError, (errno, strerror):
