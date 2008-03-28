@@ -109,7 +109,7 @@ class ConfigModel(Model):
         'confirm abandon current catalog':'confirmabandon',
         'show toolbar':'showtoolbar',
         'show statusbar and progress bar':'showstatusbar',
-        'compress collection':'compress',
+        'compress catalog':'compress',
         'retrive extra informatin':'retrive',
         'scan exif data':'exif',
         'include gthumb image description':'gthumb',

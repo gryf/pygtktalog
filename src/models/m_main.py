@@ -27,6 +27,7 @@ import sys
 import base64
 import shutil
 import tarfile
+import tempfile
 
 import gtk
 import gobject
@@ -35,184 +36,15 @@ from gtkmvc.model_mt import ModelMT
 
 from pysqlite2 import dbapi2 as sqlite
 from datetime import datetime
-#import mx.DateTime
+
 try:
     import threading as _threading
 except ImportError:
-    if __debug__:
-        print "m_main.py: import exception: _threading"
     import dummy_threading as _threading
-try:
-    import Image, ImageEnhance
-except:
-    if __debug__:
-        print "m_main.py: import exception: Image|ImageEnhance"
-    pass
-
-from utils import EXIF
 
 from m_config import ConfigModel
 from m_details import DetailsModel
-
-class Thumbnail(object):
-    def __init__(self, filename=None, x=160, y=120, root='thumbnails', base=''):
-        self.root = root
-        self.x = x
-        self.y = y
-        self.filename = filename
-        self.base = base
-        
-    def save(self, image_id):
-        """Save thumbnail into specific directory structure
-        return full path to the file and exif object or None"""
-        filepath = os.path.join(self.base, self.__get_and_make_path(image_id))
-        f = open(self.filename, 'rb')
-        exif = None
-        returncode = -1
-        try:
-            exif = EXIF.process_file(f)
-            f.close()
-            if exif.has_key('JPEGThumbnail'):
-                thumbnail = exif['JPEGThumbnail']
-                f = open(filepath,'wb')
-                f.write(thumbnail)
-                f.close()
-                if exif.has_key('Image Orientation'):
-                    orientation = exif['Image Orientation'].values[0]
-                    if orientation > 1:
-                        t = "/tmp/thumb%d.jpg" % datetime.now().microsecond
-                        im_in = Image.open(filepath)
-                        im_out = None
-                        if orientation == 8:
-                            # Rotated 90 CCW
-                            im_out = im_in.transpose(Image.ROTATE_90)
-                        elif orientation == 6:
-                            # Rotated 90 CW
-                            im_out = im_in.transpose(Image.ROTATE_270)
-                        elif orientation == 3:
-                            # Rotated 180
-                            im_out = im_in.transpose(Image.ROTATE_180)
-                        elif orientation == 2:
-                            # Mirrored horizontal
-                            im_out = im_in.transpose(Image.FLIP_LEFT_RIGHT)
-                        elif orientation == 4:
-                            # Mirrored vertical
-                            im_out = im_in.transpose(Image.FLIP_TOP_BOTTOM)
-                        elif orientation == 5:
-                            # Mirrored horizontal then rotated 90 CCW
-                            im_out = im_in.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.ROTATE_90)
-                        elif orientation == 7:
-                            # Mirrored horizontal then rotated 90 CW
-                            im_out = im_in.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.ROTATE_270)
-                            
-                        if im_out:
-                            im_out.save(t, 'JPEG')
-                            shutil.move(t, filepath)
-                        else:
-                            f.close()
-                returncode = 0
-            else:
-                im = self.__scale_image(True)
-                if im:
-                    im.save(filepath, "JPEG")
-                    returncode = 1
-        except:
-            f.close()
-            im = self.__scale_image(True)
-            if im:
-                im.save(filepath, "JPEG")
-                returncode = 2
-        return filepath, exif, returncode
-        
-    # private class functions
-    def __get_and_make_path(self, img_id):
-        """Make directory structure regards of id
-        and return filepath WITHOUT extension"""
-        t = os.path.join(self.base, self.root)
-        try: os.mkdir(t)
-        except: pass
-        h = hex(img_id)
-        if len(h[2:])>6:
-            try: os.mkdir(os.path.join(t, h[2:4]))
-            except: pass
-            try: os.mkdir(os.path.join(t, h[2:4], h[4:6]))
-            except: pass
-            path = os.path.join(t, h[2:4], h[4:6], h[6:8])
-            try: os.mkdir(path)
-            except: pass
-            img = "%s.%s" % (h[8:], 'jpg')
-        elif len(h[2:])>4:
-            try: os.mkdir(os.path.join(t, h[2:4]))
-            except: pass
-            path = os.path.join(t, h[2:4], h[4:6])
-            try: os.mkdir(path)
-            except: pass
-            img = "%s.%s" % (h[6:], 'jpg')
-        elif len(h[2:])>2:
-            path = os.path.join(t, h[2:4])
-            try: os.mkdir(path)
-            except: pass
-            img = "%s.%s" %(h[4:], 'jpg')
-        else:
-            path = t
-            img = "%s.%s" %(h[2:], 'jpg')
-        return(os.path.join(t, img))
-        
-    def __scale_image(self, factor=False):
-        """generate scaled Image object for given file
-        args:
-            factor - if False, adjust height into self.y
-                     if True, use self.x for scale portrait pictures height.
-            returns Image object, or False
-        """
-        try:
-            im = Image.open(self.filename).convert('RGB')
-        except:
-            return False
-        x, y = im.size
-        
-        if x > self.x or y > self.y:
-            if x==y:
-                # square
-                imt = im.resize((self.y, self.y), Image.ANTIALIAS)
-            elif x > y:
-                # landscape
-                if int(y/(x/float(self.x))) > self.y:
-                    # landscape image: height is non standard
-                    self.x1 = int(float(self.y) * self.y / self.x)
-                    if float(self.y) * self.y / self.x - self.x1 > 0.49:
-                        self.x1 += 1
-                    imt = im.resize(((int(x/(y/float(self.y))),self.y)),Image.ANTIALIAS)
-                elif x/self.x==y/self.y:
-                    # aspect ratio ok
-                    imt = im.resize((self.x, self.y), Image.ANTIALIAS)
-                else:
-                    imt = im.resize((self.x,int(y/(x/float(self.x)))), 1)
-            else:
-                # portrait
-                if factor:
-                    if y>self.x:
-                        imt = im.resize(((int(x/(y/float(self.x))),self.x)),Image.ANTIALIAS)
-                    else:
-                        imt = im
-                else:
-                    self.x1 = int(float(self.y) * self.y / self.x)
-                    if float(self.y) * self.y / self.x - self.x1 > 0.49:
-                        self.x1 += 1
-                    
-                    if x/self.x1==y/self.y:
-                        # aspect ratio ok
-                        imt = im.resize((self.x1,self.y),Image.ANTIALIAS)
-                    else:
-                        imt = im.resize(((int(x/(y/float(self.y))),self.y)),Image.ANTIALIAS)
-            return imt
-        else:
-            return im
-    
-class Picture(object):
-    def __init__(self, *args):
-        self.x = None
-        self.y = None
+from utils.thumbnail import Thumbnail
 
 class MainModel(ModelMT):
     """Create, load, save, manipulate db file which is container for data"""
@@ -241,7 +73,7 @@ class MainModel(ModelMT):
         ModelMT.__init__(self)
         self.config = ConfigModel()
         self.unsaved_project = False
-        self.filename = None # collection saved/opened filename
+        self.filename = None # catalog saved/opened filename
         self.internal_dirname = None
         self.db_connection = None
         self.db_cursor = None
@@ -259,6 +91,13 @@ class MainModel(ModelMT):
                                         gobject.TYPE_UINT64,
                                         gobject.TYPE_STRING, gobject.TYPE_INT,
                                         gobject.TYPE_STRING, str)
+        
+        # tag cloud array element is a dict with 4 keys:
+        # elem = {'id': str(id), 'name': tagname, 'size': size, 'color': color}
+        # where color is in one of format:
+        # - named (i.e. red, blue, black and so on)
+        # - #rgb
+        # - #rrggbb
         self.tag_cloud = []
         return
         
@@ -268,8 +107,6 @@ class MainModel(ModelMT):
             try:
                 shutil.rmtree(self.internal_dirname)
             except:
-                if __debug__:
-                    print "m_main.py: cleanup()", self.internal_dirname
                 pass
         return
         
@@ -287,10 +124,13 @@ class MainModel(ModelMT):
         return
         
     def save(self, filename=None):
+        """save tared directory at given catalog fielname"""
         if filename:
             self.filename = filename
-        self.__compress_and_save()
-        return
+            val, err = self.__compress_and_save()
+            if not val:
+                self.filename = None
+            return val, err
         
     def open(self, filename=None):
         """try to open db file"""
@@ -304,7 +144,6 @@ class MainModel(ModelMT):
             try:
                 tar = tarfile.open(filename, "r")
             except:
-                print "%s: file cannot be read!" % filename
                 self.filename = None
                 self.internal_dirname = None
                 return
@@ -312,6 +151,7 @@ class MainModel(ModelMT):
         os.chdir(self.internal_dirname)
         try:
             tar.extractall()
+            print "m_main.py: extracted tarfile into", self.internal_dirname
         except AttributeError:
             # python's 2.4 tarfile module lacks of method extractall()
             directories = []
@@ -372,14 +212,7 @@ class MainModel(ModelMT):
             self.files_list.clear()
         except:
             pass
-        # parent for virtual '..' dir
-        #myiter = self.filemodel.insert_before(None,None)
-        #self.cur.execute("SELECT parent FROM files_connect WHERE child=? AND depth = 1",(id,))
-        #self.filemodel.set_value(myiter,0,self.cur.fetchone()[0])
-        #self.filemodel.set_value(myiter,1,'..')
-        #if __debug__:
-        #    print datetime.fromtimestamp(ch[3])
-        
+            
         # directories first
         self.db_cursor.execute("SELECT id, filename, size, date FROM files \
                                WHERE parent_id=? AND type=1 \
@@ -413,32 +246,38 @@ class MainModel(ModelMT):
             self.files_list.set_value(myiter, 4, ch[4])
             self.files_list.set_value(myiter, 5, 'kategoria srategoria')
             if ch[4] == self.FIL:
-                if ch[5] == self.F_IMG and ch[6] != None:
+                if ch[6] != None:
+                     # TODO: change icon to thumbnail
                     self.files_list.set_value(myiter, 6, gtk.STOCK_FILE)
                 else:
                     self.files_list.set_value(myiter, 6, gtk.STOCK_FILE)
             elif ch[4] == self.LIN:
                 self.files_list.set_value(myiter, 6, gtk.STOCK_INDEX)
         return
-        
+    def get_parent_discs_value(self, child_id):
+        if child_id:
+            self.db_cursor.execute("SELECT parent_id FROM files where id=?", (child_id,))
+            set = self.db_cursor.fetchone()
+            if set:
+                return set[0]
+        return None
+    
     def get_file_info(self, id):
         """get file info from database"""
         retval = {}
-        self.db_cursor.execute("SELECT filename, date, size, type, filetype, \
-                               id FROM files WHERE id = ?", (id,))
+        self.db_cursor.execute("SELECT f.filename, f.date, f.size, f.type, \
+                               t.filename \
+                               FROM files f \
+                               LEFT JOIN thumbnails t ON t.file_id = f.id \
+                               WHERE f.id = ?", (id,))
         set = self.db_cursor.fetchone()
         if set:
-            string = "Filename: %s\nDate: %s\nSize: %s\ntype: %s" % \
-                (set[0], datetime.fromtimestamp(set[1]), set[2], set[3])
+            string = "ID: %d\nFilename: %s\nDate: %s\nSize: %s\ntype: %s" % \
+                (id, set[0], datetime.fromtimestamp(set[1]), set[2], set[3])
             retval['description'] = string
             
-            if set[4] == self.F_IMG:
-                self.db_cursor.execute("SELECT filename FROM thumbnails \
-                                       WHERE file_id = ?",
-                                       (id,))
-                set = self.db_cursor.fetchone()
-                if set:
-                    retval['thumbnail'] = os.path.join(self.internal_dirname, set[0])
+            if set[4]:
+                retval['thumbnail'] = os.path.join(self.internal_dirname, set[4])
         return retval
         
     def get_source(self, path):
@@ -505,28 +344,31 @@ class MainModel(ModelMT):
         
     def __create_internal_dirname(self):
         self.cleanup()
-        self.internal_dirname = "/tmp/pygtktalog%d" % datetime.now().microsecond
+        self.internal_dirname = "/tm/pygtktalog%d" % datetime.now().microsecond
         try:
             os.mkdir(self.internal_dirname)
-        except:
-            if __debug__:
-                print "m_main.py: __create_internal_dirname(): cannot create \
-                temporary directory, or directory exists"
-            pass
+        except IOError, (errno, strerror):
+            print "m_main.py: __create_internal_dirname(): ", strerror
         return
     
     def __compress_and_save(self):
-        if self.config.confd['compress']:
-            tar = tarfile.open(self.filename, "w:gz")
-        else:
-            tar = tarfile.open(self.filename, "w")
+        try:
+            if self.config.confd['compress']:
+                tar = tarfile.open(self.filename, "w:gz")
+            else:
+                tar = tarfile.open(self.filename, "w")
+            if __debug__:
+                print "m_main.py: __compress_and_save(): tar open successed"
+                
+        except IOError, (errno, strerror):
+            return False, strerror
         
         os.chdir(self.internal_dirname)
         tar.add('.')
         tar.close()
             
         self.unsaved_project = False
-        return
+        return True, None
     
     def __create_database(self):
         """make all necessary tables in db file"""
@@ -778,7 +620,16 @@ class MainModel(ModelMT):
                                        detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
         db_cursor = db_connection.cursor()
         
+        print "%s" % \
+                                       (self.internal_dirname + '/db.sqlite')
+        
         # fetch all the directories
+        sql = """
+        SELECT id, parent_id, filename FROM files 
+        WHERE type=1 ORDER BY parent_id, filename
+        """
+        db_cursor.execute(sql)
+        data = db_cursor.fetchall()
         try:
             sql = """
             SELECT id, parent_id, filename FROM files 
