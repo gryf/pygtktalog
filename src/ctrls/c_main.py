@@ -49,13 +49,13 @@ class MainController(Controller):
     widgets = (
                "discs","files",
                'save1','save_as1','cut1','copy1','paste1','delete1','add_cd','add_directory1',
-               'tb_save','tb_addcd','tb_find','keywords','description',
+               'tb_save','tb_addcd','tb_find','tag_cloud_ex','description',
         )
     widgets_all = (
                    "discs","files",
                    'file1','edit1','add_cd','add_directory1','help1',
                    'tb_save','tb_addcd','tb_find','tb_new','tb_open','tb_quit',
-                   'keywords','description',
+                   'tag_cloud_ex','description',
         )
                             
     widgets_cancel = ('cancel','cancel1')
@@ -103,18 +103,20 @@ class MainController(Controller):
         self.view['vpaned1'].set_position(self.model.config.confd['v'])
         self.view['main'].resize(self.model.config.confd['wx'],self.model.config.confd['wy'])
         
-        # zainicjalizuj statusbar
+        # initialize statusbar
         self.context_id = self.view['mainStatus'].get_context_id('detailed res')
         self.statusbar_id = self.view['mainStatus'].push(self.context_id, "Idle")
         
-        # inicjalizacja drzew
+        # initialize treeviews
         self.__setup_disc_treeview()
         self.__setup_files_treeview()
         
-        # w przypadku podania jako argument z linii komend bazy, odblokuj cały ten staff
+        # in case passing catalog filename in command line, unlock gui
         if self.model.filename != None:
             self.__activateUI(self.model.filename)
         
+        self.view['vpaned2'].set_position(18)
+        print self.view['tag_cloud_textview'].get_window(gtk.TEXT_WINDOW_TEXT)
         # generate recent menu
         self.__generate_recent_menu()
         
@@ -124,6 +126,23 @@ class MainController(Controller):
         
     #########################################################################
     # Connect signals from GUI, like menu objects, toolbar buttons and so on.
+    def on_tag_cloud_textview_motion_notify_event(self, widget):
+        print 'e'
+        w = self.view['tag_cloud_textview'].get_window(gtk.TEXT_WINDOW_TEXT)
+        if w:
+            w.set_cursor(None)
+            
+    def on_tag_cloud_ex_activate(self, widget):
+        # TODO: change this fsckin amatourish positioning!
+        if widget.get_expanded():
+            self.view['vpaned2'].set_position(18)
+        else:
+            
+            w = self.view['tag_cloud_textview'].get_window(gtk.TEXT_WINDOW_TEXT)
+            if w:
+                w.set_cursor(gtk.gdk.Cursor(gtk.gdk.HAND2))
+            self.view['vpaned2'].set_position(200)
+            
     def on_main_destroy_event(self, window, event):
         self.__doQuit()
         return True
@@ -196,8 +215,6 @@ class MainController(Controller):
         """Show files on right treeview, after clicking the left disc treeview."""
         model = self.view['discs'].get_model()
         selected_item = self.model.discs_tree.get_value(self.model.discs_tree.get_iter(self.view['discs'].get_cursor()[0]),0)
-        if __debug__:
-            print "c_main.py, on_discs_cursor_changed()",selected_item
         self.model.get_root_entries(selected_item)
         
         self.__get_item_info(selected_item)
@@ -271,23 +288,42 @@ class MainController(Controller):
                 buf = self.view['details'].get_buffer()
                 buf.set_text('')
                 self.view['details'].set_buffer(buf)'''
-                if __debug__:
-                    print "c_main.py: on_files_cursor_changed() directory selected"
             else:
                 #file, show what you got.
                 #self.details.get_top_widget()
                 selected_item = self.model.files_list.get_value(model.get_iter(treeview.get_cursor()[0]),0)
                 self.__get_item_info(selected_item)
-                if __debug__:
-                    print "c_main.py: on_files_cursor_changed() some other thing selected"
         except:
             if __debug__:
                 print "c_main.py: on_files_cursor_changed() insufficient iterator"
         return
-        
+    
+    def on_files_key_release_event(self, a, event):
+        if gtk.gdk.keyval_name(event.keyval) == 'BackSpace':
+            d_path, d_column = self.view['discs'].get_cursor()
+            if d_path and d_column:
+                # easy way
+                model = self.view['discs'].get_model()
+                child_iter = model.get_iter(d_path)
+                parent_iter = model.iter_parent(child_iter)
+                if parent_iter:
+                    self.view['discs'].set_cursor(model.get_path(parent_iter))
+                else:
+                    # hard way
+                    f_model = self.view['files'].get_model()
+                    first_child_value = f_model.get_value(f_model.get_iter_first(), 0)
+                    # get two steps up
+                    parent_value = self.model.get_parent_discs_value(self.model.get_parent_discs_value(first_child_value))
+                    iter = self.model.discs_tree.get_iter_first()
+                    while iter:
+                        if self.model.discs_tree.get_value(iter,0) == parent_value:
+                            self.view['discs'].set_cursor(self.model.discs_tree.get_path(iter))
+                            iter = None
+                        else:
+                            iter = self.model.discs_tree.iter_next()
+                
     def on_files_row_activated(self, files_obj, row, column):
         """On directory doubleclick in files listview dive into desired branch."""
-        # TODO: map backspace key for moving to upper level of directiories
         f_iter = self.model.files_list.get_iter(row)
         current_id = self.model.files_list.get_value(f_iter,0)
         
@@ -441,9 +477,12 @@ class MainController(Controller):
         """Save database to file under different filename."""
         path = Dialogs.ChooseDBFilename().show_dialog()
         if path:
-            self.__setTitle(filepath=path)
-            self.model.save(path)
-            self.model.config.add_recent(path)
+            ret, err = self.model.save(path)
+            if ret:
+                self.model.config.add_recent(path)
+                self.__setTitle(filepath=path)
+            else:
+                Dialogs.Err("Error writing file - pyGTKtalog","Cannot write file %s." % path, "%s" % err)
         pass
         
     def __addCD(self, label=None):
@@ -499,6 +538,9 @@ class MainController(Controller):
         return False
 
     def __newDB(self):
+        
+        self.__tag_cloud()
+        
         """Create new database file"""
         if self.model.unsaved_project:
             if not Dialogs.Qst('Unsaved data - pyGTKtalog',
@@ -515,6 +557,9 @@ class MainController(Controller):
         
         self.__activateUI()
         
+        self.view['tag_cloud_ex'].set_sensitive(True)
+        rect = self.view['tag_cloud_ex'].allocation
+        print rect.width, rect.height, rect.x, rect.y
         return
         
     def __setup_disc_treeview(self):
@@ -677,22 +722,32 @@ class MainController(Controller):
             """react on click on connected tag items"""
             if event.type == gtk.gdk.BUTTON_RELEASE:
                 print tag.get_property('name')
+            elif event.type == gtk.gdk.MOTION_NOTIFY:
+                w = self.view['tag_cloud_textview'].get_window(gtk.TEXT_WINDOW_TEXT)
+                if w:
+                    w.set_cursor(gtk.gdk.Cursor(gtk.gdk.HAND2))
+            else:
+                w = self.view['tag_cloud_textview'].get_window(gtk.TEXT_WINDOW_TEXT)
+                if w:
+                    w.set_cursor(None)
+           
                 
         def insert_blank(b, iter):
-            if b.is_end() and b.is_start():
-                iter = b.get_end_iter()
+            if iter.is_end() and iter.is_start():
+                return iter
             else:
                 b.insert(iter, " ")
                 iter = b.get_end_iter()
             return iter
             
         if len(self.model.tag_cloud) > 0:
-            buff = self.view['keyword_textview'].get_buffer()
+            buff = gtk.TextBuffer()
             for cloud in self.model.tag_cloud:
                 iter = insert_blank(buff, buff.get_end_iter())
                 tag = buff.create_tag(cloud['id'])
                 tag.set_property('size-points', cloud['size'])
-                tag.connect('event', foo, tag)
+                tag.set_property('foreground', cloud['color'])
+                tag.connect('event', tag_cloud_click, tag)
                 buff.insert_with_tags(iter, cloud['name'], tag)
-            self.view['keyword_textview'].set_buffer(buff)
+            self.view['tag_cloud_textview'].set_buffer(buff)
     pass # end of class
