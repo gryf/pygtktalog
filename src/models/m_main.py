@@ -99,6 +99,17 @@ class MainModel(ModelMT):
         # - #rgb
         # - #rrggbb
         self.tag_cloud = []
+        '''{'id': str(1), 'name': "bezpieczeństwo", 'size': 10, 'color': '#666'},
+        {'id': str(2), 'name': "bsd", 'size': 14, 'color': '#333'},
+        {'id': str(3), 'name': "debian", 'size': 18, 'color': '#333'},
+        {'id': str(4), 'name': "fedora", 'size': 12, 'color': '#666'},
+        {'id': str(5), 'name': "firefox", 'size': 40, 'color': '#666'},
+        {'id': str(6), 'name': "gnome", 'size': 26, 'color': '#333'},
+        {'id': str(7), 'name': "gentoo", 'size': 30, 'color': '#000'},
+        {'id': str(8), 'name': "kde", 'size': 20, 'color': '#333'},
+        {'id': str(9), 'name': "kernel", 'size': 10, 'color': '#666'},
+        {'id': str(10), 'name': "windows", 'size': 18, 'color': '#333'},
+        ]'''
         return
         
     def cleanup(self):
@@ -109,9 +120,6 @@ class MainModel(ModelMT):
             except:
                 pass
         return
-        
-    def load(self):
-        pass
         
     def new(self):
         self.unsaved_project = False
@@ -125,12 +133,17 @@ class MainModel(ModelMT):
         
     def save(self, filename=None):
         """save tared directory at given catalog fielname"""
+        if not filename and not self.filename:
+            if __debug__:
+                return False, "no filename detected!"
+            return
+        
         if filename:
             self.filename = filename
-            val, err = self.__compress_and_save()
-            if not val:
-                self.filename = None
-            return val, err
+        val, err = self.__compress_and_save()
+        if not val:
+            self.filename = None
+        return val, err
         
     def open(self, filename=None):
         """try to open db file"""
@@ -204,6 +217,17 @@ class MainModel(ModelMT):
             return
         self.thread = _threading.Thread(target=self.__scan)
         self.thread.start()
+        return
+        
+    def set_label(self, id, label=None):
+        if label:
+            self.db_cursor.execute("update files set filename=? \
+                                   where id=? and parent_id=1", (label, id))
+            self.db_connection.commit()
+            self.__fetch_db_into_treestore()
+        else:
+            if __debug__:
+                print "m_main.py: set_label(): no label defined"
         return
         
     def get_root_entries(self, id=None):
@@ -620,9 +644,6 @@ class MainModel(ModelMT):
                                        detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
         db_cursor = db_connection.cursor()
         
-        print "%s" % \
-                                       (self.internal_dirname + '/db.sqlite')
-        
         # fetch all the directories
         sql = """
         SELECT id, parent_id, filename FROM files 
@@ -704,7 +725,7 @@ class MainModel(ModelMT):
     def __append_added_volume(self):
         """append branch from DB to existing tree model"""
         #connect
-        db_connection = sqlite.connect("%s" % \
+        db_connection = sqlite.connect("%s" %
                                        (self.internal_dirname + '/db.sqlite'),
                                        detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
         db_cursor = db_connection.cursor()
@@ -736,7 +757,7 @@ class MainModel(ModelMT):
         # launch scanning.
         get_children()
         if __debug__:
-            print "m_main.py: __fetch_db_into_treestore() tree generation time: ", (datetime.now() - start_date)
+            print "m_main.py: __append_added_volume() tree generation time: ", (datetime.now() - start_date)
         db_connection.close()
         return
         
