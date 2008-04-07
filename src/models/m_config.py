@@ -75,7 +75,7 @@ class ConfigModel(Model):
         'mntwarn': True,
         'delwarn': True,
         
-        'cd': '/cdrom',
+        'cd': '/mnt/cdrom',
         'ejectapp': 'eject -r',
         
         'retrive': False,
@@ -84,8 +84,17 @@ class ConfigModel(Model):
         'exif': True,
         'gthumb': False,
         
-        'mov_ext': ['avi', 'mkv', 'mpg', 'mpeg', 'wmv'],
-        'img_ext': ['bmp', 'gif', 'jpg', 'jpeg', 'png'],
+        'extensions': {'bmp':'identify %s',
+            'gif':'identify "%s"',
+            'jpg':'identify "%s"',
+            'jpeg':'identify "%s"',
+            'png':'identify "%s"',
+            'avi':'midentify "%s"',
+            'mkv':'midentify "%s"',
+            'mpg':'midentify "%s"',
+            'mpeg':'midentify "%s"',
+            'wmv':'midentify "%s"',
+        },
         
         'showtoolbar':True,
         'showstatusbar':True,
@@ -147,21 +156,19 @@ class ConfigModel(Model):
     def __init__(self):
         Model.__init__(self)
         self.category_tree = gtk.ListStore(gobject.TYPE_STRING)
-        self.ext_list = gtk.ListStore(gobject.TYPE_STRING)
-        for i in self.filetype_list:
-            myiter = self.ext_list.insert_before(None,None)
-            self.ext_list.set_value(myiter,0,i)
-            
-        self.refresh_ext('img_ext')
+        
+        self.refresh_ext()
         return
     
         
-    def refresh_ext(self, key):
-        self.ext_tree = gtk.ListStore(gobject.TYPE_STRING)
-        self.confd[key].sort()
-        for i in self.confd[key]:
+    def refresh_ext(self):
+        self.ext_tree = gtk.ListStore(gobject.TYPE_STRING,
+                                      gobject.TYPE_STRING)
+        keys = sorted(self.confd['extensions'].keys())
+        for i in keys:
             myiter = self.ext_tree.insert_before(None,None)
-            self.ext_tree.set_value(myiter,0,i)
+            self.ext_tree.set_value(myiter, 0, i)
+            self.ext_tree.set_value(myiter, 1, self.confd['extensions'][i])
         
     def save(self):
         try:
@@ -190,16 +197,10 @@ class ConfigModel(Model):
             count+=1
         
         # extensions sections
-        newIni.add_section("images extensions")
+        newIni.add_section("extensions")
         count = 1
-        for i in self.confd['img_ext']:
-            newIni.add_key(count, i)
-            count+=1
-            
-        newIni.add_section("movies extensions")
-        count = 1
-        for i in self.confd['mov_ext']:
-            newIni.add_key(count, i)
+        for i in self.confd['extensions']:
+            newIni.add_key(i, self.confd['extensions'][i])
             count+=1
             
         # write config
@@ -243,26 +244,16 @@ class ConfigModel(Model):
                             if __debug__:
                                 print "m_config.py: load() failed to parse option:", opt
                             pass
-                elif sec == 'images extensions':
-                    self.confd['img_ext'] = []
+                elif sec == 'extensions':
+                    self.confd['extensions'] = {}
                     for opt in parser.options(sec):
                         try:
-                            self.confd['img_ext'].append(parser.get(sec,opt))
+                            self.confd['extensions'][opt] = parser.get(sec, opt)
                         except:
                             if __debug__:
                                 print "m_config.py: load() failed to parse option:", opt
                             pass
                 
-                elif sec == 'movies extensions':
-                    self.confd['mov_ext'] = []
-                    for opt in parser.options(sec):
-                        try:
-                            self.confd['mov_ext'].append(parser.get(sec,opt))
-                        except:
-                            if __debug__:
-                                print "m_config.py: load() failed to parse option:", opt
-                            pass
-                    
             for i in range(1, self.RECENT_MAX + 1):
                 if r.has_key(i):
                     self.recent.append(r[i])
