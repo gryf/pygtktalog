@@ -56,28 +56,14 @@ For version 1.0 following aims have to be done:
 
 - searching database
 - tagging files
-- filetypes handling
-	- movies
-	- images
-	- archives
-	- documents
+	- user definied group of tags (represented by color in cloud tag)
 - file details:
 	- files properties
 		x thumbnail
 		- description
 		- file information (date, size, etc) (50%)
 	- exif information
-	- keywords
-	- anime/movie
-		- title
-		- alt title
-		- type (anime movie, movie, anime oav, anime tv series, tv series, etc)
-		- cover/images
-		- genre
-		- lang
-		- sub lang
-		- release date (from - to)
-		- anidb link/imdb link
+	- keywords (tags)
 - adding images (60% done)
 x generating/saving thumbnails
 x moving hardcoded files extensions into config
@@ -90,6 +76,24 @@ For version 2.0:
 - internationalization support
 - statistics
 
+Removed:
+- filetypes handling (movies, images, archives, documents etc). Now it have
+  common, unified external "plugin" system - simple output from command line
+  programs.
+- anime/movie
+		- title
+		- alt title
+		- type (anime movie, movie, anime oav, anime tv series, tv series, etc)
+		- cover/images
+		- genre
+		- lang
+		- sub lang
+		- release date (from - to)
+		- anidb link/imdb link
+  Maybe in future versions. Now text file descriptions and tags have to be
+  enough for good and fast information search.
+  
+  
 NOTES
 =====
 

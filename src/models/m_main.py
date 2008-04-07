@@ -28,6 +28,7 @@ import base64
 import shutil
 import tarfile
 import tempfile
+import string
 
 import gtk
 import gobject
@@ -58,16 +59,12 @@ class MainModel(ModelMT):
     FIL = 2 # file
     LIN = 3 # symbolic link
     
-    # filetype kind of
-    F_UNK = 0 # unknown - default
-    F_IMG = 1 # images - jpg, gif, tiff itd
-    F_MOV = 2 # movies and clips - mpg, ogm, mkv, avi, asf, wmv itd
-    F_MUS = 4 # music - flac, mp3, mpc, ogg itd
-    F_APP = 5 # applications
-    F_DOC = 6 # all kind of documents txt/pdf/doc/odf itd
-    
     CD = 1 # sorce: cd/dvd
     DR = 2 # source: filesystem
+    
+    # images extensions - only for PIL and EXIF
+    IMG = ['jpg', 'jpeg', 'gif', 'png', 'tif', 'tiff', 'tga', 'pcx', 'bmp',
+           'xbm', 'xpm', 'jp2', 'jpx', 'pnm']
     
     def __init__(self):
         ModelMT.__init__(self)
@@ -255,9 +252,7 @@ class MainModel(ModelMT):
             
         # all the rest
         self.db_cursor.execute("SELECT f.id, f.filename, f.size, f.date, \
-                               f.type, f.filetype, t.filename \
-                               FROM files f \
-                               LEFT JOIN thumbnails t ON f.id = t.file_id \
+                               f.type FROM files f \
                                WHERE f.parent_id=? AND f.type!=1 \
                                ORDER BY f.filename", (id,))
         data = self.db_cursor.fetchall()
@@ -270,14 +265,11 @@ class MainModel(ModelMT):
             self.files_list.set_value(myiter, 4, ch[4])
             self.files_list.set_value(myiter, 5, 'kategoria srategoria')
             if ch[4] == self.FIL:
-                if ch[6] != None:
-                     # TODO: change icon to thumbnail
-                    self.files_list.set_value(myiter, 6, gtk.STOCK_FILE)
-                else:
-                    self.files_list.set_value(myiter, 6, gtk.STOCK_FILE)
+                self.files_list.set_value(myiter, 6, gtk.STOCK_FILE)
             elif ch[4] == self.LIN:
                 self.files_list.set_value(myiter, 6, gtk.STOCK_INDEX)
         return
+        
     def get_parent_discs_value(self, child_id):
         if child_id:
             self.db_cursor.execute("SELECT parent_id FROM files where id=?", (child_id,))
@@ -290,7 +282,7 @@ class MainModel(ModelMT):
         """get file info from database"""
         retval = {}
         self.db_cursor.execute("SELECT f.filename, f.date, f.size, f.type, \
-                               t.filename \
+                               t.filename, f.description \
                                FROM files f \
                                LEFT JOIN thumbnails t ON t.file_id = f.id \
                                WHERE f.id = ?", (id,))
@@ -298,7 +290,9 @@ class MainModel(ModelMT):
         if set:
             string = "ID: %d\nFilename: %s\nDate: %s\nSize: %s\ntype: %s" % \
                 (id, set[0], datetime.fromtimestamp(set[1]), set[2], set[3])
-            retval['description'] = string
+            retval['file_info'] = string
+            if set[5]:
+                retval['description'] = set[5]
             
             if set[4]:
                 retval['thumbnail'] = os.path.join(self.internal_dirname, set[4])
@@ -408,22 +402,11 @@ class MainModel(ModelMT):
                                      size_x integer,
                                      size_y integer,
                                      filetype integer,
-                                     note TEXT);""")
+                                     description TEXT);""")
         self.db_cursor.execute("""create table 
                                tags(id INTEGER PRIMARY KEY AUTOINCREMENT,
                                     file_id INTEGER,
                                     tag TEXT);""")
-        self.db_cursor.execute("""create table 
-                               descriptions(id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                            file_id INTEGER,
-                                            desc TEXT,
-                                            image TEXT,
-                                            image_x INTEGER,
-                                            image_y INTEGER,
-                                            thumb TEXT,
-                                            thumb_x INTEGER,
-                                            thumb_y INTEGER,
-                                            thumb_mode TEXT);""")
         self.db_cursor.execute("""create table 
                                thumbnails(id INTEGER PRIMARY KEY AUTOINCREMENT,
                                             file_id INTEGER,
@@ -586,16 +569,34 @@ class MainModel(ModelMT):
                     update = True
                     sql = """select seq FROM sqlite_sequence WHERE name='files'"""
                     db_cursor.execute(sql)
-                    fileid=db_cursor.fetchone()[0]
-                    if i.split('.')[-1].lower() in self.config.confd['img_ext']:
-                        sql = """UPDATE files set filetype = ? where id = ?"""
-                        db_cursor.execute(sql, (self.F_IMG, fileid))
-                        if self.config.confd['thumbs']:
-                            path, exif, ret_code = Thumbnail(current_path, base=self.internal_dirname).save(fileid)
-                            if ret_code != -1:
-                                sql = """insert into thumbnails(file_id, filename) values (?, ?)"""
-                                db_cursor.execute(sql, (fileid, path.split(self.internal_dirname)[1][1:]))
+                    fileid = db_cursor.fetchone()[0]
+                    
+                    ext = i.split('.')[-1].lower()
+                    
+                    # Images - thumbnails and exif data
+                    if self.config.confd['thumbs'] and ext in self.IMG:
+                        path, exif, ret_code = Thumbnail(current_path, base=self.internal_dirname).save(fileid)
+                        if ret_code != -1:
+                            sql = """insert into thumbnails(file_id, filename) values (?, ?)"""
+                            db_cursor.execute(sql, (fileid,
+                                                    path.split(self.internal_dirname)[1][1:]))
                             
+                    if self.config.confd['exif']:
+                        # TODO: exif implementation
+                        pass
+                    
+                    # Extensions - user defined actions
+                    if ext in self.config.confd['extensions'].keys():
+                        cmd = self.config.confd['extensions'][ext]
+                        arg = string.replace(current_path, '"', '\\"')
+                        output = os.popen(cmd % arg).readlines()
+                        desc = ''
+                        for line in output:
+                            desc += line
+                        #desc = string.replace(desc, "\n", "\\n")
+                        sql = """update files set description=? where id=?"""
+                        db_cursor.execute(sql, (desc, fileid))
+                        
                     #if i.split('.').[-1].lower() in mov_ext:
                         # # video only
                         # info = filetypeHelper.guess_video(os.path.join(root,i))

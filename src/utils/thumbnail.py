@@ -56,6 +56,7 @@ class Thumbnail(object):
                 if exif.has_key('Image Orientation'):
                     orientation = exif['Image Orientation'].values[0]
                     if orientation > 1:
+                        # TODO: replace silly datetime function with tempfile
                         t = path.join(gettempdir(), "thumb%d.jpg" % datetime.now().microsecond)
                         im_in = Image.open(filepath)
                         im_out = None

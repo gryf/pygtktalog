@@ -32,10 +32,9 @@ class ConfigController(Controller):
         'General':'general_group',
         'Scan options':'scan_group',
         'Files extensions':'ft_group',
-        'Commands':'commands_group',
     }
     category_order = ['General', 'Disk options', 'Scan options',
-    'Files extensions', 'Commands']
+    'Files extensions',]
     
     def __init__(self, model):
         Controller.__init__(self, model)
@@ -67,15 +66,23 @@ class ConfigController(Controller):
         self.__setup_category_tree()
         
         # initialize models for files extensions
-        self.view['ext_choose'].set_model(self.model.ext_list)
-        self.view['ext_choose'].set_active(0)
         self.view['extension_tree'].get_selection().set_mode(gtk.SELECTION_MULTIPLE)
+        #self.view['extension_tree'].set_model(self.model.ext_tree)
+        self.__setup_extension_tree()
+        
         self.view['config'].show();
         return
     # Podłącz sygnały:
 
     #################
     # connect signals
+    def on_extension_tree_cursor_changed(self, tree):
+        model = tree.get_model()
+        selected = model.get_value(model.get_iter(tree.get_cursor()[0]), 0)
+        ext = self.model.confd['extensions']
+        self.view['ext_entry'].set_text(selected)
+        self.view['com_entry'].set_text(ext[selected])
+        
     def on_category_tree_cursor_changed(self, tree):
         """change view to selected row corresponding to group of properties"""
         model = tree.get_model()
@@ -127,22 +134,28 @@ class ConfigController(Controller):
         self.__toggle_scan_group()
         return
         
-    def on_ext_choose_changed(self, widget):
-        self.__setup_extension_tree()
-        self.view['ext_entry'].set_text('')
-        return
-        
     def on_ext_add_clicked(self, widget):
         ext = self.view['ext_entry'].get_text().lower()
+        com = self.view['com_entry'].get_text()
+        if len(ext) == 0 and len(com) == 0:
+            Dialogs.Err("Config - pyGTKtalog", "Error", "Extension and command required")
+            return
+            
+        if len(com) == 0:
+            Dialogs.Err("Config - pyGTKtalog", "Error", "Command is empty")
+            return
+            
         if len(ext) == 0:
             Dialogs.Err("Config - pyGTKtalog", "Error", "Extension is empty")
             return
-        if self.view['ext_choose'].get_active() == 0:
-            if ext not in self.model.confd['img_ext']:
-                self.model.confd['img_ext'].append(ext)
-                self.model.refresh_ext('img_ext')
-        else:
-            self.model.confd['mov_ext'].append(ext)
+            
+        if ext in self.model.confd['extensions'].keys():
+            obj = Dialogs.Qst('Alter extension',
+                              'Alter extension?',
+                              'Extension "%s" will be altered.' % ext)
+            if not obj.run():
+                return
+        self.model.confd['extensions'][ext] = com
             
         self.__setup_extension_tree()
         return
@@ -164,13 +177,8 @@ class ConfigController(Controller):
             if not obj.run():
                 return
         
-        if self.view['ext_choose'].get_active() == 0:
-            n = 'img_ext'
-        else:
-            n = 'mov_ext'
-        
         for i in selection:
-            self.model.confd[n].remove(model.get_value(model.get_iter(i), 0))
+            self.model.confd['extensions'].pop(model.get_value(model.get_iter(i), 0))
         
         self.__setup_extension_tree()
         return
@@ -178,17 +186,18 @@ class ConfigController(Controller):
     ############################
     # private controller methods
     def __setup_extension_tree(self):
-        if self.view['ext_choose'].get_active() == 0:
-            self.model.refresh_ext('img_ext')
-        else:
-            self.model.refresh_ext('mov_ext')
+        self.model.refresh_ext()
             
         self.view['extension_tree'].set_model(self.model.ext_tree)
         
         for i in self.view['extension_tree'].get_columns():
             self.view['extension_tree'].remove_column(i)
         cell = gtk.CellRendererText()
-        column = gtk.TreeViewColumn("Extensions", cell, text=0)
+        column = gtk.TreeViewColumn("Extension", cell, text=0)
+        column.set_resizable(True)
+        self.view['extension_tree'].append_column(column)
+        
+        column = gtk.TreeViewColumn("Command", cell, text=1)
         column.set_resizable(True)
         self.view['extension_tree'].append_column(column)
         
@@ -196,6 +205,7 @@ class ConfigController(Controller):
         for i in ('ch_thumb','ch_exif','ch_gthumb'):
             self.view[i].set_sensitive(self.view['ch_retrive'].get_active())
         return
+        
     def __setup_category_tree(self):
         category_tree = self.view['category_tree']
         category_tree.set_model(self.model.category_tree)

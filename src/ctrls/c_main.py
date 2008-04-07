@@ -40,6 +40,7 @@ from models.m_config import ConfigModel
 import views.v_dialogs as Dialogs
 
 import gtk
+import pango
 
 import datetime
 
@@ -288,24 +289,23 @@ class MainController(Controller):
     def on_files_cursor_changed(self,treeview):
         """Show details of selected file"""
         model, paths = treeview.get_selection().get_selected_rows()
-        try:
-            itera = model.get_iter(paths[0])
-            if model.get_value(itera,4) == 1:
-                #directory, do nothin', just turn off view
-                '''self.view['details'].hide()
-                buf = self.view['details'].get_buffer()
-                buf.set_text('')
-                self.view['details'].set_buffer(buf)'''
-            else:
-                #file, show what you got.
-                #self.details.get_top_widget()
-                iter = model.get_iter(treeview.get_cursor()[0])
-                selected_item = self.model.files_list.get_value(iter, 0)
-                self.__get_item_info(selected_item)
-        except:
-            if __debug__:
-                print "c_main.py: on_files_cursor_changed() insufficient \
-                iterator"
+        #try:
+        itera = model.get_iter(paths[0])
+        if model.get_value(itera,4) == 1:
+            #directory, do nothin', just turn off view
+            '''self.view['details'].hide()
+            buf = self.view['details'].get_buffer()
+            buf.set_text('')
+            self.view['details'].set_buffer(buf)'''
+        else:
+            #file, show what you got.
+            #self.details.get_top_widget()
+            iter = model.get_iter(treeview.get_cursor()[0])
+            selected_item = self.model.files_list.get_value(iter, 0)
+            self.__get_item_info(selected_item)
+        #except:
+        #    if __debug__:
+        #        print "c_main.py: on_files_cursor_changed() insufficient iterator"
         return
     
     def on_files_key_release_event(self, a, event):
@@ -554,8 +554,7 @@ class MainController(Controller):
             self.model.config.confd['confirmquit']:
             if not Dialogs.Qst('Quit application - pyGTKtalog',
                                'Do you really want to quit?',
-                               "Current database is not saved, any changes \
-                               will be lost.").run():
+                               "Current database is not saved, any changes will be lost.").run():
                 return
         
         self.__store_settings()
@@ -571,16 +570,15 @@ class MainController(Controller):
         if self.model.unsaved_project:
             if not Dialogs.Qst('Unsaved data - pyGTKtalog',
                                "Current database isn't saved",
-                               'All changes will be lost. \
-                               Do you really want to abandon it?').run():
+                               'All changes will be lost. Do you really want to abandon it?').run():
                 return
         self.model.new()
         
         # clear "details" buffer
-        '''txt = ""
-        buf = self.view['details'].get_buffer()
-        buf.set_text(txt)
-        self.view['details'].set_buffer(buf)'''
+        buf = self.view['description'].get_buffer()
+        buf.set_text("")
+        self.view['description'].set_buffer(buf)
+        self.view['thumb'].hide()
         
         self.__activate_ui()
         
@@ -729,10 +727,16 @@ class MainController(Controller):
     def __get_item_info(self, item):
         self.view['description'].show()
         set = self.model.get_file_info(item)
-        
         buf = self.view['description'].get_buffer()
-        if set.has_key('description'):
-            buf.set_text(set['description'])
+        
+        if set.has_key('file_info'):
+            buf.set_text(set['file_info'])
+            if set.has_key('description'):
+                tag = buf.create_tag()
+                tag.set_property('weight', pango.WEIGHT_BOLD)
+                buf.insert_with_tags(buf.get_end_iter(), "\nDetails:\n", tag)
+                buf.insert(buf.get_end_iter(), set['description'])
+                
         else:
             buf.set_text('')
         self.view['description'].set_buffer(buf)
