@@ -32,8 +32,10 @@ class ConfigController(Controller):
         'General':'general_group',
         'Scan options':'scan_group',
         'Files extensions':'ft_group',
+        'Commands':'commands_group',
     }
-    category_order = ['General', 'Disk options', 'Scan options', 'Files extensions']
+    category_order = ['General', 'Disk options', 'Scan options',
+    'Files extensions', 'Commands']
     
     def __init__(self, model):
         Controller.__init__(self, model)

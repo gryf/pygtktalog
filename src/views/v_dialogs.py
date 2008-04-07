@@ -100,7 +100,6 @@ class Err(object):
 
 class Abt(object):
     """Show simple about dialog"""
-    #{{{
     def __init__(self, name=None, ver="", title="", authors=[],licence=""):
         self.dialog = gtk.AboutDialog()
         self.dialog.set_title(title)
@@ -110,7 +109,6 @@ class Abt(object):
         self.dialog.set_authors(authors)
         self.dialog.connect('response', lambda dialog, response: self.dialog.destroy())
         self.dialog.show()
-    #}}}
     
 class InputDiskLabel(object):
     """Sepcific dialog for quering user for a disc label"""
