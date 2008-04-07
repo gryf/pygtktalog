@@ -49,13 +49,13 @@ class MainController(Controller):
     widgets = (
                "discs","files",
                'save1','save_as1','cut1','copy1','paste1','delete1','add_cd','add_directory1',
-               'tb_save','tb_addcd','tb_find','tag_cloud_ex','description',
+               'tb_save','tb_addcd','tb_find','nb_dirs','description',
         )
     widgets_all = (
                    "discs","files",
                    'file1','edit1','add_cd','add_directory1','help1',
                    'tb_save','tb_addcd','tb_find','tb_new','tb_open','tb_quit',
-                   'tag_cloud_ex','description',
+                   'nb_dirs','description',
         )
                             
     widgets_cancel = ('cancel','cancel1')
@@ -113,7 +113,6 @@ class MainController(Controller):
         if self.model.filename != None:
             self.__activate_ui(self.model.filename)
         
-        self.view['vpaned2'].set_position(18)
         # generate recent menu
         self.__generate_recent_menu()
         
@@ -141,17 +140,6 @@ class MainController(Controller):
         w = self.view['tag_cloud_textview'].get_window(gtk.TEXT_WINDOW_TEXT)
         if w:
             w.set_cursor(None)
-            
-    def on_tag_cloud_ex_activate(self, widget):
-        # TODO: change this fsckin amatourish positioning!
-        if widget.get_expanded():
-            self.view['vpaned2'].set_position(18)
-        else:
-            
-            w = self.view['tag_cloud_textview'].get_window(gtk.TEXT_WINDOW_TEXT)
-            if w:
-                w.set_cursor(gtk.gdk.Cursor(gtk.gdk.HAND2))
-            self.view['vpaned2'].set_position(200)
             
     def on_main_destroy_event(self, window, event):
         self.__do_quit()
@@ -596,11 +584,6 @@ class MainController(Controller):
         
         self.__activate_ui()
         
-        self.view['tag_cloud_ex'].set_sensitive(True)
-        rect = self.view['tag_cloud_ex'].allocation
-        if __debug__:
-            print "c_main.py: __new_db(): tag_cloud_ex widget \
-            dimensions", rect.width, rect.height, rect.x, rect.y
         return
         
     def __setup_disc_treeview(self):
