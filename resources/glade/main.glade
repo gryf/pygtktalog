@@ -141,6 +141,7 @@
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
                         <signal name="activate" handler="on_find1_activate"/>
+                        <accelerator key="f" modifiers="GDK_CONTROL_MASK" signal="activate"/>
                       </widget>
                     </child>
                     <child>
@@ -171,7 +172,7 @@
                     <child>
                       <widget class="GtkMenuItem" id="add_cd">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">Add CD/DVD</property>
+                        <property name="label" translatable="yes">Add _CD/DVD</property>
                         <property name="use_underline">True</property>
                         <signal name="activate" handler="on_add_cd_activate"/>
                         <accelerator key="a" modifiers="GDK_CONTROL_MASK" signal="activate"/>
@@ -180,13 +181,28 @@
                     <child>
                       <widget class="GtkMenuItem" id="add_directory1">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">Add Directory</property>
+                        <property name="label" translatable="yes">Add _Directory</property>
                         <property name="use_underline">True</property>
                         <signal name="activate" handler="on_add_directory1_activate"/>
+                        <accelerator key="d" modifiers="GDK_CONTROL_MASK" signal="activate"/>
                       </widget>
                     </child>
                     <child>
                       <widget class="GtkSeparatorMenuItem" id="separator3">
+                        <property name="visible">True</property>
+                      </widget>
+                    </child>
+                    <child>
+                      <widget class="GtkMenuItem" id="stat1">
+                        <property name="visible">True</property>
+                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                        <property name="label" translatable="yes">Catalog _statistics</property>
+                        <property name="use_underline">True</property>
+                        <signal name="activate" handler="on_stat1_activate"/>
+                      </widget>
+                    </child>
+                    <child>
+                      <widget class="GtkSeparatorMenuItem" id="separator6">
                         <property name="visible">True</property>
                       </widget>
                     </child>
@@ -566,6 +582,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="rules_hint">True</property>
+                        <signal name="button_press_event" handler="on_files_button_press_event"/>
                         <signal name="row_activated" handler="on_files_row_activated"/>
                         <signal name="cursor_changed" handler="on_files_cursor_changed"/>
                         <signal name="key_release_event" handler="on_files_key_release_event"/>
@@ -877,6 +894,7 @@
         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
         <property name="label" translatable="yes">_Add tag</property>
         <property name="use_underline">True</property>
+        <signal name="activate" handler="on_add_tag1_activate"/>
       </widget>
     </child>
     <child>

@@ -50,13 +50,13 @@ class MainController(Controller):
     widgets = (
                "discs","files",
                'save1','save_as1','cut1','copy1','paste1','delete1','add_cd','add_directory1',
-               'tb_save','tb_addcd','tb_find','nb_dirs','description',
+               'tb_save','tb_addcd','tb_find','nb_dirs','description','stat1',
         )
     widgets_all = (
                    "discs","files",
                    'file1','edit1','add_cd','add_directory1','help1',
                    'tb_save','tb_addcd','tb_find','tb_new','tb_open','tb_quit',
-                   'nb_dirs','description',
+                   'nb_dirs','description','stat1',
         )
                             
     widgets_cancel = ('cancel','cancel1')
@@ -146,22 +146,22 @@ class MainController(Controller):
         self.__do_quit()
         return True
         
-    def on_tb_quit_clicked(self,widget):
+    def on_tb_quit_clicked(self, widget):
         self.__do_quit()
         
-    def on_quit1_activate(self,widget):
+    def on_quit1_activate(self, widget):
         self.__do_quit()
     
-    def on_new1_activate(self,widget):
+    def on_new1_activate(self, widget):
         self.__new_db()
         
-    def on_tb_new_clicked(self,widget):
+    def on_tb_new_clicked(self, widget):
         self.__new_db()
         
-    def on_add_cd_activate(self,widget):
+    def on_add_cd_activate(self, widget):
         self.__add_cd()
         
-    def on_tb_addcd_clicked(self,widget):
+    def on_tb_addcd_clicked(self, widget):
         self.__add_cd()
         
     def on_add_directory1_activate(self, widget):
@@ -169,7 +169,7 @@ class MainController(Controller):
         self.__add_directory()
         return
         
-    def on_about1_activate(self,widget):
+    def on_about1_activate(self, widget):
         """Show about dialog"""
         Dialogs.Abt("pyGTKtalog", __version__, "About",
                     ["Roman 'gryf' Dobosz"], licence)
@@ -207,6 +207,20 @@ class MainController(Controller):
     def on_save_as1_activate(self, widget):
         self.__save_as()
         
+    def on_stat1_activate(self, menu_item):
+        self.__show_stats()
+        
+    def on_statistics1_activate(self, menu_item):
+        model = self.view['discs'].get_model()
+        try:
+            path, column = self.view['discs'].get_cursor()
+            selected_iter = self.model.discs_tree.get_iter(path)
+        except:
+            return
+            
+        selected_id = self.model.discs_tree.get_value(selected_iter, 0)
+        self.__show_stats(selected_id)
+        
     def on_tb_open_clicked(self, widget):
         self.__open()
         
@@ -242,7 +256,7 @@ class MainController(Controller):
             return False
                 
         if event.button == 3:
-            """show context menu"""
+            """Right mouse button. Show context menu."""
             try:
                 selection = treeview.get_selection()
                 model, list_of_paths = selection.get_selected_rows()
@@ -286,26 +300,44 @@ class MainController(Controller):
         self.view['discs'].collapse_all()
         return
         
-    def on_files_cursor_changed(self,treeview):
+    def on_files_button_press_event(self, tree, event):
+        try:
+            path, column, x, y = tree.get_path_at_pos(int(event.x),
+                                                      int(event.y))
+        except TypeError:
+            tree.get_selection().unselect_all()
+            return False
+        
+        if event.button == 3: # Right mouse button. Show context menu.
+            try:
+                selection = tree.get_selection()
+                model, list_of_paths = selection.get_selected_rows()
+            except TypeError:
+                list_of_paths = []
+
+            self.__popup_files_menu(event)
+            return True
+            
+    def on_files_cursor_changed(self, treeview):
         """Show details of selected file"""
         model, paths = treeview.get_selection().get_selected_rows()
-        #try:
-        itera = model.get_iter(paths[0])
-        if model.get_value(itera,4) == 1:
-            #directory, do nothin', just turn off view
-            '''self.view['details'].hide()
-            buf = self.view['details'].get_buffer()
-            buf.set_text('')
-            self.view['details'].set_buffer(buf)'''
-        else:
-            #file, show what you got.
-            #self.details.get_top_widget()
-            iter = model.get_iter(treeview.get_cursor()[0])
-            selected_item = self.model.files_list.get_value(iter, 0)
-            self.__get_item_info(selected_item)
-        #except:
-        #    if __debug__:
-        #        print "c_main.py: on_files_cursor_changed() insufficient iterator"
+        try:
+            itera = model.get_iter(paths[0])
+            if model.get_value(itera,4) == 1:
+                #directory, do nothin', just turn off view
+                '''self.view['details'].hide()
+                buf = self.view['details'].get_buffer()
+                buf.set_text('')
+                self.view['details'].set_buffer(buf)'''
+            else:
+                #file, show what you got.
+                #self.details.get_top_widget()
+                iter = model.get_iter(treeview.get_cursor()[0])
+                selected_item = self.model.files_list.get_value(iter, 0)
+                self.__get_item_info(selected_item)
+        except:
+            if __debug__:
+                print "c_main.py: on_files_cursor_changed() insufficient iterator"
         return
     
     def on_files_key_release_event(self, a, event):
@@ -376,6 +408,9 @@ class MainController(Controller):
         self.__open(path)
         return
         
+    def on_add_tag1_activate(self, menu_item):
+        print self.view['discs'].get_cursor()
+        
     def on_update1_activate(self, menu_item):
         """Update disc under cursor position"""
         
@@ -411,7 +446,7 @@ class MainController(Controller):
         self.__set_title(filepath=self.model.filename, modified=True)
         return
 
-    def on_debugbtn_clicked(self,widget):
+    def on_debugbtn_clicked(self, widget):
         """Debug. To remove in stable version, including button in GUI"""
         if __debug__:
             print "\nc_main.py: on_debugbtn_clicked()"
@@ -713,6 +748,12 @@ class MainController(Controller):
         self.view['discs_popup'].show_all()
         return
         
+    def __popup_files_menu(self, event):
+        self.view['files_popup'].popup(None, None, None, event.button,
+                                       event.time)
+        self.view['files_popup'].show_all()
+        return
+        
     def __generate_recent_menu(self):
         self.recent_menu = gtk.Menu()
         for i in self.model.config.recent:
@@ -786,4 +827,8 @@ class MainController(Controller):
                 buff.insert_with_tags(iter, cloud['name'], tag)
             self.view['tag_cloud_textview'].set_buffer(buff)
             
+    def __show_stats(self, selected_id=None):
+        data = self.model.get_stats(selected_id)
+        label = Dialogs.StatsDialog(data).run()
+        
     pass # end of class
