@@ -109,7 +109,7 @@ class Abt(object):
         self.dialog.set_authors(authors)
         self.dialog.connect('response', lambda dialog, response: self.dialog.destroy())
         self.dialog.show()
-    
+
 class InputDiskLabel(object):
     """Sepcific dialog for quering user for a disc label"""
     def __init__(self, label=""):
@@ -276,3 +276,45 @@ class LoadDBFile(object):
                 a = Err("Error - pyGTKtalog","File doesn't exist.","The file that you choose does not exist. Choose another one, or cancel operation.")
                 ch = True
                 res,filename = self.show_dialog()
+        
+class StatsDialog(object):
+    """Sepcific dialog for display stats"""
+    def __init__(self, values={}):
+        self.gladefile = os.path.join(utils.globals.GLADE_DIR, "dialogs.glade")
+        self.values = values
+        
+    def run(self):
+        gladexml = gtk.glade.XML(self.gladefile, "statDialog")
+        dialog = gladexml.get_widget("statDialog")
+        
+        if self.values.has_key('discs'):
+            entry = gladexml.get_widget("discs_entry")
+            entry.set_text(str(self.values['discs']))
+        else:
+            label = gladexml.get_widget("discs_label")
+            entry = gladexml.get_widget("discs_entry")
+            label.hide()
+            entry.hide()
+        
+        if self.values.has_key('dirs'):
+            entry = gladexml.get_widget("dirs_entry")
+            entry.set_text(str(self.values['dirs']))
+        else:
+            label = gladexml.get_widget("dirs_label")
+            entry = gladexml.get_widget("dirs_entry")
+            label.hide()
+            entry.hide()
+            
+        if self.values.has_key('files'):
+            entry = gladexml.get_widget("files_entry")
+            entry.set_text(str(self.values['files']))
+            
+        if self.values.has_key('size'):
+            entry = gladexml.get_widget("size_entry")
+            entry.set_text(str(self.values['size']))
+        
+        result = dialog.run()
+        dialog.destroy()
+        if result == gtk.RESPONSE_OK:
+            return entry.get_text()
+        return None

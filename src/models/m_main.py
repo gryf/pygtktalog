@@ -327,7 +327,97 @@ class MainModel(ModelMT):
         self.discs_tree.remove(branch_iter)
         return
         
+    def get_stats(self, selected_id):
+        """get statistic information"""
+        retval = {}
+        if selected_id:
+            sql = """select id, type, parent_id from files where id=?"""
+            self.db_cursor.execute(sql, (selected_id,))
+            res = self.db_cursor.fetchone()
+            if not res:
+                return retval
+        
+            selected_item = {'id':res[0], 'type':res[1], 'parent': res[2]}
+            
+            # collect all parent_id's
+            parents = []
+            def _recurse(fid):
+                parents.append(fid)
+                sql = """select id from files where type=? and parent_id=? and parent_id!=1"""
+                self.db_cursor.execute(sql, (self.DIR, fid))
+                res = self.db_cursor.fetchall()
+                if res:
+                    for row in res:
+                        _recurse(row[0])
+            _recurse(selected_id)
+            
+            if selected_item['parent'] == 1:
+                parents.pop(0)
+                retval['discs'] = 1
+            retval['dirs'] = len(parents)
+            
+            parents.append(selected_id)
+            
+            files_count = 0
+            
+            for p in parents:
+                sql = """select count(id) from files where type!=0 and type!=1 and parent_id=?"""
+                self.db_cursor.execute(sql, (p,))
+                res = self.db_cursor.fetchone()
+                if res:
+                    files_count+=res[0]
+            retval['files'] = files_count
+            sql = """select size from files where id=?"""
+            self.db_cursor.execute(sql, (selected_id,))
+            res = self.db_cursor.fetchone()
+            if res:
+                retval['size'] = self.__bytes_to_human(res[0])
+        else:
+            sql = """select count(id) from files where parent_id=1 and type=1"""
+            self.db_cursor.execute(sql)
+            res = self.db_cursor.fetchone()
+            if res:
+                retval['discs'] = res[0]
+                
+            sql = """select count(id) from files where parent_id!=1 and type=1"""
+            self.db_cursor.execute(sql)
+            res = self.db_cursor.fetchone()
+            if res:
+                retval['dirs'] = res[0]
+                
+            sql = """select count(id) from files where parent_id!=1 and type!=1"""
+            self.db_cursor.execute(sql)
+            res = self.db_cursor.fetchone()
+            if res:
+                retval['files'] = res[0]
+        
+            sql = """select sum(size) from files where parent_id=1 and type=1"""
+            self.db_cursor.execute(sql)
+            res = self.db_cursor.fetchone()
+            if res:
+                retval['size'] = self.__bytes_to_human(res[0])
+        return retval
+        
     # private class functions
+    def __bytes_to_human(self, integer):
+        if integer <= 0 or integer < 1024:
+            return "%d bytes" % integer
+        
+        t = integer /1024.0
+        if t < 1 or t < 1024:
+            return "%d bytes (%d kB)" % (integer, t)
+            
+        t = t /1024.0
+        if t < 1 or t < 1024:
+            return "%d bytes (%d MB)" % (integer, t)
+        
+        t = t /1024.0
+        if t < 1 or t < 1024:
+            return "%d bytes (%d GB)" % (integer, t)
+            
+        t = t /1024.0
+        return "%d bytes (%d TB)" % (integer, t)
+        
     def __clear_trees(self):
         self.__clear_files_tree()
         self.__clear_discs_tree()
@@ -396,23 +486,28 @@ class MainModel(ModelMT):
                                      filename TEXT,
                                      filepath TEXT,
                                      date datetime,
-                                     size integer,
-                                     type integer,
-                                     source integer,
-                                     size_x integer,
-                                     size_y integer,
-                                     filetype integer,
+                                     size INTEGER,
+                                     type INTEGER,
+                                     source INTEGER,
+                                     note TEXT,
                                      description TEXT);""")
         self.db_cursor.execute("""create table 
                                tags(id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                    file_id INTEGER,
+                                    group_id INTEGER,
                                     tag TEXT);""")
+        self.db_cursor.execute("""create table 
+                               tags_files(file_id INTEGER,
+                                          tag_id INTEGER);""")
+        self.db_cursor.execute("""create table 
+                               groups(id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    name TEXT,
+                                    color TEXT);""")
         self.db_cursor.execute("""create table 
                                thumbnails(id INTEGER PRIMARY KEY AUTOINCREMENT,
                                             file_id INTEGER,
                                             filename TEXT);""")
-        self.db_cursor.execute("insert into files values(1, 1, 'root', null, \
-                               0, 0, 0, 0, null, null, null, null);")
+        self.db_cursor.execute("insert into files values(1, 1, 'root', null, 0, 0, 0, 0, null, null, null, null);")
+        self.db_cursor.execute("insert into groups values(1, 'default', 'black');")
         
     def __scan(self):
         """scan content of the given path"""
@@ -496,36 +591,32 @@ class MainModel(ModelMT):
                 #return -1
                 return 0
                 
+            #############
+            # directories
             for i in dirs:
-                if self.fsenc:
-                    j = i.decode(self.fsenc)
-                else:
-                    j = i
+                j = self.__decode_filename(i)
+                current_dir = os.path.join(root, i)
                 
                 try:
-                    st = os.stat(os.path.join(root,i))
+                    st = os.stat(current_dir)
                     st_mtime = st.st_mtime
                 except OSError:
                     st_mtime = 0
                     
                 # do NOT follow symbolic links
-                if os.path.islink(os.path.join(root,i)):
-                    l = os.readlink(os.path.join(root,i))
-                    if self.fsenc:
-                        l = l.decode(self.fsenc)
-                    else:
-                        l = l
+                if os.path.islink(current_dir):
+                    l = self.__decode_filename(os.readlink(current_dir))
                         
                     sql = """
                     insert into files(parent_id, filename, filepath, date, size, type)
                     values(?,?,?,?,?,?)
                     """
                     db_cursor.execute(sql, (currentid, j + " -> " + l,
-                                            os.path.join(path,i), st_mtime, 0,
+                                            ocurrent_dir, st_mtime, 0,
                                             self.LIN))
                     dirsize = 0
                 else:
-                    dirsize = __recurse(currentid, j, os.path.join(path,i),
+                    dirsize = __recurse(currentid, j, current_dir,
                                         st_mtime, 0, self.DIR, myit)
                 
                 if dirsize == -1:
@@ -533,13 +624,17 @@ class MainModel(ModelMT):
                 else:
                     _size = _size + dirsize
             
+            ########
+            # files:
             for i in files:
                 if self.abort:
                     break
+                
                 self.count = self.count + 1
-                current_path = os.path.join(root,i)
+                current_file = os.path.join(root, i)
+                
                 try:
-                    st = os.stat(current_path)
+                    st = os.stat(current_file)
                     st_mtime = st.st_mtime
                     st_size = st.st_size
                 except OSError:
@@ -547,62 +642,70 @@ class MainModel(ModelMT):
                     st_size = 0
                     
                 _size = _size + st_size
-                j = i
-                if self.fsenc:
-                    j = i.decode(self.fsenc)
+                j = self.__decode_filename(i)
                     
-                sql = """
-                insert into files(parent_id, filename, filepath, date, size, type)
-                values(?,?,?,?,?,?)
-                """
-                db_cursor.execute(sql, (currentid, j, os.path.join(path,i),
-                                        st_mtime, st_size, self.FIL))
-                
-                if self.count % 32 == 0:
-                    update = True
+                # do NOT follow symbolic links
+                if os.path.islink(current_file):
+                    l = self.__decode_filename(os.readlink(current_file))
+                    sql = """insert into files(parent_id, filename, filepath,
+                                               date, size, type)
+                    values(?,?,?,?,?,?)"""
+                    db_cursor.execute(sql, (currentid, j + " -> " + l,
+                                            current_file, st_mtime, 0,
+                                            self.LIN))
                 else:
-                    update = False
+                    sql = """
+                    insert into files(parent_id, filename, filepath, date, size, type)
+                    values(?,?,?,?,?,?)
+                    """
+                    db_cursor.execute(sql, (currentid, j, current_file,
+                                            st_mtime, st_size, self.FIL))
                     
-                ###########################
-                # fetch details about files
-                if self.config.confd['retrive']:
-                    update = True
-                    sql = """select seq FROM sqlite_sequence WHERE name='files'"""
-                    db_cursor.execute(sql)
-                    fileid = db_cursor.fetchone()[0]
-                    
-                    ext = i.split('.')[-1].lower()
-                    
-                    # Images - thumbnails and exif data
-                    if self.config.confd['thumbs'] and ext in self.IMG:
-                        path, exif, ret_code = Thumbnail(current_path, base=self.internal_dirname).save(fileid)
-                        if ret_code != -1:
-                            sql = """insert into thumbnails(file_id, filename) values (?, ?)"""
-                            db_cursor.execute(sql, (fileid,
-                                                    path.split(self.internal_dirname)[1][1:]))
-                            
-                    if self.config.confd['exif']:
-                        # TODO: exif implementation
-                        pass
-                    
-                    # Extensions - user defined actions
-                    if ext in self.config.confd['extensions'].keys():
-                        cmd = self.config.confd['extensions'][ext]
-                        arg = string.replace(current_path, '"', '\\"')
-                        output = os.popen(cmd % arg).readlines()
-                        desc = ''
-                        for line in output:
-                            desc += line
-                        #desc = string.replace(desc, "\n", "\\n")
-                        sql = """update files set description=? where id=?"""
-                        db_cursor.execute(sql, (desc, fileid))
+                    if self.count % 32 == 0:
+                        update = True
+                    else:
+                        update = False
                         
-                    #if i.split('.').[-1].lower() in mov_ext:
-                        # # video only
-                        # info = filetypeHelper.guess_video(os.path.join(root,i))
-                    ### end of scan
+                    ###########################
+                    # fetch details about files
+                    if self.config.confd['retrive']:
+                        update = True
+                        sql = """select seq FROM sqlite_sequence WHERE name='files'"""
+                        db_cursor.execute(sql)
+                        fileid = db_cursor.fetchone()[0]
+                        
+                        ext = i.split('.')[-1].lower()
+                        
+                        # Images - thumbnails and exif data
+                        if self.config.confd['thumbs'] and ext in self.IMG:
+                            path, exif, ret_code = Thumbnail(current_file, base=self.internal_dirname).save(fileid)
+                            if ret_code != -1:
+                                sql = """insert into thumbnails(file_id, filename) values (?, ?)"""
+                                db_cursor.execute(sql, (fileid,
+                                                        path.split(self.internal_dirname)[1][1:]))
+                                
+                        if self.config.confd['exif']:
+                            # TODO: exif implementation
+                            pass
+                        
+                        # Extensions - user defined actions
+                        if ext in self.config.confd['extensions'].keys():
+                            cmd = self.config.confd['extensions'][ext]
+                            arg = string.replace(current_file, '"', '\\"')
+                            output = os.popen(cmd % arg).readlines()
+                            desc = ''
+                            for line in output:
+                                desc += line
+                            #desc = string.replace(desc, "\n", "\\n")
+                            sql = """update files set description=? where id=?"""
+                            db_cursor.execute(sql, (desc, fileid))
+                            
+                        #if i.split('.').[-1].lower() in mov_ext:
+                            # # video only
+                            # info = filetypeHelper.guess_video(os.path.join(root,i))
+                        ### end of scan
                 if update:
-                    self.statusmsg = "Scannig: %s" % current_path
+                    self.statusmsg = "Scannig: %s" % current_file
                     self.progress = step * self.count
                     
             sql = """update files set size=? where id=?"""
@@ -695,34 +798,53 @@ class MainModel(ModelMT):
         return
         
     def __remove_branch_form_db(self, root_id):
-        parent_ids = [root_id,]
-        sql = """select id from files where parent_id = ? and type = 1"""
-        self.db_cursor.execute(sql, (root_id,))
-        ids = self.db_cursor.fetchall()
+        """Remove subtree from main tree, remove tags from database
+        remove all possible data, like thumbnails"""
+        fids = []
         
         def get_children(fid):
-            parent_ids.append(fid)
-            sql = """select id from files where parent_id = ? and type = 1"""
+            fids.append(fid)
+            sql = """select id from files where parent_id = ?"""
             self.db_cursor.execute(sql, (fid,))
             res = self.db_cursor.fetchall()
-            for i in res:
-                get_children(i[0])
+            if len(res)>0:
+                for i in res:
+                    get_children(i[0])
                 
-        for i in ids:
-            get_children(i[0])
+        get_children(root_id)
         
         def generator():
-            for c in parent_ids:
+            for c in fids:
                 yield (c,)
-            
-        sql = """delete from files where type = 1 and parent_id = ?"""
-        self.db_cursor.executemany(sql, generator())
+        
+        # remove files records
         sql = """delete from files where id = ?"""
+        self.db_cursor.executemany(sql, generator())
+        
+        # remove tags records
+        sql = """delete from tags_files where file_id = ?"""
+        self.db_cursor.executemany(sql, generator())
+        
+        # remove thumbnails
+        arg =''
+        for c in fids:
+            if len(arg) > 0:
+                arg+=", %d" % c
+            else:
+                arg = "%d" % c
+        sql = """select filename from thumbnails where file_id in (%s)""" % arg
+        self.db_cursor.execute(sql)
+        res = self.db_cursor.fetchall()
+        if len(res) > 0:
+            for fn in res:
+                os.unlink(os.path.join(self.internal_dirname, fn[0]))
+        
+        # remove thumbs records
+        sql = """delete from thumbnails where file_id = ?"""
         self.db_cursor.executemany(sql, generator())
         self.db_connection.commit()
         return
         
-             
     def __append_added_volume(self):
         """append branch from DB to existing tree model"""
         #connect
@@ -761,5 +883,11 @@ class MainModel(ModelMT):
             print "m_main.py: __append_added_volume() tree generation time: ", (datetime.now() - start_date)
         db_connection.close()
         return
+        
+    def __decode_filename(self, txt):
+        if self.fsenc:
+            return txt.decode(self.fsenc)
+        else:
+            return txt
         
     pass # end of class
