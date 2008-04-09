@@ -128,6 +128,24 @@ class InputDiskLabel(object):
         if result == gtk.RESPONSE_OK:
             return entry.get_text()
         return None
+        
+class InputNewName(object):
+    """Sepcific dialog for quering user for a disc label"""
+    def __init__(self, name=""):
+        self.gladefile = os.path.join(utils.globals.GLADE_DIR, "dialogs.glade")
+        self.label = ""
+        self.name = name
+        
+    def run(self):
+        gladexml = gtk.glade.XML(self.gladefile, "renameDialog")
+        dialog = gladexml.get_widget("renameDialog")
+        entry = gladexml.get_widget("name")
+        entry.set_text(self.name)
+        result = dialog.run()
+        dialog.destroy()
+        if result == gtk.RESPONSE_OK:
+            return entry.get_text()
+        return None
 
 class PointDirectoryToAdd(object):
     """Sepcific dialog for quering user for selecting directory to add"""
@@ -276,7 +294,47 @@ class LoadDBFile(object):
                 a = Err("Error - pyGTKtalog","File doesn't exist.","The file that you choose does not exist. Choose another one, or cancel operation.")
                 ch = True
                 res,filename = self.show_dialog()
+
+
+class LoadImageFile(object):
+    """class for displaying openFile dialog. It have possibility of multiple
+    selection."""
+    def __init__(self):
+        self.dialog = gtk.FileChooserDialog(
+            title="Select image",
+            action=gtk.FILE_CHOOSER_ACTION_OPEN,
+            buttons=(
+                gtk.STOCK_CANCEL,
+                gtk.RESPONSE_CANCEL,
+                gtk.STOCK_OPEN,
+                gtk.RESPONSE_OK
+            )
+        )
+        self.dialog.set_select_multiple(True)
+        self.dialog.set_default_response(gtk.RESPONSE_OK)
         
+        f = gtk.FileFilter()
+        f.set_name("All Images")
+        for i in ['*.jpg', '*.jpeg', '*.gif', '*.png', '*.tif', '*.tiff', '*.tga', '*.pcx', '*.bmp', '*.xbm', '*.xpm', '*.jp2', '*.jpx', '*.pnm']:            
+            f.add_pattern(i)
+        self.dialog.add_filter(f)
+        f = gtk.FileFilter()
+        f.set_name("All files")
+        f.add_pattern("*.*")
+        self.dialog.add_filter(f)
+    
+    def run(self):
+        response = self.dialog.run()
+        filenames = None
+        
+        if response == gtk.RESPONSE_OK:
+            try:
+                filenames = self.dialog.get_filenames()
+            except:
+                pass
+        self.dialog.destroy()
+        return filenames
+                
 class StatsDialog(object):
     """Sepcific dialog for display stats"""
     def __init__(self, values={}):

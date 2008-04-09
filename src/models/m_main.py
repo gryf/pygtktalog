@@ -46,6 +46,7 @@ except ImportError:
 from m_config import ConfigModel
 from m_details import DetailsModel
 from utils.thumbnail import Thumbnail
+from utils.img import Img
 
 class MainModel(ModelMT):
     """Create, load, save, manipulate db file which is container for data"""
@@ -79,7 +80,7 @@ class MainModel(ModelMT):
         self.config.load()
         self.details = DetailsModel()
         
-        # Directory tree: id, nazwa, ikonka, typ
+        # Directory tree: id, name, icon, type
         self.discs_tree = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,
                                         str, gobject.TYPE_INT)
         # File list of selected directory: child_id(?), filename, size,
@@ -88,6 +89,8 @@ class MainModel(ModelMT):
                                         gobject.TYPE_UINT64,
                                         gobject.TYPE_STRING, gobject.TYPE_INT,
                                         gobject.TYPE_STRING, str)
+        # iconview store - image id, pixbuffer
+        self.images_store = gtk.ListStore(gobject.TYPE_INT, gtk.gdk.Pixbuf)
         
         # tag cloud array element is a dict with 4 keys:
         # elem = {'id': str(id), 'name': tagname, 'size': size, 'color': color}
@@ -108,7 +111,25 @@ class MainModel(ModelMT):
         {'id': str(10), 'name': "windows", 'size': 18, 'color': '#333'},
         ]'''
         return
+    def add_image(self, image, id):
+        sql = """insert into images(file_id, thumbnail, filename) 
+        values(?, null, null)"""
+        self.db_cursor.execute(sql, (id,))
+        self.db_connection.commit()
         
+        sql = """select id from images where thumbnail is null and filename is null and file_id=?"""
+        self.db_cursor.execute(sql, (id,))
+        res = self.db_cursor.fetchone()
+        if res:
+            tp, ip, rc = Img(image, self.internal_dirname).save(res[0])
+            if rc != -1:
+                sql = """update images set filename=?, thumbnail=? where id=?"""
+                self.db_cursor.execute(sql,
+                                      (ip.split(self.internal_dirname)[1][1:],
+                                       tp.split(self.internal_dirname)[1][1:],
+                                       res[0]))
+                self.db_connection.commit()
+            
     def cleanup(self):
         self.__close_db_connection()
         if self.internal_dirname != None:
@@ -201,7 +222,7 @@ class MainModel(ModelMT):
         
         return True
             
-    def scan(self, path, label):
+    def scan(self, path, label, currentid):
         """scan files in separated thread"""
         
         # flush buffer to release db lock.
@@ -209,6 +230,7 @@ class MainModel(ModelMT):
         
         self.path = path
         self.label = label
+        self.currentid = currentid
         
         if self.busy:
             return
@@ -216,16 +238,20 @@ class MainModel(ModelMT):
         self.thread.start()
         return
         
-    def set_label(self, id, label=None):
-        if label:
+    def rename(self, id, new_name=None):
+        if new_name:
             self.db_cursor.execute("update files set filename=? \
-                                   where id=? and parent_id=1", (label, id))
+                                   where id=?", (new_name, id))
             self.db_connection.commit()
             self.__fetch_db_into_treestore()
+            self.unsaved_project = True
         else:
             if __debug__:
-                print "m_main.py: set_label(): no label defined"
+                print "m_main.py: rename(): no label defined"
         return
+        
+    def refresh_discs_tree(self):
+        self.__fetch_db_into_treestore()
         
     def get_root_entries(self, id=None):
         """Get all children down from sepcified root"""
@@ -281,11 +307,12 @@ class MainModel(ModelMT):
     def get_file_info(self, id):
         """get file info from database"""
         retval = {}
-        self.db_cursor.execute("SELECT f.filename, f.date, f.size, f.type, \
-                               t.filename, f.description \
-                               FROM files f \
-                               LEFT JOIN thumbnails t ON t.file_id = f.id \
-                               WHERE f.id = ?", (id,))
+        sql = """SELECT f.filename, f.date, f.size, f.type,
+                        t.filename, f.description
+                FROM files f
+                LEFT JOIN thumbnails t ON t.file_id = f.id
+                WHERE f.id = ?"""
+        self.db_cursor.execute(sql, (id,))
         set = self.db_cursor.fetchone()
         if set:
             string = "ID: %d\nFilename: %s\nDate: %s\nSize: %s\ntype: %s" % \
@@ -296,6 +323,17 @@ class MainModel(ModelMT):
             
             if set[4]:
                 retval['thumbnail'] = os.path.join(self.internal_dirname, set[4])
+                
+        sql = """SELECT id, filename, thumbnail from images WHERE file_id = ?"""
+        self.db_cursor.execute(sql, (id,))
+        set = self.db_cursor.fetchall()
+        if set:
+            self.images_store = gtk.ListStore(gobject.TYPE_INT, gtk.gdk.Pixbuf)
+            for id, img, thb in set:
+                im = os.path.join(self.internal_dirname,thb)
+                pix = gtk.gdk.pixbuf_new_from_file(im)
+                self.images_store.append([id, pix])
+            retval['images'] = True
         return retval
         
     def get_source(self, path):
@@ -311,7 +349,7 @@ class MainModel(ModelMT):
         
     def get_label_and_filepath(self, path):
         """get source of top level directory"""
-        bid = self.discs_tree.get_value(self.discs_tree.get_iter(path[0]),
+        bid = self.discs_tree.get_value(self.discs_tree.get_iter(path),
                                         0)
         self.db_cursor.execute("select filepath, filename from files \
                                where id = ? and parent_id = 1", (bid,))
@@ -320,11 +358,92 @@ class MainModel(ModelMT):
             return None, None
         return res[0], res[1]
         
-    def delete(self, branch_iter):
-        if not branch_iter:
-            return
-        self.__remove_branch_form_db(self.discs_tree.get_value(branch_iter,0))
-        self.discs_tree.remove(branch_iter)
+    def delete_image(self, id):
+        """removes image on specified id"""
+        sql = """select filename, thumbnail from images where id=?"""
+        self.db_cursor.execute(sql, (id,))
+        res = self.db_cursor.fetchone()
+        if res[0]:
+            os.unlink(os.path.join(self.internal_dirname, res[0]))
+            os.unlink(os.path.join(self.internal_dirname, res[1]))
+            
+            if __debug__:
+                print "m_main.py: delete_image(): removed images:"
+                print res[0]
+                print res[1]
+        # remove images records
+        sql = """delete from images where id = ?"""
+        self.db_cursor.execute(sql, (id,))
+        self.db_connection.commit()
+        
+    def delete(self, root_id, db_cursor=None, db_connection=None):
+        """Remove subtree from main tree, remove tags from database
+        remove all possible data, like thumbnails"""
+        
+        # TODO: opanowac syf zwiazany z tym, ze katalogi teraz przechowuja dane nieprawdziwe
+        
+        fids = []
+        
+        if not db_cursor:
+            db_cursor = self.db_cursor
+            
+        if not db_connection:
+            db_connection = self.db_connection
+        
+        def get_children(fid):
+            fids.append(fid)
+            sql = """select id from files where parent_id = ?"""
+            db_cursor.execute(sql, (fid,))
+            res = db_cursor.fetchall()
+            if len(res)>0:
+                for i in res:
+                    get_children(i[0])
+                
+        get_children(root_id)
+        
+        def generator():
+            for c in fids:
+                yield (c,)
+        
+        # remove files records
+        sql = """delete from files where id = ?"""
+        db_cursor.executemany(sql, generator())
+        
+        # remove tags records
+        sql = """delete from tags_files where file_id = ?"""
+        db_cursor.executemany(sql, generator())
+        
+        # remove thumbnails
+        arg =''
+        for c in fids:
+            if len(arg) > 0:
+                arg+=", %d" % c
+            else:
+                arg = "%d" % c
+        sql = """select filename from thumbnails where file_id in (%s)""" % arg
+        db_cursor.execute(sql)
+        res = db_cursor.fetchall()
+        if len(res) > 0:
+            for fn in res:
+                os.unlink(os.path.join(self.internal_dirname, fn[0]))
+        
+        # remove images
+        sql = """select filename, thumbnail from images where file_id in (%s)""" % arg
+        db_cursor.execute(sql)
+        res = db_cursor.fetchall()
+        if res[0][0]:
+            for fn in res:
+                os.unlink(os.path.join(self.internal_dirname, fn[0]))
+        
+        # remove thumbs records
+        sql = """delete from thumbnails where file_id = ?"""
+        db_cursor.executemany(sql, generator())
+        
+        # remove images records
+        sql = """delete from images where file_id = ?"""
+        db_cursor.executemany(sql, generator())
+        
+        db_connection.commit()
         return
         
     def get_stats(self, selected_id):
@@ -398,25 +517,33 @@ class MainModel(ModelMT):
                 retval['size'] = self.__bytes_to_human(res[0])
         return retval
         
+    def get_image_path(self, img_id):
+        """return image location"""
+        sql = """select filename from images where id=?"""
+        self.db_cursor.execute(sql, (img_id,))
+        res = self.db_cursor.fetchone()
+        if res:
+            return res[0]
+        return None
+            
     # private class functions
     def __bytes_to_human(self, integer):
         if integer <= 0 or integer < 1024:
             return "%d bytes" % integer
         
-        t = integer /1024.0
-        if t < 1 or t < 1024:
-            return "%d bytes (%d kB)" % (integer, t)
-            
-        t = t /1024.0
-        if t < 1 or t < 1024:
-            return "%d bytes (%d MB)" % (integer, t)
+        ## convert integer into string with thousands' separator
+        #for i in range(len(str(integer))/3+1):
+        #    if i == 0:
+        #        s_int = str(integer)[-3:]
+        #    else:
+        #        s_int = str(integer)[-(3*int(i)+3):-(3*int(i))] + " " + s_int
         
-        t = t /1024.0
-        if t < 1 or t < 1024:
-            return "%d bytes (%d GB)" % (integer, t)
-            
-        t = t /1024.0
-        return "%d bytes (%d TB)" % (integer, t)
+        t = integer
+        for power in ['kB', 'MB', 'GB', 'TB']:
+            t = t /1024.0
+            if t < 1 or t < 1024:
+                break
+        return "%0.2f %s (%d bytes)" % (t, power, integer)
         
     def __clear_trees(self):
         self.__clear_files_tree()
@@ -506,7 +633,12 @@ class MainModel(ModelMT):
                                thumbnails(id INTEGER PRIMARY KEY AUTOINCREMENT,
                                             file_id INTEGER,
                                             filename TEXT);""")
-        self.db_cursor.execute("insert into files values(1, 1, 'root', null, 0, 0, 0, 0, null, null, null, null);")
+        self.db_cursor.execute("""create table 
+                               images(id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                            file_id INTEGER,
+                                            thumbnail TEXT,
+                                            filename TEXT);""")
+        self.db_cursor.execute("insert into files values(1, 1, 'root', null, 0, 0, 0, 0, null, null);")
         self.db_cursor.execute("insert into groups values(1, 'default', 'black');")
         
     def __scan(self):
@@ -678,11 +810,11 @@ class MainModel(ModelMT):
                         
                         # Images - thumbnails and exif data
                         if self.config.confd['thumbs'] and ext in self.IMG:
-                            path, exif, ret_code = Thumbnail(current_file, base=self.internal_dirname).save(fileid)
+                            tpath, exif, ret_code = Thumbnail(current_file, base=self.internal_dirname).save(fileid)
                             if ret_code != -1:
                                 sql = """insert into thumbnails(file_id, filename) values (?, ?)"""
                                 db_cursor.execute(sql, (fileid,
-                                                        path.split(self.internal_dirname)[1][1:]))
+                                                        tpath.split(self.internal_dirname)[1][1:]))
                                 
                         if self.config.confd['exif']:
                             # TODO: exif implementation
@@ -717,14 +849,21 @@ class MainModel(ModelMT):
         
         if __recurse(1, self.label, self.path, 0, 0, self.DIR) == -1:
             if __debug__:
-                print "m_main.py: __scan() __recurse() \
-                interrupted self.abort = True"
+                print "m_main.py: __scan() __recurse()",
+                print "interrupted self.abort = True"
             self.discs_tree.remove(self.fresh_disk_iter)
             db_cursor.close()
             db_connection.rollback()
         else:
             if __debug__:
                 print "m_main.py: __scan() __recurse() goes without interrupt"
+            if self.currentid:
+                if __debug__:
+                    print "m_main.py: __scan() removing old branch"
+                self.delete(self.currentid, db_cursor, db_connection)
+                self.currentid = None
+            else:
+                print "new directory/cd"
             db_cursor.close()
             db_connection.commit()
         db_connection.close()
@@ -733,6 +872,8 @@ class MainModel(ModelMT):
         
         self.busy = False
         
+        # refresh discs tree
+        self.__fetch_db_into_treestore()
         self.statusmsg = "Idle"
         self.progress = 0
         self.abort = False
@@ -795,54 +936,6 @@ class MainModel(ModelMT):
         if __debug__:
             print "m_main.py: __fetch_db_into_treestore() tree generation time: ", (datetime.now() - start_date)
         db_connection.close()
-        return
-        
-    def __remove_branch_form_db(self, root_id):
-        """Remove subtree from main tree, remove tags from database
-        remove all possible data, like thumbnails"""
-        fids = []
-        
-        def get_children(fid):
-            fids.append(fid)
-            sql = """select id from files where parent_id = ?"""
-            self.db_cursor.execute(sql, (fid,))
-            res = self.db_cursor.fetchall()
-            if len(res)>0:
-                for i in res:
-                    get_children(i[0])
-                
-        get_children(root_id)
-        
-        def generator():
-            for c in fids:
-                yield (c,)
-        
-        # remove files records
-        sql = """delete from files where id = ?"""
-        self.db_cursor.executemany(sql, generator())
-        
-        # remove tags records
-        sql = """delete from tags_files where file_id = ?"""
-        self.db_cursor.executemany(sql, generator())
-        
-        # remove thumbnails
-        arg =''
-        for c in fids:
-            if len(arg) > 0:
-                arg+=", %d" % c
-            else:
-                arg = "%d" % c
-        sql = """select filename from thumbnails where file_id in (%s)""" % arg
-        self.db_cursor.execute(sql)
-        res = self.db_cursor.fetchall()
-        if len(res) > 0:
-            for fn in res:
-                os.unlink(os.path.join(self.internal_dirname, fn[0]))
-        
-        # remove thumbs records
-        sql = """delete from thumbnails where file_id = ?"""
-        self.db_cursor.executemany(sql, generator())
-        self.db_connection.commit()
         return
         
     def __append_added_volume(self):
