@@ -64,7 +64,7 @@ For version 1.0 following aims have to be done:
 	- exif information
 	- keywords (tags)
 	- gthumb integration
-- adding images (60% done)
+x adding images
 x generating/saving thumbnails
 x moving hardcoded files extensions into config
 x statistics
