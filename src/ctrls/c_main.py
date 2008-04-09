@@ -39,6 +39,8 @@ from models.m_config import ConfigModel
 
 import views.v_dialogs as Dialogs
 
+from views.v_image import ImageView
+
 import gtk
 import pango
 
@@ -123,18 +125,57 @@ class MainController(Controller):
         
     #########################################################################
     # Connect signals from GUI, like menu objects, toolbar buttons and so on.
+    def on_images_item_activated(self, iconview, path):
+        model = iconview.get_model()
+        iter = model.get_iter(path)
+        id = model.get_value(iter, 0)
+        ImageView(self.model.get_image_path(id))
+        
     def on_rename1_activate(self, widget):
         model, iter = self.view['discs'].get_selection().get_selected()
-        label_old = model.get_value(iter, 1)
+        name = model.get_value(iter, 1)
         id = model.get_value(iter, 0)
-        label = Dialogs.InputDiskLabel(label_old).run()
+        new_name = Dialogs.InputNewName(name).run()
+
         if __debug__:
-            print "c_main.py: on_rename1_activate(): label:", label
-        if label != None and label !=label_old:
-            self.model.set_label(id, label)
-            self.model.unsaved_project = True
+            print "c_main.py: on_rename1_activate(): label:", new_name
+            
+        if new_name != None and new_name != name:
+            self.model.rename(id, new_name)
             self.__set_title(filepath=self.model.filename, modified=True)
             
+    def on_rename2_activate(self, widget):
+        try:
+            selection = self.view['files'].get_selection()
+            model, list_of_paths = selection.get_selected_rows()
+        except TypeError:
+            return
+
+        if len(list_of_paths) != 1:
+            return
+            
+        fid = model.get_value(model.get_iter(list_of_paths[0]),0)
+        name = model.get_value(model.get_iter(list_of_paths[0]),1)
+        
+        new_name = Dialogs.InputNewName(name).run()
+        if __debug__:
+            print "c_main.py: on_rename1_activate(): label:", new_name
+            
+        if new_name != None and new_name != name:
+            self.model.rename(fid, new_name)
+            self.__set_title(filepath=self.model.filename, modified=True)
+            
+        try:
+            path, column = self.view['discs'].get_cursor()
+            print path
+            iter = model.get_iter(path)
+            self.model.get_root_entries(model.get_value(iter, 0))
+        except TypeError:
+            print "zuo"
+            self.model.get_root_entries(1)
+            return
+        return
+    
     def on_tag_cloud_textview_motion_notify_event(self, widget):
         if __debug__:
             print "c_main.py: on_tag_cloud_textview_motion_notify_event():"
@@ -246,7 +287,42 @@ class MainController(Controller):
         else:
             treeview.expand_row(path,False)
         return
-    
+        
+    def on_images_button_press_event(self, iconview, event):
+        try:
+            path_and_cell = iconview.get_item_at_pos(int(event.x), int(event.y))
+        except TypeError:
+            return False
+            
+        if event.button == 3: # Right mouse button. Show context menu.
+            try:
+                iconview.select_path(path_and_cell[0])
+            except TypeError:
+                return False
+                
+            self.__popup_menu(event, 'img_popup')
+            return True
+        return False
+        
+    def on_img_delete_activate(self, menu_item):
+        list_of_paths = self.view['images'].get_selected_items()
+        model = self.view['images'].get_model()
+        iter = model.get_iter(list_of_paths[0])
+        id = model.get_value(iter, 0)
+        self.model.delete_image(id)
+        
+        try:
+            path, column = self.view['files'].get_cursor()
+            model = self.view['files'].get_model()
+            iter = model.get_iter(path)
+            id = model.get_value(iter, 0)
+            self.__get_item_info(id)
+        except:
+            pass
+        
+    def on_img_add_activate(self, menu_item):
+        self.on_add_image1_activate(menu_item)
+        
     def on_discs_button_press_event(self, treeview, event):
         try:
             path, column, x, y = treeview.get_path_at_pos(int(event.x),
@@ -271,11 +347,9 @@ class MainController(Controller):
             if self.model.discs_tree.get_value(iter, 3) == 1:
                 # if ancestor is 'root', then activate "update" menu item
                 self.view['update1'].set_sensitive(True)
-                self.view['rename1'].set_sensitive(True)
             else:
                 self.view['update1'].set_sensitive(False)
-                self.view['rename1'].set_sensitive(False)
-            self.__popup_discs_menu(event)
+            self.__popup_menu(event)
             
         # elif event.button == 1: # Left click
             # """Show files on right treeview, after clicking the left disc treeview."""
@@ -314,8 +388,17 @@ class MainController(Controller):
                 model, list_of_paths = selection.get_selected_rows()
             except TypeError:
                 list_of_paths = []
-
-            self.__popup_files_menu(event)
+                
+            if len(list_of_paths) == 0:
+                selection.select_path(path[0])
+                
+            if len(list_of_paths) > 1:
+                self.view['add_image1'].set_sensitive(False)
+                self.view['rename2'].set_sensitive(False)
+            else:
+                self.view['add_image1'].set_sensitive(True)
+                self.view['rename2'].set_sensitive(True)
+            self.__popup_menu(event, 'files_popup')
             return True
             
     def on_files_cursor_changed(self, treeview):
@@ -323,18 +406,18 @@ class MainController(Controller):
         model, paths = treeview.get_selection().get_selected_rows()
         try:
             itera = model.get_iter(paths[0])
-            if model.get_value(itera,4) == 1:
-                #directory, do nothin', just turn off view
-                '''self.view['details'].hide()
-                buf = self.view['details'].get_buffer()
-                buf.set_text('')
-                self.view['details'].set_buffer(buf)'''
-            else:
+            #if model.get_value(itera,4) == 1:
+            #    #directory, do nothin', just turn off view
+            #    '''self.view['details'].hide()
+            #    buf = self.view['details'].get_buffer()
+            #    buf.set_text('')
+            #    self.view['details'].set_buffer(buf)'''
+            #else:
                 #file, show what you got.
                 #self.details.get_top_widget()
-                iter = model.get_iter(treeview.get_cursor()[0])
-                selected_item = self.model.files_list.get_value(iter, 0)
-                self.__get_item_info(selected_item)
+            iter = model.get_iter(treeview.get_cursor()[0])
+            selected_item = self.model.files_list.get_value(iter, 0)
+            self.__get_item_info(selected_item)
         except:
             if __debug__:
                 print "c_main.py: on_files_cursor_changed() insufficient iterator"
@@ -409,39 +492,130 @@ class MainController(Controller):
         return
         
     def on_add_tag1_activate(self, menu_item):
-        print self.view['discs'].get_cursor()
+        print self.view['files'].get_cursor()
+        
+    def on_add_image1_activate(self, menu_item):
+        images = Dialogs.LoadImageFile().run()
+        if not images:
+            return
+        for image in images:
+            try:
+                selection = self.view['files'].get_selection()
+                model, list_of_paths = selection.get_selected_rows()
+                id = model.get_value(model.get_iter(list_of_paths[0]),0)
+            except:
+                try:
+                    path, column = self.view['files'].get_cursor()
+                    model = self.view['files'].get_model()
+                    iter = model.get_iter(path)
+                    id = model.get_value(iter, 0)
+                except:
+                    return
+            self.model.add_image(image, id)
+        self.__get_item_info(id)
+        return
         
     def on_update1_activate(self, menu_item):
         """Update disc under cursor position"""
+        path, column = self.view['discs'].get_cursor()
+        model = self.view['discs'].get_model()
         
         # determine origin label and filepath
-        path = self.view['discs'].get_cursor()
         filepath, label = self.model.get_label_and_filepath(path)
         
+        fid = model.get_value(model.get_iter(path), 0)
+        
         if self.model.get_source(path) == self.model.CD:
-            if self.__add_cd(label):
-                self.model.delete(self.model.discs_tree.get_iter(path[0],0))
-                pass
+            self.__add_cd(label, fid)
+                
         elif self.model.get_source(path) == self.model.DR:
-            if self.__add_directory(filepath, label):
-                self.model.delete(self.model.discs_tree.get_iter(path[0]))
-                pass
+            self.__add_directory(filepath, label, fid)
+                
         return
         
     def on_delete2_activate(self, menu_item):
-        model = self.view['discs'].get_model()
         try:
-            path, column = self.view['discs'].get_cursor()
-            selected_iter = self.model.discs_tree.get_iter(path)
+            #path, column = self.view['discs'].get_cursor()
+            #selected_iter = model.get_iter(path)
+            selection = self.view['discs'].get_selection() 
+            model, selected_iter = selection.get_selected()
         except:
             return
+            
         if self.model.config.confd['delwarn']:
-            name = self.model.discs_tree.get_value(selected_iter,1)
+            name = model.get_value(selected_iter, 1)
             obj = Dialogs.Qst('Delete %s' % name, 'Delete %s?' % name,
                               'Object will be permanently removed.')
             if not obj.run():
                 return
-        self.model.delete(selected_iter)
+                
+        # remove from model
+        path = model.get_path(selected_iter)
+        current_id = self.model.discs_tree.get_value(selected_iter, 0)
+        model.remove(selected_iter)
+        selection.select_path(path)
+        
+        if not selection.path_is_selected(path):
+            row = path[0]-1
+            if row >= 0:
+                selection.select_path((row,))
+                path = (row, )
+                
+        # delete from db
+        print current_id
+        self.model.delete(current_id)
+                
+        # refresh files treeview
+        current_id = model.get_value(model.get_iter(path), 0)
+        self.model.get_root_entries(current_id)
+        
+        # refresh file info view
+        self.__get_item_info(current_id)
+                
+        self.model.unsaved_project = True
+        self.__set_title(filepath=self.model.filename, modified=True)
+        return
+        
+    def on_delete3_activate(self, menu_item):
+        dmodel = self.model.discs_tree
+        try:
+            selection = self.view['files'].get_selection()
+            model, list_of_paths = selection.get_selected_rows()
+        except TypeError:
+            return
+
+        if self.model.config.confd['delwarn']:
+            obj = Dialogs.Qst('Delete elements', 'Delete items?',
+                              'Items will be permanently removed.')
+            if not obj.run():
+                return
+        
+        def foreach_disctree(zmodel, zpath, ziter, d):
+            if d[0] == zmodel.get_value(ziter, 0):
+                d[1].append(zpath)
+            return False
+            
+        for p in list_of_paths:
+            val = model.get_value(model.get_iter(p), 0)
+            if model.get_value(model.get_iter(p), 4) == self.model.DIR:
+                # remove from disctree model aswell
+                dpath = []
+                dmodel.foreach(foreach_disctree, (val, dpath))
+                for dp in dpath:
+                    dmodel.remove(dmodel.get_iter(dp))
+                
+            # delete from db
+            self.model.delete(val)
+            
+        try:
+            selection = self.view['discs'].get_selection()
+            model, list_of_paths = selection.get_selected_rows()
+            if not list_of_paths:
+                list_of_paths = [1]
+            self.model.get_root_entries(model.get_value(model.get_iter(list_of_paths[0]),0))
+        except TypeError:
+            return
+        
         self.model.unsaved_project = True
         self.__set_title(filepath=self.model.filename, modified=True)
         return
@@ -505,8 +679,7 @@ class MainController(Controller):
         """Open catalog file"""
         confirm = self.model.config.confd['confirmabandon']
         if self.model.unsaved_project and confirm:
-            obj = Dialogs.Qst('Unsaved data - pyGTKtalog','There is not saved \
-                              database','Pressing "Ok" will abandon catalog.')
+            obj = Dialogs.Qst('Unsaved data - pyGTKtalog','There is not saved database','Pressing "Ok" will abandon catalog.')
             if not obj.run():
                 return
         
@@ -543,7 +716,7 @@ class MainController(Controller):
                 Dialogs.Err("Error writing file - pyGTKtalog","Cannot write \
                             file %s." % path, "%s" % err)
         
-    def __add_cd(self, label=None):
+    def __add_cd(self, label=None, current_id=None):
         """Add directory structure from cd/dvd disc"""
         mount = deviceHelper.volmount(self.model.config.confd['cd'])
         if mount == 'ok':
@@ -555,7 +728,8 @@ class MainController(Controller):
                 for widget in self.widgets_all:
                     self.view[widget].set_sensitive(False)
                 self.model.source = self.model.CD
-                self.model.scan(self.model.config.confd['cd'],label)
+                self.model.scan(self.model.config.confd['cd'], label,
+                                current_id)
                 self.model.unsaved_project = True
                 self.__set_title(filepath=self.model.filename, modified=True)
             return True
@@ -566,7 +740,7 @@ class MainController(Controller):
                         "Last mount message:\n%s" % mount)
             return False
     
-    def __add_directory(self, path=None, label=None):
+    def __add_directory(self, path=None, label=None, current_id=None):
         if not label or not path:
             res = Dialogs.PointDirectoryToAdd().run()
             if res !=(None,None):
@@ -577,7 +751,7 @@ class MainController(Controller):
         
         self.scan_cd = False
         self.model.source = self.model.DR
-        self.model.scan(path, label)
+        self.model.scan(path, label, current_id)
         self.model.unsaved_project = True
         self.__set_title(filepath=self.model.filename, modified=True)
         return True
@@ -639,6 +813,12 @@ class MainController(Controller):
         
         return
         
+    def __setup_iconview(self):
+        """Setup IconView images widget."""
+        self.view['images'].set_model(self.model.images_store)
+        self.view['images'].set_pixbuf_column(1)
+        return
+        
     def __setup_tags_treeview(self):
         """Setup TreeView discs widget as tree."""
         self.view['tags'].set_model(self.model.tagsTree)
@@ -687,10 +867,10 @@ class MainController(Controller):
         c.set_resizable(True)
         self.view['files'].append_column(c)
         
-        c = gtk.TreeViewColumn('Category',gtk.CellRendererText(), text=5)
-        c.set_sort_column_id(5)
-        c.set_resizable(True)
-        self.view['files'].append_column(c)
+        #c = gtk.TreeViewColumn('Category',gtk.CellRendererText(), text=5)
+        #c.set_sort_column_id(5)
+        #c.set_resizable(True)
+        #self.view['files'].append_column(c)
         
         # registration of treeview signals:
         
@@ -742,16 +922,10 @@ class MainController(Controller):
         self.model.config.save()
         return
         
-    def __popup_discs_menu(self, event):
-        self.view['discs_popup'].popup(None, None, None, event.button,
+    def __popup_menu(self, event, menu='discs_popup'):
+        self.view[menu].popup(None, None, None, event.button,
                                        event.time)
-        self.view['discs_popup'].show_all()
-        return
-        
-    def __popup_files_menu(self, event):
-        self.view['files_popup'].popup(None, None, None, event.button,
-                                       event.time)
-        self.view['files_popup'].show_all()
+        self.view[menu].show_all()
         return
         
     def __generate_recent_menu(self):
@@ -777,10 +951,16 @@ class MainController(Controller):
                 tag.set_property('weight', pango.WEIGHT_BOLD)
                 buf.insert_with_tags(buf.get_end_iter(), "\nDetails:\n", tag)
                 buf.insert(buf.get_end_iter(), set['description'])
-                
         else:
             buf.set_text('')
+        
         self.view['description'].set_buffer(buf)
+        
+        if set.has_key('images'):
+            self.__setup_iconview()
+            self.view['img_container'].show()
+        else:
+            self.view['img_container'].hide()
         
         if set.has_key('thumbnail'):
             self.view['thumb'].set_from_file(set['thumbnail'])
