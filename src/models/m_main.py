@@ -47,6 +47,7 @@ from m_config import ConfigModel
 from m_details import DetailsModel
 from utils.thumbnail import Thumbnail
 from utils.img import Img
+from utils.parse_exif import ParseExif
 
 class MainModel(ModelMT):
     """Create, load, save, manipulate db file which is container for data"""
@@ -62,6 +63,20 @@ class MainModel(ModelMT):
     
     CD = 1 # sorce: cd/dvd
     DR = 2 # source: filesystem
+    
+    EXIF_DICT= {0: 'Camera',
+            1: 'Date',
+            2: 'Aperture',
+            3: 'Exposure program',
+            4: 'Exposure bias',
+            5: 'ISO',
+            6: 'Focal length',
+            7: 'Subject distance',
+            8: 'Metering mode',
+            9: 'Flash',
+            10: 'Light source',
+            11: 'Resolution',
+            12: 'Orientation'}
     
     # images extensions - only for PIL and EXIF
     IMG = ['jpg', 'jpeg', 'gif', 'png', 'tif', 'tiff', 'tga', 'pcx', 'bmp',
@@ -89,8 +104,12 @@ class MainModel(ModelMT):
                                         gobject.TYPE_UINT64,
                                         gobject.TYPE_STRING, gobject.TYPE_INT,
                                         gobject.TYPE_STRING, str)
-        # iconview store - image id, pixbuffer
+        # iconview store - id, pixbuffer
         self.images_store = gtk.ListStore(gobject.TYPE_INT, gtk.gdk.Pixbuf)
+        
+        # exif liststore - id, exif key, exif value
+        self.exif_list = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING,
+                                       gobject.TYPE_STRING)
         
         # tag cloud array element is a dict with 4 keys:
         # elem = {'id': str(id), 'name': tagname, 'size': size, 'color': color}
@@ -334,6 +353,24 @@ class MainModel(ModelMT):
                 pix = gtk.gdk.pixbuf_new_from_file(im)
                 self.images_store.append([id, pix])
             retval['images'] = True
+            
+        sql = """SELECT camera, date, aperture, exposure_program,
+        exposure_bias, iso, focal_length, subject_distance, metering_mode,
+        flash, light_source, resolution, orientation
+        from exif
+        WHERE file_id = ?"""
+        
+        self.db_cursor.execute(sql, (id,))
+        set = self.db_cursor.fetchone()
+        if set:
+            self.exif_list = gtk.ListStore(gobject.TYPE_STRING,
+                                           gobject.TYPE_STRING)
+            for key in self.EXIF_DICT:
+                myiter = self.exif_list.insert_before(None, None)
+                self.exif_list.set_value(myiter, 0, self.EXIF_DICT[key])
+                self.exif_list.set_value(myiter, 1, set[key])
+                
+            retval['exif'] = True
         return retval
         
     def get_source(self, path):
@@ -627,17 +664,33 @@ class MainModel(ModelMT):
                                           tag_id INTEGER);""")
         self.db_cursor.execute("""create table 
                                groups(id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                    name TEXT,
-                                    color TEXT);""")
+                                      name TEXT,
+                                      color TEXT);""")
         self.db_cursor.execute("""create table 
                                thumbnails(id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                            file_id INTEGER,
-                                            filename TEXT);""")
+                                          file_id INTEGER,
+                                          filename TEXT);""")
         self.db_cursor.execute("""create table 
                                images(id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                            file_id INTEGER,
-                                            thumbnail TEXT,
-                                            filename TEXT);""")
+                                      file_id INTEGER,
+                                      thumbnail TEXT,
+                                      filename TEXT);""")
+        self.db_cursor.execute("""create table 
+                               exif(id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    file_id INTEGER,
+                                    camera TEXT,
+                                    date TEXT,
+                                    aperture TEXT,
+                                    exposure_program TEXT,
+                                    exposure_bias TEXT,
+                                    iso TEXT,
+                                    focal_length TEXT,
+                                    subject_distance TEXT,
+                                    metering_mode TEXT,
+                                    flash TEXT,
+                                    light_source TEXT,
+                                    resolution TEXT,
+                                    orientation TEXT);""")
         self.db_cursor.execute("insert into files values(1, 1, 'root', null, 0, 0, 0, 0, null, null);")
         self.db_cursor.execute("insert into groups values(1, 'default', 'black');")
         
@@ -802,6 +855,8 @@ class MainModel(ModelMT):
                     # fetch details about files
                     if self.config.confd['retrive']:
                         update = True
+                        exif = None
+                        
                         sql = """select seq FROM sqlite_sequence WHERE name='files'"""
                         db_cursor.execute(sql)
                         fileid = db_cursor.fetchone()[0]
@@ -816,9 +871,36 @@ class MainModel(ModelMT):
                                 db_cursor.execute(sql, (fileid,
                                                         tpath.split(self.internal_dirname)[1][1:]))
                                 
-                        if self.config.confd['exif']:
-                            # TODO: exif implementation
-                            pass
+                        # exif - stroe data in exif table
+                        if self.config.confd['exif'] and ext in ['jpg', 'jpeg']:
+                            p = None
+                            if self.config.confd['thumbs'] and exif:
+                                p = ParseExif(exif_dict=exif)
+                            else:
+                                p = ParseExif(exif_file=current_file)
+                                if not p.exif_dict:
+                                    p = None
+                            if p:
+                                p = p.parse()
+                                p = list(p)
+                                p.insert(0, fileid)
+                                sql = """INSERT INTO exif (file_id,
+                                                           camera,
+                                                           date,
+                                                           aperture,
+                                                           exposure_program,
+                                                           exposure_bias,
+                                                           iso,
+                                                           focal_length,
+                                                           subject_distance,
+                                                           metering_mode,
+                                                           flash,
+                                                           light_source,
+                                                           resolution,
+                                                           orientation)
+                                values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
+                                db_cursor.execute(sql, (tuple(p)))
+                                
                         
                         # Extensions - user defined actions
                         if ext in self.config.confd['extensions'].keys():
