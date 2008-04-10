@@ -27,7 +27,7 @@ from shutil import move, copy
 from os import path, mkdir
 from datetime import datetime
 
-import EXIF
+from utils import EXIF
 import Image
 
 class Img(object):
