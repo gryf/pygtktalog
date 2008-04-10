@@ -61,7 +61,7 @@ For version 1.0 following aims have to be done:
 	- files properties
 		x thumbnail
 		x description
-	- exif information
+	x exif information
 	- keywords (tags)
 	- gthumb integration
 x adding images

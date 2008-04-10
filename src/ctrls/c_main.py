@@ -111,6 +111,7 @@ class MainController(Controller):
         # initialize treeviews
         self.__setup_disc_treeview()
         self.__setup_files_treeview()
+        self.__setup_exif_treeview()
         
         # in case passing catalog filename in command line, unlock gui
         if self.model.filename != None:
@@ -167,11 +168,9 @@ class MainController(Controller):
             
         try:
             path, column = self.view['discs'].get_cursor()
-            print path
             iter = model.get_iter(path)
             self.model.get_root_entries(model.get_value(iter, 0))
         except TypeError:
-            print "zuo"
             self.model.get_root_entries(1)
             return
         return
@@ -351,21 +350,6 @@ class MainController(Controller):
                 self.view['update1'].set_sensitive(False)
             self.__popup_menu(event)
             
-        # elif event.button == 1: # Left click
-            # """Show files on right treeview, after clicking the left disc treeview."""
-            # model = self.view['discs'].get_model()
-            # selected_item = self.model.discs_tree.get_value(self.model.discs_tree.get_iter(path),0)
-            # if __debug__:
-                # print "c_main.py, on_discs_cursor_changed()",selected_item
-            # self.model.get_root_entries(selected_item)
-            # 
-            # self.view['details'].show()
-            # txt = self.model.get_file_info(selected_item)
-            # buf = self.view['details'].get_buffer()
-            # buf.set_text(txt)
-            # self.view['details'].set_buffer(buf)
-            # return
-            
     def on_expand_all1_activate(self, menuitem):
         self.view['discs'].expand_all()
         return
@@ -402,19 +386,10 @@ class MainController(Controller):
             return True
             
     def on_files_cursor_changed(self, treeview):
-        """Show details of selected file"""
+        """Show details of selected file/directory"""
         model, paths = treeview.get_selection().get_selected_rows()
         try:
             itera = model.get_iter(paths[0])
-            #if model.get_value(itera,4) == 1:
-            #    #directory, do nothin', just turn off view
-            #    '''self.view['details'].hide()
-            #    buf = self.view['details'].get_buffer()
-            #    buf.set_text('')
-            #    self.view['details'].set_buffer(buf)'''
-            #else:
-                #file, show what you got.
-                #self.details.get_top_widget()
             iter = model.get_iter(treeview.get_cursor()[0])
             selected_item = self.model.files_list.get_value(iter, 0)
             self.__get_item_info(selected_item)
@@ -535,8 +510,6 @@ class MainController(Controller):
         
     def on_delete2_activate(self, menu_item):
         try:
-            #path, column = self.view['discs'].get_cursor()
-            #selected_iter = model.get_iter(path)
             selection = self.view['discs'].get_selection() 
             model, selected_iter = selection.get_selected()
         except:
@@ -562,7 +535,6 @@ class MainController(Controller):
                 path = (row, )
                 
         # delete from db
-        print current_id
         self.model.delete(current_id)
                 
         # refresh files treeview
@@ -819,26 +791,6 @@ class MainController(Controller):
         self.view['images'].set_pixbuf_column(1)
         return
         
-    def __setup_tags_treeview(self):
-        """Setup TreeView discs widget as tree."""
-        self.view['tags'].set_model(self.model.tagsTree)
-        
-        c = gtk.TreeViewColumn('Filename')
-        
-        # one row contains image and text
-        cellpb = gtk.CellRendererPixbuf()
-        cell = gtk.CellRendererText()
-        c.pack_start(cellpb, False)
-        c.pack_start(cell, True)
-        c.set_attributes(cellpb, stock_id=2)
-        c.set_attributes(cell, text=1)
-        
-        self.view['discs'].append_column(c)
-        
-        # registration of treeview signals:
-        
-        return
-        
     def __setup_files_treeview(self):
         """Setup TreeView files widget, as columned list."""
         self.view['files'].set_model(self.model.files_list)
@@ -866,14 +818,20 @@ class MainController(Controller):
         c.set_sort_column_id(3)
         c.set_resizable(True)
         self.view['files'].append_column(c)
+        return
         
-        #c = gtk.TreeViewColumn('Category',gtk.CellRendererText(), text=5)
-        #c.set_sort_column_id(5)
-        #c.set_resizable(True)
-        #self.view['files'].append_column(c)
+    def __setup_exif_treeview(self):
+        self.view['exif_tree'].set_model(self.model.exif_list)
         
-        # registration of treeview signals:
+        c = gtk.TreeViewColumn('EXIF key',gtk.CellRendererText(), text=0)
+        c.set_sort_column_id(0)
+        c.set_resizable(True)
+        self.view['exif_tree'].append_column(c)
         
+        c = gtk.TreeViewColumn('EXIF value',gtk.CellRendererText(), text=1)
+        c.set_sort_column_id(1)
+        c.set_resizable(True)
+        self.view['exif_tree'].append_column(c)
         return
         
     def __abort(self):
@@ -962,6 +920,12 @@ class MainController(Controller):
         else:
             self.view['img_container'].hide()
         
+        if set.has_key('exif'):
+            self.view['exif_tree'].set_model(self.model.exif_list)
+            self.view['exifinfo'].show()
+        else:
+            self.view['exifinfo'].hide()
+            
         if set.has_key('thumbnail'):
             self.view['thumb'].set_from_file(set['thumbnail'])
             self.view['thumb'].show()
