@@ -33,8 +33,8 @@ import Image
 class Img(object):
     def __init__(self, filename=None, base=''):
         self.root = 'images'
-        self.x = 160
-        self.y = 160
+        self.x = 96
+        self.y = 96
         self.filename = filename
         self.base = base
         
