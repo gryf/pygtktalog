@@ -48,6 +48,7 @@ from m_details import DetailsModel
 from utils.thumbnail import Thumbnail
 from utils.img import Img
 from utils.parse_exif import ParseExif
+from utils.gthumb import GthumbCommentParser
 
 class MainModel(ModelMT):
     """Create, load, save, manipulate db file which is container for data"""
@@ -348,10 +349,10 @@ class MainModel(ModelMT):
         set = self.db_cursor.fetchall()
         if set:
             self.images_store = gtk.ListStore(gobject.TYPE_INT, gtk.gdk.Pixbuf)
-            for id, img, thb in set:
+            for idi, img, thb in set:
                 im = os.path.join(self.internal_dirname,thb)
                 pix = gtk.gdk.pixbuf_new_from_file(im)
-                self.images_store.append([id, pix])
+                self.images_store.append([idi, pix])
             retval['images'] = True
             
         sql = """SELECT camera, date, aperture, exposure_program,
@@ -359,9 +360,9 @@ class MainModel(ModelMT):
         flash, light_source, resolution, orientation
         from exif
         WHERE file_id = ?"""
-        
         self.db_cursor.execute(sql, (id,))
         set = self.db_cursor.fetchone()
+
         if set:
             self.exif_list = gtk.ListStore(gobject.TYPE_STRING,
                                            gobject.TYPE_STRING)
@@ -417,8 +418,6 @@ class MainModel(ModelMT):
         """Remove subtree from main tree, remove tags from database
         remove all possible data, like thumbnails"""
         
-        # TODO: opanowac syf zwiazany z tym, ze katalogi teraz przechowuja dane nieprawdziwe
-        
         fids = []
         
         if not db_cursor:
@@ -427,6 +426,13 @@ class MainModel(ModelMT):
         if not db_connection:
             db_connection = self.db_connection
         
+        sql = """select parent_id from files where id = ?"""
+        db_cursor.execute(sql, (root_id,))
+        res = db_cursor.fetchone()
+        if res:
+            parent_id = res[0]
+            
+            
         def get_children(fid):
             fids.append(fid)
             sql = """select id from files where parent_id = ?"""
@@ -468,7 +474,7 @@ class MainModel(ModelMT):
         sql = """select filename, thumbnail from images where file_id in (%s)""" % arg
         db_cursor.execute(sql)
         res = db_cursor.fetchall()
-        if res[0][0]:
+        if len(res) > 0:
             for fn in res:
                 os.unlink(os.path.join(self.internal_dirname, fn[0]))
         
@@ -479,6 +485,30 @@ class MainModel(ModelMT):
         # remove images records
         sql = """delete from images where file_id = ?"""
         db_cursor.executemany(sql, generator())
+        
+        # correct parent direcotry sizes
+        # get size and parent of deleting object
+        while parent_id:
+            sql = """update files set size =
+            (select case when
+                        sum(size) is null
+                    then
+                        0
+                    else
+                        sum(size)
+                    end
+            from files where parent_id=?) where id=?"""
+            db_cursor.execute(sql, (parent_id, parent_id))
+            
+            
+            
+            sql = """select parent_id from files where id = ? and parent_id!=id"""
+            db_cursor.execute(sql, (parent_id,))
+            res = db_cursor.fetchone()
+            if res:
+                parent_id = res[0]
+            else:
+                parent_id = False
         
         db_connection.commit()
         return
@@ -691,6 +721,12 @@ class MainModel(ModelMT):
                                     light_source TEXT,
                                     resolution TEXT,
                                     orientation TEXT);""")
+        self.db_cursor.execute("""create table 
+                               gthumb(id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                      file_id INTEGER,
+                                      note TEXT,
+                                      place TEXT,
+                                      date datetime);""")
         self.db_cursor.execute("insert into files values(1, 1, 'root', null, 0, 0, 0, 0, null, null);")
         self.db_cursor.execute("insert into groups values(1, 'default', 'black');")
         
@@ -900,7 +936,26 @@ class MainModel(ModelMT):
                                                            orientation)
                                 values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
                                 db_cursor.execute(sql, (tuple(p)))
-                                
+                            
+                        # gthumb - save comments from gThumb program
+                        if self.config.confd['gthumb']:
+                            gt = GthumbCommentParser(root, i)
+                            cmnts = gt.parse()
+                            if cmnts:
+                                sql = """insert into gthumb(file_id,
+                                                            note,
+                                                            place,
+                                                            date)
+                                values(?,?,?,?)"""
+                                db_cursor.execute(sql, (fileid,
+                                                        cmnts['note'],
+                                                        cmnts['place'],
+                                                        cmnts['date']
+                                                        ))
+                                if cmnts['keywords']:
+                                    # TODO: add gthumb keywords to tags and group 'gthumb'
+                                    pass
+                            
                         
                         # Extensions - user defined actions
                         if ext in self.config.confd['extensions'].keys():
