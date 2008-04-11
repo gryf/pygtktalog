@@ -538,12 +538,15 @@ class MainController(Controller):
         self.model.delete(current_id)
                 
         # refresh files treeview
-        current_id = model.get_value(model.get_iter(path), 0)
+        try:
+            current_id = model.get_value(model.get_iter(path), 0)
+        except:
+            current_id = model.get_value(model.get_iter_first(), 0)
         self.model.get_root_entries(current_id)
         
         # refresh file info view
         self.__get_item_info(current_id)
-                
+        
         self.model.unsaved_project = True
         self.__set_title(filepath=self.model.filename, modified=True)
         return
@@ -678,7 +681,7 @@ class MainController(Controller):
         
     def __save_as(self):
         """Save database to file under different filename."""
-        path = Dialogs.ChooseDBFilename().show_dialog()
+        path = Dialogs.ChooseDBFilename().run()
         if path:
             ret, err = self.model.save(path)
             if ret:
