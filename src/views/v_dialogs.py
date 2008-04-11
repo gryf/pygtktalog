@@ -149,6 +149,9 @@ class InputNewName(object):
 
 class PointDirectoryToAdd(object):
     """Sepcific dialog for quering user for selecting directory to add"""
+    
+    URI="file://"+os.path.abspath(os.path.curdir)
+    
     def __init__(self,volname='',dirname=''):
         self.gladefile = os.path.join(utils.globals.GLADE_DIR, "dialogs.glade")
         self.gladexml = gtk.glade.XML(self.gladefile, "addDirDialog")
@@ -180,6 +183,8 @@ class PointDirectoryToAdd(object):
         dialog.destroy()
     
     def run(self):
+        if self.URI:
+            self.dialog.set_current_folder_uri(self.URI)
         dialog = self.gladexml.get_widget("addDirDialog")
         ch = True
         result = dialog.run()
@@ -190,6 +195,7 @@ class PointDirectoryToAdd(object):
                 result = dialog.run()
             else:
                 ch = False
+        self.__class__.URI = self.dialog.get_current_folder_uri()
         dialog.destroy()
         if result == gtk.RESPONSE_OK:
             return self.volname.get_text(),self.directory.get_text()
@@ -198,6 +204,9 @@ class PointDirectoryToAdd(object):
 
 class ChooseDBFilename(object):
     """Sepcific dialog for quering user for selecting filename for database"""
+    
+    URI="file://"+os.path.abspath(os.path.curdir)
+    
     def __init__(self):
         self.dialog = gtk.FileChooserDialog(
             title="Save catalog as...",
@@ -224,7 +233,9 @@ class ChooseDBFilename(object):
         f.add_pattern("*.*")
         self.dialog.add_filter(f)
         
-    def show_dialog(self):
+    def run(self):
+        if self.URI:
+            self.dialog.set_current_folder_uri(self.URI)
         response = self.dialog.run()
         if response == gtk.RESPONSE_OK:
             filename = self.dialog.get_filename()
@@ -235,14 +246,19 @@ class ChooseDBFilename(object):
                     filename = filename[:-3] + 'pgt'
             else:
                 filename = filename + '.pgt'
+            self.__class__.URI = self.dialog.get_current_folder_uri()
             self.dialog.destroy()
             return filename
         else:
             self.dialog.destroy()
             return None
     pass
+    
 class LoadDBFile(object):
     """Specific class for displaying openFile dialog. It has veryfication for file existence."""
+    
+    URI="file://"+os.path.abspath(os.path.curdir)
+    
     def __init__(self):
         self.dialog = gtk.FileChooserDialog(
             title="Open catalog",
@@ -280,6 +296,8 @@ class LoadDBFile(object):
             return 'cancel',None
             
     def run(self):
+        if self.URI:
+            self.dialog.set_current_folder_uri(self.URI)
         res,filename = self.show_dialog()
         ch = True
         while ch:
@@ -288,17 +306,21 @@ class LoadDBFile(object):
                 return None
             try:
                 os.stat(filename)
+                self.__class__.URI = self.dialog.get_current_folder_uri()
                 self.dialog.destroy()
                 return filename
             except:
                 a = Err("Error - pyGTKtalog","File doesn't exist.","The file that you choose does not exist. Choose another one, or cancel operation.")
                 ch = True
-                res,filename = self.show_dialog()
+                res, filename = self.show_dialog()
 
 
 class LoadImageFile(object):
     """class for displaying openFile dialog. It have possibility of multiple
     selection."""
+    
+    URI="file://"+os.path.abspath(os.path.curdir)
+    
     def __init__(self):
         self.dialog = gtk.FileChooserDialog(
             title="Select image",
@@ -322,8 +344,14 @@ class LoadImageFile(object):
         f.set_name("All files")
         f.add_pattern("*.*")
         self.dialog.add_filter(f)
+        self.preview = gtk.Image()
+        
+        self.dialog.set_preview_widget(self.preview)
+        self.dialog.connect("update-preview", self.update_preview_cb)
     
     def run(self):
+        if self.URI:
+            self.dialog.set_current_folder_uri(self.URI)
         response = self.dialog.run()
         filenames = None
         
@@ -332,9 +360,22 @@ class LoadImageFile(object):
                 filenames = self.dialog.get_filenames()
             except:
                 pass
+                
+        self.__class__.URI = self.dialog.get_current_folder_uri()
         self.dialog.destroy()
         return filenames
-                
+        
+    def update_preview_cb(self, widget):
+        filename = self.dialog.get_preview_filename()
+        try:
+            pixbuf = gtk.gdk.pixbuf_new_from_file_at_size(filename, 128, 128)
+            self.preview.set_from_pixbuf(pixbuf)
+            have_preview = True
+        except:
+            have_preview = False
+        self.dialog.set_preview_widget_active(have_preview)
+        return
+        
 class StatsDialog(object):
     """Sepcific dialog for display stats"""
     def __init__(self, values={}):
