@@ -298,7 +298,7 @@ class MainModel(ModelMT):
 
             # Set correct owner, mtime and filemode on directories.
             for tarinfo in directories:
-                path = os.path.join(path, tarinfo.name)
+                path = os.path.join('.', tarinfo.name)
                 try:
                     os.chown(tarinfo, '.')
                     os.utime(tarinfo, '.')
