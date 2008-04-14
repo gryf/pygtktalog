@@ -76,7 +76,7 @@ def check_requirements():
             print "You'll need pyExcelerator, if you want to export DB to XLS format.\nhttp://sourceforge.net/projects/pyexcelerator"
             sys.exit(1)
     
-    if conf.confd['thumbs']:
+    if conf.confd['thumbs'] and conf.confd['retrive']:
         try:
             import Image, ImageEnhance
         except:
