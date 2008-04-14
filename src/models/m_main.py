@@ -44,7 +44,6 @@ except ImportError:
     import dummy_threading as _threading
 
 from m_config import ConfigModel
-from m_details import DetailsModel
 try:
     from utils.thumbnail import Thumbnail
     from utils.img import Img
@@ -97,7 +96,6 @@ class MainModel(ModelMT):
         self.abort = False
         self.source = self.CD
         self.config.load()
-        self.details = DetailsModel()
         
         # Directory tree: id, name, icon, type
         self.discs_tree = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,
@@ -135,7 +133,7 @@ class MainModel(ModelMT):
         ]'''
         return
         
-    def add_image(self, image, id):
+    def add_image(self, image, id, only_thumbs=False):
         """add single image to file/directory"""
         sql = """insert into images(file_id, thumbnail, filename) 
         values(?, null, null)"""
@@ -149,8 +147,12 @@ class MainModel(ModelMT):
             tp, ip, rc = Img(image, self.internal_dirname).save(res[0])
             if rc != -1:
                 sql = """update images set filename=?, thumbnail=? where id=?"""
+                if only_thumbs:
+                    img = None
+                else:
+                    img = ip.split(self.internal_dirname)[1][1:]
                 self.db_cursor.execute(sql,
-                                      (ip.split(self.internal_dirname)[1][1:],
+                                      (img,
                                        tp.split(self.internal_dirname)[1][1:],
                                        res[0]))
         self.db_connection.commit()
@@ -163,7 +165,8 @@ class MainModel(ModelMT):
         res = self.db_cursor.fetchall()
         if len(res) > 0:
             for fn in res:
-                os.unlink(os.path.join(self.internal_dirname, fn[0]))
+                if fn[0]:
+                    os.unlink(os.path.join(self.internal_dirname, fn[0]))
                 os.unlink(os.path.join(self.internal_dirname, fn[1]))
         
         # remove images records
@@ -176,8 +179,9 @@ class MainModel(ModelMT):
         sql = """select filename, thumbnail from images where id=?"""
         self.db_cursor.execute(sql, (id,))
         res = self.db_cursor.fetchone()
-        if res[0]:
-            os.unlink(os.path.join(self.internal_dirname, res[0]))
+        if res:
+            if res[0]:
+                os.unlink(os.path.join(self.internal_dirname, res[0]))
             os.unlink(os.path.join(self.internal_dirname, res[1]))
             
             if __debug__:
@@ -537,7 +541,8 @@ class MainModel(ModelMT):
         res = db_cursor.fetchall()
         if len(res) > 0:
             for fn in res:
-                os.unlink(os.path.join(self.internal_dirname, fn[0]))
+                if res[0]:
+                    os.unlink(os.path.join(self.internal_dirname, fn[0]))
                 os.unlink(os.path.join(self.internal_dirname, fn[1]))
         
         # remove thumbs records
@@ -654,7 +659,8 @@ class MainModel(ModelMT):
         self.db_cursor.execute(sql, (img_id,))
         res = self.db_cursor.fetchone()
         if res:
-            return os.path.join(self.internal_dirname, res[0])
+            if res[0]:
+                return os.path.join(self.internal_dirname, res[0])
         return None
         
     def update_desc_and_note(self, id, desc='', note=''):
@@ -1072,8 +1078,7 @@ class MainModel(ModelMT):
                 self.delete(self.currentid, db_cursor, db_connection)
                 
                 self.currentid = None
-            else:
-                print "new directory/cd"
+                
             db_cursor.close()
             db_connection.commit()
         db_connection.close()

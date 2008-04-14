@@ -142,9 +142,11 @@ class MainController(Controller):
             self.model.rename(id, ret['filename'])
             self.model.update_desc_and_note(id, ret['description'], ret['note'])
             self.__get_item_info(id)
+            self.model.unsaved_project = True
+            self.__set_title(filepath=self.model.filename, modified=True)
 
     def on_add_thumb1_activate(self, menu_item):
-        image = Dialogs.LoadImageFile().run()
+        image, only_thumbs = Dialogs.LoadImageFile().run()
         if not image:
             return
         try:
@@ -153,6 +155,8 @@ class MainController(Controller):
             for path in list_of_paths:
                 id = model.get_value(model.get_iter(path),0)
                 self.model.add_thumbnail(image, id)
+            self.model.unsaved_project = True
+            self.__set_title(filepath=self.model.filename, modified=True)
         except:
             if __debug__: print "c_main.py: on_add_thumb1_activate(): error on getting selected items or creating thumbnails"
             return
@@ -174,6 +178,9 @@ class MainController(Controller):
         except:
             if __debug__: print "c_main.py: on_remove_thumb1_activate(): error on getting selected items or removing thumbnails"
             return
+            
+        self.model.unsaved_project = True
+        self.__set_title(filepath=self.model.filename, modified=True)
         self.__get_item_info(id)
         return
         
@@ -192,6 +199,9 @@ class MainController(Controller):
         except:
             if __debug__: print "c_main.py: on_remove_thumb1_activate(): error on getting selected items or removing thumbnails"
             return
+            
+        self.model.unsaved_project = True
+        self.__set_title(filepath=self.model.filename, modified=True)
         self.__get_item_info(id)
         return
         
@@ -200,10 +210,13 @@ class MainController(Controller):
         iter = model.get_iter(path)
         id = model.get_value(iter, 0)
         img = self.model.get_image_path(id)
-        if self.model.config.confd['imgview'] and len(self.model.config.confd['imgprog'])>0:
-            popen("%s %s" % (self.model.config.confd['imgprog'], img))
+        if img:
+            if self.model.config.confd['imgview'] and len(self.model.config.confd['imgprog'])>0:
+                popen("%s %s" % (self.model.config.confd['imgprog'], img))
+            else:
+                ImageView(img)
         else:
-            ImageView(img)
+            Dialogs.Inf("Image view", "No Image", "This item have no real image, only thumbnail.")
         
     def on_rename1_activate(self, widget):
         model, iter = self.view['discs'].get_selection().get_selected()
@@ -215,6 +228,8 @@ class MainController(Controller):
             
         if new_name != None and new_name != name:
             self.model.rename(id, new_name)
+            self.__set_title(filepath=self.model.filename, modified=True)
+            self.model.unsaved_project = True
             self.__set_title(filepath=self.model.filename, modified=True)
             
     def on_rename2_activate(self, widget):
@@ -244,6 +259,9 @@ class MainController(Controller):
         except TypeError:
             self.model.get_root_entries(1)
             return
+            
+        self.model.unsaved_project = True
+        self.__set_title(filepath=self.model.filename, modified=True)
         return
     
     def on_tag_cloud_textview_motion_notify_event(self, widget):
@@ -374,6 +392,11 @@ class MainController(Controller):
         return False
         
     def on_img_delete_activate(self, menu_item):
+        if self.model.config.confd['delwarn']:
+            obj = Dialogs.Qst('Delete image', 'Delete image?',
+                              'Selected image will be permanently removed from catalog.')
+            if not obj.run():
+                return
         list_of_paths = self.view['images'].get_selected_items()
         model = self.view['images'].get_model()
         iter = model.get_iter(list_of_paths[0])
@@ -388,6 +411,10 @@ class MainController(Controller):
             self.__get_item_info(id)
         except:
             pass
+            
+        self.model.unsaved_project = True
+        self.__set_title(filepath=self.model.filename, modified=True)
+        return
         
     def on_img_add_activate(self, menu_item):
         self.on_add_image1_activate(menu_item)
@@ -545,7 +572,12 @@ class MainController(Controller):
         print self.view['files'].get_cursor()
         
     def on_add_image1_activate(self, menu_item):
-        images = Dialogs.LoadImageFile(True).run()
+        dialog = Dialogs.LoadImageFile(True)
+        toggle = gtk.CheckButton("Don't copy images. Generate only thumbnails.")
+        toggle.show()
+        dialog.dialog.set_extra_widget(toggle)
+        
+        images, only_thumbs = dialog.run()
         if not images:
             return
             
@@ -562,7 +594,11 @@ class MainController(Controller):
                     id = model.get_value(iter, 0)
                 except:
                     return
-            self.model.add_image(image, id)
+            self.model.add_image(image, id, only_thumbs)
+            
+            self.model.unsaved_project = True
+            self.__set_title(filepath=self.model.filename, modified=True)
+            
         self.__get_item_info(id)
         return
         
@@ -678,6 +714,11 @@ class MainController(Controller):
         return
         
     def on_th_delete_activate(self, menu_item):
+        if self.model.config.confd['delwarn']:
+            obj = Dialogs.Qst('Delete thumbnail', 'Delete thumbnail?',
+                              'Current thumbnail will be permanently removed from catalog.')
+            if not obj.run():
+                return
         path, column = self.view['files'].get_cursor()
         model = self.view['files'].get_model()
         iter = model.get_iter(path)
@@ -685,6 +726,8 @@ class MainController(Controller):
         if id:
             self.model.del_thumbnail(id)
             self.__get_item_info(id)
+            self.model.unsaved_project = True
+            self.__set_title(filepath=self.model.filename, modified=True)
         return
         
     def on_debugbtn_clicked(self, widget):
@@ -799,6 +842,8 @@ class MainController(Controller):
                                 current_id)
                 self.model.unsaved_project = True
                 self.__set_title(filepath=self.model.filename, modified=True)
+            else:
+                deviceHelper.volumount(self.model.config.confd['cd'])
             return True
         else:
             Dialogs.Wrn("Error mounting device - pyGTKtalog",

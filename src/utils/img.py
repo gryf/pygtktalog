@@ -32,8 +32,8 @@ import Image
 class Img(object):
     def __init__(self, filename=None, base=''):
         self.root = 'images'
-        self.x = 96
-        self.y = 96
+        self.x = 160
+        self.y = 160
         self.filename = filename
         self.base = base
         
@@ -101,5 +101,7 @@ class Img(object):
             im = Image.open(self.filename).convert('RGB')
         except:
             return None
-        im.thumbnail((self.x, self.y), Image.ANTIALIAS)
+        x, y = im.size
+        if x > self.x or y > self.y:
+            im.thumbnail((self.x, self.y), Image.ANTIALIAS)
         return im
