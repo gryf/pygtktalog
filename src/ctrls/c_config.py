@@ -59,6 +59,8 @@ class ConfigController(Controller):
         self.view['ch_gthumb'].set_active(self.model.confd['gthumb'])
         self.view['ch_compress'].set_active(self.model.confd['compress'])
         self.view['ch_retrive'].set_active(self.model.confd['retrive'])
+        self.view['ch_imageviewer'].set_active(self.model.confd['imgview'])
+        self.view['entry_imv'].set_text(self.model.confd['imgprog'])
         
         self.__toggle_scan_group()
         
@@ -118,21 +120,30 @@ class ConfigController(Controller):
         self.model.confd['gthumb'] = self.view['ch_gthumb'].get_active()
         self.model.confd['compress'] = self.view['ch_compress'].get_active()
         self.model.confd['retrive'] = self.view['ch_retrive'].get_active()
+        self.model.confd['imgview'] = self.view['ch_imageviewer'].get_active()
+        self.model.confd['imgprog'] = self.view['entry_imv'].get_text()
         self.model.save()
         self.view['config'].destroy()
-        return
     
     def on_button_ejt_clicked(self, button):
-        self.__show_filechooser()
-        return
+        fn = self.__show_filechooser("Choose eject program")
+        self.view['ejt_entryentry_imv'].set_text(fn)
         
     def on_button_mnt_clicked(self, button):
-        self.__show_dirchooser()
-        return
+        fn = self.__show_filechooser("Choose mount point")
+        self.view['mnt_entry'].set_text(fn)
         
     def on_ch_retrive_toggled(self, widget):
         self.__toggle_scan_group()
-        return
+    
+    def on_ch_imageviewer_toggled(self, checkbox):
+        state = self.view['ch_imageviewer'].get_active()
+        for i in ['label_imv', 'entry_imv', 'button_imv']:
+            self.view[i].set_sensitive(state)
+            
+    def on_button_imv_clicked(self, widget):
+        fn = self.__show_filechooser("Choose image viewer")
+        self.view['entry_imv'].set_text(fn)
         
     def on_ext_add_clicked(self, widget):
         ext = self.view['ext_entry'].get_text().lower()
@@ -220,10 +231,11 @@ class ConfigController(Controller):
         column.set_resizable(True)
         category_tree.append_column(column)
         
-    def __show_filechooser(self):
+    def __show_filechooser(self, title):
         """dialog for choose eject"""
+        fn = None
         dialog = gtk.FileChooserDialog(
-            title="Choose eject program",
+            title=title,
             action=gtk.FILE_CHOOSER_ACTION_OPEN,
             buttons=(
                 gtk.STOCK_CANCEL,
@@ -239,9 +251,9 @@ class ConfigController(Controller):
         if response == gtk.RESPONSE_OK:
             if __debug__:
                 print "c_config.py: __show_filechooser()", dialog.get_filename()
-            self.view['ejt_entry'].set_text(dialog.get_filename())
-        
+            fn = dialog.get_filename()
         dialog.destroy()
+        return fn
         
     def __show_dirchooser(self):
         """dialog for point the mountpoint"""

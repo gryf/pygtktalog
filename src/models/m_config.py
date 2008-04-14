@@ -78,6 +78,9 @@ class ConfigModel(Model):
         'cd': '/mnt/cdrom',
         'ejectapp': 'eject -r',
         
+        'imgview': False,
+        'imgprog': 'gqview',
+        
         'retrive': False,
         
         'thumbs': True,
@@ -122,6 +125,8 @@ class ConfigModel(Model):
         'retrive extra informatin':'retrive',
         'scan exif data':'exif',
         'include gthumb image description':'gthumb',
+        'use external image viewer':'imgview',
+        'external image viewer program':'imgprog',
     }
     
     dbool = (
@@ -141,12 +146,13 @@ class ConfigModel(Model):
              'delwarn',
              'compress',
              'retrive',
+             'imgview',
     )
     
     recent = []
     RECENT_MAX = 10
     
-    dstring = ('cd','ejectapp')
+    dstring = ('cd','ejectapp','imgprog')
     
     try:
         path = os.environ['HOME']

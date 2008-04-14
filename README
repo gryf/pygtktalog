@@ -10,9 +10,14 @@ which seems to be dead project for years.
 FEATURES
 ========
 
-- scanning for files in selected media
-- generating thumbnails
+- scan for files in selected media
+- get/generate thumbnails from exif and other images
+- most important exif tags
+- add/edit description and notes
+- fetch comments for images made in gThumb <http://gthumb.sourceforge.net>
+- add/remove unlimited images to any file or directory
 - tagging files <http://en.wikipedia.org/wiki/Tag_%28metadata%29>
+- and more :)
 
 REQUIREMENTS
 ============
@@ -57,13 +62,13 @@ For version 1.0 following aims have to be done:
 - searching database
 - tagging files
 	- user definied group of tags (represented by color in cloud tag)
-- file details:
-	- files properties
+x file details:
+	x files properties
 		x thumbnail
 		x description
+		x edit note and description
 	x exif information
-	- keywords (tags)
-	- gthumb integration
+	x gthumb integration
 x adding images
 x generating/saving thumbnails
 x moving hardcoded files extensions into config
@@ -75,11 +80,12 @@ For version 2.0:
 - Icon grid in files view
 - command line support: query, adding media to collection etc
 - internationalization support
+- export to XLS
 
 Removed:
 - filetypes handling (movies, images, archives, documents etc). Now it have
-  common, unified external "plugin" system - simple output from command line
-  programs.
+  common, unified external "plugin" system - simple text output from command
+  line programs.
 - anime/movie
 		- title
 		- alt title
@@ -90,16 +96,16 @@ Removed:
 		- sub lang
 		- release date (from - to)
 		- anidb link/imdb link
-  Maybe in future versions. Now text file descriptions and tags have to be
-  enough for good and fast information search.
+  Maybe in future versions. Now text file descriptions/notes and tags have to
+  be enough for good and fast information search.
 - file information (date, size, etc) (50%) (no need for?)
   
 NOTES
 =====
 
-Catalog file is tared and optionaly compressed sqlite database and directory
-with thumbnails. If there are more images, the size of catalog file will grow.
-So be carefull with adding big images in your catalog file!
+Catalog file is tared and optionaly compressed sqlite database and directories
+with images and thumbnails. If there are more images, the size of catalog file
+will grow. So be carefull with adding big images in your catalog file!
 
 BUGS
 ====
