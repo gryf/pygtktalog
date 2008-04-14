@@ -303,11 +303,10 @@ class MainModel(ModelMT):
                     os.chown(tarinfo, '.')
                     os.utime(tarinfo, '.')
                     os.chmod(tarinfo, '.')
-                except ExtractError, e:
-                    if tar.errorlevel > 1:
-                        raise
-                    else:
-                        tar._dbg(1, "tarfile: %s" % e)
+                except:
+                    if __debug__:
+                        print "m_main.py: open(): setting corrext owner, mtime etc"
+                    pass
         tar.close()
         
         self.__connect_to_db()
