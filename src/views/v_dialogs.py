@@ -177,14 +177,15 @@ class PointDirectoryToAdd(object):
         dialog.set_action(gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER)
         dialog.set_default_response(gtk.RESPONSE_OK)
         
+        if self.URI:
+            dialog.set_current_folder_uri(self.URI)
         response = dialog.run()
         if response == gtk.RESPONSE_OK:
             self.directory.set_text(dialog.get_filename())
+            self.__class__.URI = dialog.get_current_folder_uri()
         dialog.destroy()
     
     def run(self):
-        if self.URI:
-            self.dialog.set_current_folder_uri(self.URI)
         dialog = self.gladexml.get_widget("addDirDialog")
         ch = True
         result = dialog.run()
@@ -195,7 +196,6 @@ class PointDirectoryToAdd(object):
                 result = dialog.run()
             else:
                 ch = False
-        self.__class__.URI = self.dialog.get_current_folder_uri()
         dialog.destroy()
         if result == gtk.RESPONSE_OK:
             return self.volname.get_text(),self.directory.get_text()
@@ -321,7 +321,7 @@ class LoadImageFile(object):
     
     URI="file://"+os.path.abspath(os.path.curdir)
     
-    def __init__(self):
+    def __init__(self, multiple=False):
         self.dialog = gtk.FileChooserDialog(
             title="Select image",
             action=gtk.FILE_CHOOSER_ACTION_OPEN,
@@ -332,7 +332,7 @@ class LoadImageFile(object):
                 gtk.RESPONSE_OK
             )
         )
-        self.dialog.set_select_multiple(True)
+        self.dialog.set_select_multiple(multiple)
         self.dialog.set_default_response(gtk.RESPONSE_OK)
         
         f = gtk.FileFilter()
@@ -357,7 +357,10 @@ class LoadImageFile(object):
         
         if response == gtk.RESPONSE_OK:
             try:
-                filenames = self.dialog.get_filenames()
+                if self.dialog.get_select_multiple():
+                    filenames = self.dialog.get_filenames()
+                else:
+                    filenames = self.dialog.get_filename()
             except:
                 pass
                 
@@ -416,4 +419,42 @@ class StatsDialog(object):
         dialog.destroy()
         if result == gtk.RESPONSE_OK:
             return entry.get_text()
+        return None
+        
+class EditDialog(object):
+    """Sepcific dialog for display stats"""
+    def __init__(self, values={}):
+        self.gladefile = os.path.join(utils.globals.GLADE_DIR, "dialogs.glade")
+        self.values = values
+        
+    def run(self):
+        gladexml = gtk.glade.XML(self.gladefile, "file_editDialog")
+        dialog = gladexml.get_widget("file_editDialog")
+        
+        filename = gladexml.get_widget("filename_entry")
+        filename.set_text(str(self.values['filename']))
+        description = gladexml.get_widget("description_text")
+        note = gladexml.get_widget("note_text")
+        
+        if self.values.has_key('description'):
+            buff = gtk.TextBuffer()
+            buff.set_text(str(self.values['description']))
+            description.set_buffer(buff)
+            
+        if self.values.has_key('note'):
+            buff = gtk.TextBuffer()
+            buff.set_text(str(self.values['note']))
+            note.set_buffer(buff)
+            
+        result = dialog.run()
+        if result == gtk.RESPONSE_OK:
+            d = description.get_buffer()
+            n = note.get_buffer()
+            retval = {'filename': filename.get_text(),
+                    'description': d.get_text(d.get_start_iter(),
+                                              d.get_end_iter()),
+                    'note': n.get_text(n.get_start_iter(), n.get_end_iter())}
+            dialog.destroy()
+            return retval
+        dialog.destroy()
         return None

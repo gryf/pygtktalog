@@ -30,6 +30,7 @@ http://www.gnu.org/licenses/gpl.txt
 """
 
 import os.path
+from os import popen
 from utils import deviceHelper
 from gtkmvc import Controller
 
@@ -126,11 +127,83 @@ class MainController(Controller):
         
     #########################################################################
     # Connect signals from GUI, like menu objects, toolbar buttons and so on.
+    def on_edit2_activate(self, menu_item):
+        try:
+            selection = self.view['files'].get_selection()
+            model, list_of_paths = selection.get_selected_rows()
+            id = model.get_value(model.get_iter(list_of_paths[0]), 0)
+        except TypeError:
+            if __debug__: print "c_main.py: on_edit2_activate(): 0 zaznaczonych wierszy"
+            return
+            
+        val = self.model.get_file_info(id)
+        ret = Dialogs.EditDialog(val).run()
+        if ret:
+            self.model.rename(id, ret['filename'])
+            self.model.update_desc_and_note(id, ret['description'], ret['note'])
+            self.__get_item_info(id)
+
+    def on_add_thumb1_activate(self, menu_item):
+        image = Dialogs.LoadImageFile().run()
+        if not image:
+            return
+        try:
+            selection = self.view['files'].get_selection()
+            model, list_of_paths = selection.get_selected_rows()
+            for path in list_of_paths:
+                id = model.get_value(model.get_iter(path),0)
+                self.model.add_thumbnail(image, id)
+        except:
+            if __debug__: print "c_main.py: on_add_thumb1_activate(): error on getting selected items or creating thumbnails"
+            return
+        self.__get_item_info(id)
+        return
+        
+    def on_remove_thumb1_activate(self, menu_item):
+        if self.model.config.confd['delwarn']:
+            obj = Dialogs.Qst('Delete thumbnails', 'Delete thumbnails?',
+                              'Thumbnails for selected items will be permanently removed from catalog.')
+            if not obj.run():
+                return
+        try:
+            selection = self.view['files'].get_selection()
+            model, list_of_paths = selection.get_selected_rows()
+            for path in list_of_paths:
+                id = model.get_value(model.get_iter(path),0)
+                self.model.del_thumbnail(id)
+        except:
+            if __debug__: print "c_main.py: on_remove_thumb1_activate(): error on getting selected items or removing thumbnails"
+            return
+        self.__get_item_info(id)
+        return
+        
+    def on_remove_image1_activate(self, menu_item):
+        if self.model.config.confd['delwarn']:
+            obj = Dialogs.Qst('Delete images', 'Delete all images?',
+                              'All images for selected items will be permanently removed from catalog.')
+            if not obj.run():
+                return
+        try:
+            selection = self.view['files'].get_selection()
+            model, list_of_paths = selection.get_selected_rows()
+            for path in list_of_paths:
+                id = model.get_value(model.get_iter(path),0)
+                self.model.del_images(id)
+        except:
+            if __debug__: print "c_main.py: on_remove_thumb1_activate(): error on getting selected items or removing thumbnails"
+            return
+        self.__get_item_info(id)
+        return
+        
     def on_images_item_activated(self, iconview, path):
         model = iconview.get_model()
         iter = model.get_iter(path)
         id = model.get_value(iter, 0)
-        ImageView(self.model.get_image_path(id))
+        img = self.model.get_image_path(id)
+        if self.model.config.confd['imgview'] and len(self.model.config.confd['imgprog'])>0:
+            popen("%s %s" % (self.model.config.confd['imgprog'], img))
+        else:
+            ImageView(img)
         
     def on_rename1_activate(self, widget):
         model, iter = self.view['discs'].get_selection().get_selected()
@@ -138,8 +211,7 @@ class MainController(Controller):
         id = model.get_value(iter, 0)
         new_name = Dialogs.InputNewName(name).run()
 
-        if __debug__:
-            print "c_main.py: on_rename1_activate(): label:", new_name
+        if __debug__: print "c_main.py: on_rename1_activate(): label:", new_name
             
         if new_name != None and new_name != name:
             self.model.rename(id, new_name)
@@ -159,8 +231,7 @@ class MainController(Controller):
         name = model.get_value(model.get_iter(list_of_paths[0]),1)
         
         new_name = Dialogs.InputNewName(name).run()
-        if __debug__:
-            print "c_main.py: on_rename1_activate(): label:", new_name
+        if __debug__: print "c_main.py: on_rename1_activate(): label:", new_name
             
         if new_name != None and new_name != name:
             self.model.rename(fid, new_name)
@@ -176,8 +247,7 @@ class MainController(Controller):
         return
     
     def on_tag_cloud_textview_motion_notify_event(self, widget):
-        if __debug__:
-            print "c_main.py: on_tag_cloud_textview_motion_notify_event():"
+        if __debug__: print "c_main.py: on_tag_cloud_textview_motion_notify_event():"
         w = self.view['tag_cloud_textview'].get_window(gtk.TEXT_WINDOW_TEXT)
         if w:
             w.set_cursor(None)
@@ -322,6 +392,10 @@ class MainController(Controller):
     def on_img_add_activate(self, menu_item):
         self.on_add_image1_activate(menu_item)
         
+    def on_thumb_box_button_press_event(self, widget, event):
+        if event.button == 3:
+            self.__popup_menu(event, 'th_popup')
+        
     def on_discs_button_press_event(self, treeview, event):
         try:
             path, column, x, y = treeview.get_path_at_pos(int(event.x),
@@ -379,9 +453,11 @@ class MainController(Controller):
             if len(list_of_paths) > 1:
                 self.view['add_image1'].set_sensitive(False)
                 self.view['rename2'].set_sensitive(False)
+                self.view['edit2'].set_sensitive(False)
             else:
                 self.view['add_image1'].set_sensitive(True)
                 self.view['rename2'].set_sensitive(True)
+                self.view['edit2'].set_sensitive(True)
             self.__popup_menu(event, 'files_popup')
             return True
             
@@ -394,8 +470,7 @@ class MainController(Controller):
             selected_item = self.model.files_list.get_value(iter, 0)
             self.__get_item_info(selected_item)
         except:
-            if __debug__:
-                print "c_main.py: on_files_cursor_changed() insufficient iterator"
+            if __debug__: print "c_main.py: on_files_cursor_changed() insufficient iterator"
         return
     
     def on_files_key_release_event(self, a, event):
@@ -470,9 +545,10 @@ class MainController(Controller):
         print self.view['files'].get_cursor()
         
     def on_add_image1_activate(self, menu_item):
-        images = Dialogs.LoadImageFile().run()
+        images = Dialogs.LoadImageFile(True).run()
         if not images:
             return
+            
         for image in images:
             try:
                 selection = self.view['files'].get_selection()
@@ -561,7 +637,7 @@ class MainController(Controller):
 
         if self.model.config.confd['delwarn']:
             obj = Dialogs.Qst('Delete elements', 'Delete items?',
-                              'Items will be permanently removed.')
+                              'Items will be permanently removed from catalog.')
             if not obj.run():
                 return
         
@@ -590,11 +666,27 @@ class MainController(Controller):
             self.model.get_root_entries(model.get_value(model.get_iter(list_of_paths[0]),0))
         except TypeError:
             return
+            
+        buf = gtk.TextBuffer()
+        self.view['description'].set_buffer(buf)
+        self.view['thumb_box'].hide()
+        self.view['exifinfo'].hide()
+        self.view['img_container'].hide()
         
         self.model.unsaved_project = True
         self.__set_title(filepath=self.model.filename, modified=True)
         return
-
+        
+    def on_th_delete_activate(self, menu_item):
+        path, column = self.view['files'].get_cursor()
+        model = self.view['files'].get_model()
+        iter = model.get_iter(path)
+        id = model.get_value(iter, 0)
+        if id:
+            self.model.del_thumbnail(id)
+            self.__get_item_info(id)
+        return
+        
     def on_debugbtn_clicked(self, widget):
         """Debug. To remove in stable version, including button in GUI"""
         if __debug__:
@@ -762,8 +854,6 @@ class MainController(Controller):
         buf = self.view['description'].get_buffer()
         buf.set_text("")
         self.view['description'].set_buffer(buf)
-        self.view['thumb'].hide()
-        
         self.__activate_ui()
         
         return
@@ -903,18 +993,47 @@ class MainController(Controller):
     def __get_item_info(self, item):
         self.view['description'].show()
         set = self.model.get_file_info(item)
-        buf = self.view['description'].get_buffer()
+        buf = gtk.TextBuffer()
         
-        if set.has_key('file_info'):
-            buf.set_text(set['file_info'])
-            if set.has_key('description'):
-                tag = buf.create_tag()
-                tag.set_property('weight', pango.WEIGHT_BOLD)
-                buf.insert_with_tags(buf.get_end_iter(), "\nDetails:\n", tag)
-                buf.insert(buf.get_end_iter(), set['description'])
-        else:
-            buf.set_text('')
+        if __debug__ and set.has_key('debug'):
+            tag = buf.create_tag()
+            tag.set_property('weight', pango.WEIGHT_BOLD)
+            buf.insert_with_tags(buf.get_end_iter(), "ID: ", tag)
+            buf.insert(buf.get_end_iter(), str(set['debug']['id']) + "\n")
+            buf.insert_with_tags(buf.get_end_iter(), "Filename: ", tag)
+            buf.insert(buf.get_end_iter(), set['filename'] + "\n")
+            buf.insert_with_tags(buf.get_end_iter(), "Date: ", tag)
+            buf.insert(buf.get_end_iter(), str(set['debug']['date']) + "\n")
+            buf.insert_with_tags(buf.get_end_iter(), "Size: ", tag)
+            buf.insert(buf.get_end_iter(), str(set['debug']['size']) + "\n")
+            buf.insert_with_tags(buf.get_end_iter(), "Type: ", tag)
+            buf.insert(buf.get_end_iter(), str(set['debug']['type']) + "\n\n")
+            
+        if set.has_key('gthumb'):
+            tag = buf.create_tag()
+            tag.set_property('weight', pango.WEIGHT_BOLD)
+            buf.insert_with_tags(buf.get_end_iter(), "gThumb comment:\n", tag)
+            if set['gthumb']['note']:
+                buf.insert(buf.get_end_iter(), set['gthumb']['note'] + "\n")
+            if set['gthumb']['place']:
+                buf.insert(buf.get_end_iter(), set['gthumb']['place'] + "\n")
+            if set['gthumb']['date']:
+                buf.insert(buf.get_end_iter(), set['gthumb']['date'] + "\n")
+            buf.insert(buf.get_end_iter(), "\n")
+            
+        if set.has_key('description'):
+            tag = buf.create_tag()
+            tag.set_property('weight', pango.WEIGHT_BOLD)
+            buf.insert_with_tags(buf.get_end_iter(), "Details:\n", tag)
+            buf.insert(buf.get_end_iter(), set['description'])
+            buf.insert(buf.get_end_iter(), "\n")
         
+        if set.has_key('note'):
+            tag = buf.create_tag()
+            tag.set_property('weight', pango.WEIGHT_BOLD)
+            buf.insert_with_tags(buf.get_end_iter(), "Note:\n", tag)
+            buf.insert(buf.get_end_iter(), set['note'])
+            
         self.view['description'].set_buffer(buf)
         
         if set.has_key('images'):
@@ -931,9 +1050,11 @@ class MainController(Controller):
             
         if set.has_key('thumbnail'):
             self.view['thumb'].set_from_file(set['thumbnail'])
-            self.view['thumb'].show()
+            self.view['thumb_box'].show()
+            #self.view['thumb'].show()
         else:
-            self.view['thumb'].hide()
+            #self.view['thumb'].hide()
+            self.view['thumb_box'].hide()
         return
         
     def __tag_cloud(self):
@@ -953,7 +1074,6 @@ class MainController(Controller):
                 self.view['tag_cloud_textview'].get_window(gtk.TEXT_WINDOW_TEXT)
                 if w:
                     w.set_cursor(None)
-           
                 
         def insert_blank(b, iter):
             if iter.is_end() and iter.is_start():

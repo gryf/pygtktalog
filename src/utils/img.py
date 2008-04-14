@@ -27,7 +27,6 @@ from shutil import move, copy
 from os import path, mkdir
 from datetime import datetime
 
-from utils import EXIF
 import Image
 
 class Img(object):
@@ -40,76 +39,26 @@ class Img(object):
         
     def save(self, image_id):
         """Save image and asociated thumbnail into specific directory structure
-        return full path to the file and thumbnail None"""
+        return full path to the file and thumbnail or None"""
         
         base_path = self.__get_and_make_path(image_id)
         ext = self.filename.split('.')[-1].lower()
-        image_filename = path.join(self.base, base_path + "_im." + ext)
+        image_filename = path.join(self.base, base_path + "." + ext)
         
-        # make and save image
-        filepath = path.join(self.base, base_path + ".jpg")
-        f = open(self.filename, 'rb')
-        exif = None
+        thumbnail = path.join(self.base, base_path + "_t.jpg")
+        
         returncode = -1
-        try:
-            exif = EXIF.process_file(f)
-            f.close()
-            if exif.has_key('JPEGThumbnail'):
-                thumbnail = exif['JPEGThumbnail']
-                f = open(filepath,'wb')
-                f.write(thumbnail)
-                f.close()
-                if exif.has_key('Image Orientation'):
-                    orientation = exif['Image Orientation'].values[0]
-                    if orientation > 1:
-                        # TODO: replace silly datetime function with tempfile
-                        t = path.join(gettempdir(), "thumb%d.jpg" % datetime.now().microsecond)
-                        im_in = Image.open(filepath)
-                        im_out = None
-                        if orientation == 8:
-                            # Rotated 90 CCW
-                            im_out = im_in.transpose(Image.ROTATE_90)
-                        elif orientation == 6:
-                            # Rotated 90 CW
-                            im_out = im_in.transpose(Image.ROTATE_270)
-                        elif orientation == 3:
-                            # Rotated 180
-                            im_out = im_in.transpose(Image.ROTATE_180)
-                        elif orientation == 2:
-                            # Mirrored horizontal
-                            im_out = im_in.transpose(Image.FLIP_LEFT_RIGHT)
-                        elif orientation == 4:
-                            # Mirrored vertical
-                            im_out = im_in.transpose(Image.FLIP_TOP_BOTTOM)
-                        elif orientation == 5:
-                            # Mirrored horizontal then rotated 90 CCW
-                            im_out = im_in.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.ROTATE_90)
-                        elif orientation == 7:
-                            # Mirrored horizontal then rotated 90 CW
-                            im_out = im_in.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.ROTATE_270)
-                            
-                        if im_out:
-                            im_out.save(t, 'JPEG')
-                            move(t, filepath)
-                        else:
-                            f.close()
-                returncode = 0
-            else:
-                im = self.__scale_image()
-                if im:
-                    im.save(filepath, "JPEG")
-                    returncode = 1
-        except:
-            f.close()
-            im = self.__scale_image()
-            if im:
-                im.save(filepath, "JPEG")
-                returncode = 2
+
+        im = self.__scale_image()
+        if im:
+            im.save(thumbnail, "JPEG")
+            returncode = 1
                 
         if returncode != -1:
             # copy image
             copy(self.filename, image_filename)
-        return filepath, image_filename, returncode
+            
+        return thumbnail, image_filename, returncode
         
     # private class functions
     def __get_and_make_path(self, img_id):
@@ -146,7 +95,7 @@ class Img(object):
             img = "%s" % h[2:]
         return(path.join(t, fpath, img))
         
-    def __scale_image(self, factor=True):
+    def __scale_image(self):
         """create thumbnail. returns image object or None"""
         try:
             im = Image.open(self.filename).convert('RGB')
