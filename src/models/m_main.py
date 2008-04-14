@@ -285,7 +285,7 @@ class MainModel(ModelMT):
                     # Extract directory with a safe mode, so that
                     # all files below can be extracted as well.
                     try:
-                        os.makedirs(os.path.join(path, tarinfo.name), 0777)
+                        os.makedirs(os.path.join('.', tarinfo.name), 0777)
                     except EnvironmentError:
                         pass
                     directories.append(tarinfo)
