@@ -354,6 +354,7 @@ class LoadImageFile(object):
             self.dialog.set_current_folder_uri(self.URI)
         response = self.dialog.run()
         filenames = None
+        only_thumbs = False
         
         if response == gtk.RESPONSE_OK:
             try:
@@ -361,12 +362,15 @@ class LoadImageFile(object):
                     filenames = self.dialog.get_filenames()
                 else:
                     filenames = self.dialog.get_filename()
+                    
+                if self.dialog.get_extra_widget().get_active():
+                    only_thumbs = True
             except:
                 pass
                 
         self.__class__.URI = self.dialog.get_current_folder_uri()
         self.dialog.destroy()
-        return filenames
+        return filenames, only_thumbs
         
     def update_preview_cb(self, widget):
         filename = self.dialog.get_preview_filename()

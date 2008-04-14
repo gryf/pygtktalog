@@ -25,7 +25,6 @@
 import os.path
 import utils.globals
 from gtkmvc import View
-from v_details import DetailsView
 
 class MainView(View):
     """This handles only the graphical representation of the
