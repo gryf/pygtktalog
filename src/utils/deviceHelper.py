@@ -25,8 +25,8 @@
 device (cd, dvd) helper
 """
 
-import string
 import os
+
 
 def volname(mntp):
     """read volume name from cd/dvd"""
@@ -41,7 +41,8 @@ def volname(mntp):
             return None
         return b
     return None
-    
+
+
 def volmount(mntp):
     """mount device, return 'ok' or error message"""
     _in,_out,_err = os.popen3("mount %s" % mntp)
@@ -53,6 +54,7 @@ def volmount(mntp):
     else:
         return 'ok'
 
+
 def volumount(mntp):
     """mount device, return 'ok' or error message"""
     _in,_out,_err = os.popen3("umount %s" % mntp)
@@ -60,11 +62,12 @@ def volumount(mntp):
     if len(inf) > 0:
         for error in inf:
             error.strip()
-            
+
         if error.strip()[:7] == 'umount:':
             return error.strip()
     return 'ok'
-    
+
+
 def check_mount(dev):
     """Refresh the entries from fstab or mount."""
     mounts = os.popen('mount')
@@ -74,6 +77,7 @@ def check_mount(dev):
         if device == dev:
             return True
     return False
+
 
 def mountpoint_to_dev(mntp):
     """guess mountpoint from fstab"""
@@ -88,20 +92,21 @@ def mountpoint_to_dev(mntp):
             pass
     fstab.close()
     return None
-    
+
+
 def eject_cd(eject_app, cd):
     """mount device, return 'ok' or error message"""
     if len(eject_app) > 0:
         _in,_out,_err = os.popen3("%s %s" % (eject_app, cd))
         inf = _err.readlines()
         error = ''
-        
+
         for error in inf:
             error.strip()
-            
+
         if error !='':
             return error
-        
+
         return 'ok'
     return "Eject program not specified"
-    
+

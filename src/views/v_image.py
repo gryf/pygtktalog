@@ -22,15 +22,12 @@
 
 #  -------------------------------------------------------------------------
 
-import os.path
-
 import gtk
-
-import utils.globals
 
 class ImageView(object):
     """simple image viewer. no scaling, no zooming, no rotating.
     simply show stupid image"""
+
     def __init__(self, image_filename):
         window = gtk.Window(gtk.WINDOW_TOPLEVEL)
         image = gtk.Image()
@@ -39,5 +36,5 @@ class ImageView(object):
         image.show()
         window.show()
         return
-        
+
     pass # end of class

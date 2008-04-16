@@ -22,44 +22,43 @@
 
 #  -------------------------------------------------------------------------
 
-from tempfile import gettempdir
-from shutil import move, copy
+from shutil import copy
 from os import path, mkdir
-from datetime import datetime
 
 import Image
 
 class Img(object):
+
     def __init__(self, filename=None, base=''):
         self.root = 'images'
         self.x = 160
         self.y = 160
         self.filename = filename
         self.base = base
-        
+
     def save(self, image_id):
         """Save image and asociated thumbnail into specific directory structure
         return full path to the file and thumbnail or None"""
-        
+
         base_path = self.__get_and_make_path(image_id)
         ext = self.filename.split('.')[-1].lower()
         image_filename = path.join(self.base, base_path + "." + ext)
-        
+
         thumbnail = path.join(self.base, base_path + "_t.jpg")
-        
+
         returncode = -1
 
         im = self.__scale_image()
         if im:
             im.save(thumbnail, "JPEG")
             returncode = 1
-                
+
         if returncode != -1:
             # copy image
             copy(self.filename, image_filename)
-            
+
         return thumbnail, image_filename, returncode
-        
+
     # private class functions
     def __get_and_make_path(self, img_id):
         """Make directory structure regards of id
@@ -67,7 +66,7 @@ class Img(object):
         t = path.join(self.base, self.root)
         try: mkdir(t)
         except: pass
-        
+
         h = hex(img_id)
         if len(h[2:])>6:
             try: mkdir(path.join(t, h[2:4]))
@@ -94,7 +93,7 @@ class Img(object):
             fpath = ''
             img = "%s" % h[2:]
         return(path.join(t, fpath, img))
-        
+
     def __scale_image(self):
         """create thumbnail. returns image object or None"""
         try:
