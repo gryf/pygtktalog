@@ -60,8 +60,8 @@ TODO
 For version 1.0 following aims have to be done:
 
 - searching database
-- tagging files
-	- user definied group of tags (represented by color in cloud tag)
+- tagging files (40%)
+	- user definied group of tags (represented by color in cloud tag) (10%)
 x file details:
 	x files properties
 		x thumbnail

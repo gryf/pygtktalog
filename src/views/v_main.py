@@ -29,15 +29,17 @@ from gtkmvc import View
 class MainView(View):
     """This handles only the graphical representation of the
     application. The widgets set is loaded from glade file"""
-    
+
     GLADE = os.path.join(utils.globals.GLADE_DIR, "main.glade")
+
     def __init__(self, ctrl):
         View.__init__(self, ctrl, self.GLADE)
-        
+
         # hide v2.0 features
         self['separatormenuitem4'].hide()
         self['list1'].hide()
         self['thumbnails1'].hide()
+        #self['tag_cloud_textview'].drag_dest_set(0, [], 0)
         return
 
     pass # end of class
