@@ -21,13 +21,18 @@
 #  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 #  -------------------------------------------------------------------------
+import sys
+try:
+    import gtk
+except ImportError:
+    print "You need to install pyGTK v2.10.x or newer."
+    sys.exit(1)
 
-import gtk
 
 def setup_path():
     """Sets up the python include paths to include needed directories"""
     import os.path
-    import sys
+
     from src.utils.globals import TOPDIR
     sys.path = [os.path.join(TOPDIR, "src")] + sys.path
     return
@@ -35,81 +40,81 @@ def setup_path():
 
 def check_requirements():
     """Checks versions and other requirements"""
-    import gtkmvc; gtkmvc.require("1.2.0")
-    
     import sys
-    import os
-    
+    import gtkmvc
+    gtkmvc.require("1.2.0")
+
     try:
         from models.m_config import ConfigModel
-    except:
-        print "Some fundamental files are missing. Try runnig pyGTKtalog in his root directory"
+    except ImportError:
+        print "Some fundamental files are missing.",
+        print "Try runnig pyGTKtalog in his root directory"
         sys.exit(1)
-    
+
     conf = ConfigModel()
     conf.load()
-    
+
     try:
         import pygtk
         #tell pyGTK, if possible, that we want GTKv2
         pygtk.require("2.0")
-    except:
+    except ImportError:
         #Some distributions come with GTK2, but not pyGTK
         pass
-    try:
-        import gtk
-        import gtk.glade
-    except:
-        print "You need to install pyGTK v2.10.x or newer.",
-        sys.exit(1)
-    
+
     try:
         from pysqlite2 import dbapi2 as sqlite
-    except:
-        print "pyGTKtalog uses SQLite DB.\nYou'll need to get it and the python bindings as well.\nhttp://www.sqlite.org\nhttp://initd.org/tracker/pysqlite"
+    except ImportError:
+        print "pyGTKtalog uses SQLite DB.\nYou'll need to get it and the",
+        print "python bindings as well.",
+        print "http://www.sqlite.org"
+        print "http://initd.org/tracker/pysqlite"
         sys.exit(1)
-        
+
     if conf.confd['exportxls']:
         try:
             import pyExcelerator
-        except:
-            print "You'll need pyExcelerator, if you want to export DB to XLS format.\nhttp://sourceforge.net/projects/pyexcelerator"
-            sys.exit(1)
-    
+        except ImportError:
+            print "WARNING: You'll need pyExcelerator, if you want to export",
+            print "DB to XLS format."
+            print "http://sourceforge.net/projects/pyexcelerator"
+
     if conf.confd['thumbs'] and conf.confd['retrive']:
         try:
-            import Image, ImageEnhance
-        except:
-            print "You'll need Python Imaging Library (PIL), if you want to make thumbnails"
-            sys.exit(1)
+            import Image
+        except ImportError:
+            print "WARNING: You'll need Python Imaging Library (PIL), if you",
+            print "want to make\nthumbnails!"
     return
+
 
 def get_parameters():
     """Determine application command line options, return db full pathname"""
-    import sys, os
+    import os
     # if we've got two arguments, shell script passed through command line
     # options: current path and probably filename of compressed collection
     if len(sys.argv) > 2:
-        return os.path.join(sys.argv[1],sys.argv[2])
+        return os.path.join(sys.argv[1], sys.argv[2])
     return False
 
-def main(*args, **kargs):
+
+def main(*args):
+    """Main function of module pyGTKtalog"""
     from models.m_main import MainModel
     from ctrls.c_main import MainController
     from views.v_main import MainView
-    
-    m = MainModel()
+
+    model = MainModel()
     if args and args[0]:
-        m.open(args[0])
-    c = MainController(m)
-    v = MainView(c)
-    
+        model.open(args[0])
+    controler = MainController(model)
+    view = MainView(controler)
+
     try:
         gtk.main()
     except KeyboardInterrupt:
-        import os
-        m.config.save()
-        m.cleanup()
+        model.config.save()
+        model.cleanup()
         gtk.main_quit
     pass
     return
