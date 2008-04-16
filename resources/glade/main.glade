@@ -3,12 +3,14 @@
 <!--*- mode: xml -*-->
 <glade-interface>
   <widget class="GtkWindow" id="main">
+    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
     <property name="title" translatable="yes">pyGTKtalog</property>
     <signal name="destroy" handler="on_main_destroy_event"/>
     <signal name="delete_event" handler="on_main_destroy_event"/>
     <child>
       <widget class="GtkVBox" id="vbox1">
         <property name="visible">True</property>
+        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
         <child>
           <widget class="GtkMenuBar" id="mainMenubar">
             <property name="visible">True</property>
@@ -441,6 +443,7 @@
           <widget class="GtkHPaned" id="hpaned1">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
+            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
             <child>
               <widget class="GtkNotebook" id="nb_dirs">
                 <property name="visible">True</property>
@@ -532,10 +535,13 @@
                           <widget class="GtkTextView" id="tag_cloud_textview">
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
-                            <property name="events">GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                             <property name="editable">False</property>
                             <property name="wrap_mode">GTK_WRAP_WORD</property>
                             <property name="cursor_visible">False</property>
+                            <signal name="drag_motion" handler="on_tag_cloud_textview_drag_motion"/>
+                            <signal name="drag_data_received" handler="on_tag_cloud_textview_drag_data_received"/>
+                            <signal name="drag_drop" handler="on_tag_cloud_textview_drag_drop"/>
                           </widget>
                         </child>
                       </widget>
@@ -582,6 +588,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="rules_hint">True</property>
+                        <signal name="drag_data_get" handler="on_files_drag_data_get"/>
                         <signal name="button_press_event" handler="on_files_button_press_event"/>
                         <signal name="row_activated" handler="on_files_row_activated"/>
                         <signal name="cursor_changed" handler="on_files_cursor_changed"/>
@@ -857,7 +864,7 @@
     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
     <child>
       <widget class="GtkMenuItem" id="add_tag1">
-        <property name="sensitive">False</property>
+        <property name="visible">True</property>
         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
         <property name="label" translatable="yes">_Add tag</property>
         <property name="use_underline">True</property>
