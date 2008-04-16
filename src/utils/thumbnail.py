@@ -31,13 +31,15 @@ from utils import EXIF
 import Image
 
 class Thumbnail(object):
-    def __init__(self, filename=None, x=160, y=160, root='thumbnails', base=''):
+
+    def __init__(self, filename=None, x=160, y=160,
+                 root='thumbnails', base=''):
         self.root = root
         self.x = x
         self.y = y
         self.filename = filename
         self.base = base
-        
+
     def save(self, image_id):
         """Save thumbnail into specific directory structure
         return full path to the file and exif object or None"""
@@ -48,16 +50,17 @@ class Thumbnail(object):
         try:
             exif = EXIF.process_file(f)
             f.close()
-            if exif.has_key('JPEGThumbnail'):
+            if 'JPEGThumbnail' in exif:
                 thumbnail = exif['JPEGThumbnail']
                 f = open(filepath,'wb')
                 f.write(thumbnail)
                 f.close()
-                if exif.has_key('Image Orientation'):
+                if 'Image Orientation' in exif:
                     orientation = exif['Image Orientation'].values[0]
                     if orientation > 1:
                         # TODO: replace silly datetime function with tempfile
-                        t = path.join(gettempdir(), "thumb%d.jpg" % datetime.now().microsecond)
+                        ms = datetime.now().microsecond
+                        t = path.join(gettempdir(), "thumb%d.jpg" % ms)
                         im_in = Image.open(filepath)
                         im_out = None
                         if orientation == 8:
@@ -77,11 +80,15 @@ class Thumbnail(object):
                             im_out = im_in.transpose(Image.FLIP_TOP_BOTTOM)
                         elif orientation == 5:
                             # Mirrored horizontal then rotated 90 CCW
-                            im_out = im_in.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.ROTATE_90)
+                            op = Image.FLIP_LEFT_RIGHT
+                            rot = Image.ROTATE_90
+                            im_out = im_in.transpose(op).transpose(rot)
                         elif orientation == 7:
                             # Mirrored horizontal then rotated 90 CW
-                            im_out = im_in.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.ROTATE_270)
-                            
+                            op = Image.FLIP_LEFT_RIGHT
+                            rot = Image.ROTATE_270
+                            im_out = im_in.transpose(op).transpose(rot)
+
                         if im_out:
                             im_out.save(t, 'JPEG')
                             move(t, filepath)
@@ -100,7 +107,7 @@ class Thumbnail(object):
                 im.save(filepath, "JPEG")
                 returncode = 2
         return filepath, exif, returncode
-        
+
     # private class functions
     def __get_and_make_path(self, img_id):
         """Make directory structure regards of id
@@ -134,7 +141,7 @@ class Thumbnail(object):
             fpath = ''
             img = "%s.%s" %(h[2:], 'jpg')
         return(path.join(t, fpath, img))
-        
+
     def __scale_image(self, factor=True):
         """create thumbnail. returns image object or None"""
         try:
@@ -143,7 +150,7 @@ class Thumbnail(object):
             return None
         im.thumbnail((self.x, self.y), Image.ANTIALIAS)
         return im
-        
+
     def __scale_image_deprecated(self, factor=True):
         """generate scaled Image object for given file
         args:
@@ -155,9 +162,9 @@ class Thumbnail(object):
             im = Image.open(self.filename).convert('RGB')
         except:
             return None
-            
+
         x, y = im.size
-        
+
         if x > self.x or y > self.y:
             if x==y:
                 # square
@@ -169,30 +176,33 @@ class Thumbnail(object):
                     self.x1 = int(float(self.y) * self.y / self.x)
                     if float(self.y) * self.y / self.x - self.x1 > 0.49:
                         self.x1 += 1
-                    imt = im.resize(((int(x/(y/float(self.y))),self.y)),Image.ANTIALIAS)
+                    imt = im.resize(((int(x/(y/float(self.y))), self.y)),
+                                    Image.ANTIALIAS)
                 elif x/self.x==y/self.y:
                     # aspect ratio ok
                     imt = im.resize((self.x, self.y), Image.ANTIALIAS)
                 else:
-                    imt = im.resize((self.x,int(y/(x/float(self.x)))), 1)
+                    imt = im.resize((self.x, int(y/(x/float(self.x)))), 1)
             else:
                 # portrait
                 if factor:
                     if y>self.x:
-                        imt = im.resize(((int(x/(y/float(self.x))),self.x)),Image.ANTIALIAS)
+                        imt = im.resize(((int(x/(y/float(self.x))),self.x)),
+                                        Image.ANTIALIAS)
                     else:
                         imt = im
                 else:
                     self.x1 = int(float(self.y) * self.y / self.x)
                     if float(self.y) * self.y / self.x - self.x1 > 0.49:
                         self.x1 += 1
-                    
+
                     if x/self.x1==y/self.y:
                         # aspect ratio ok
                         imt = im.resize((self.x1,self.y),Image.ANTIALIAS)
                     else:
-                        imt = im.resize(((int(x/(y/float(self.y))),self.y)),Image.ANTIALIAS)
+                        imt = im.resize(((int(x/(y/float(self.y))), self.y)),
+                                        Image.ANTIALIAS)
             return imt
         else:
             return im
-    
+
