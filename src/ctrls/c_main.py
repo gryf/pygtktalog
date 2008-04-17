@@ -65,6 +65,7 @@ class MainController(Controller):
         """Initialize controller"""
         self.DND_TARGETS = [('files_tags', 0, 69)]
         Controller.__init__(self, model)
+        self.tag_switched = True
         return
 
     def register_view(self, view):
@@ -140,31 +141,61 @@ class MainController(Controller):
     #########################################################################
     # Connect signals from GUI, like menu objects, toolbar buttons and so on.
     def on_tag_cloud_textview_drag_drop(self, wid, context, x, y, time):
-        #print '\n'.join([str(t) for t in context.targets])
-        #print context.drag_get_selection()
-        #print context.get_source_widget()
-        #print x, y
-        #print wid
         context.finish(True, False, time)
-        
         return True
         
-    def on_tag_cloud_textview_drag_motion(self, wid, context, x, y, time):
+    def on_tag_cloud_textview_drag_motion(self, filestv, context, x, y, time):
         context.drag_status(gtk.gdk.ACTION_COPY, time)
+        iter = filestv.get_iter_at_location(x, y)
+        try:
+            tag = iter.get_tags()[0]
+            #print tag.get_property('name')
+            self.tag_switched = False
+            tag.set_property("weight", pango.WEIGHT_BOLD)
+        except:
+            if not self.tag_switched:
+                self.__tag_cloud()
+            pass
+        buff = filestv.get_buffer()
+        
+        #self.__find_tag_in_textview()
         return True
         
-    def on_files_drag_data_get(self, widget, context, selection,
+    def on_files_drag_data_get(self, treeview, context, selection,
                                targetType, eventTime):
         # get selection, and send it to the client  
         if targetType == self.DND_TARGETS[0][2]:
-            str = "1,2,3,4,57,9,0,"
-            selection.set(selection.target, 8, str)
+            # get selection
+            treesrl = treeview.get_selection()
+            model, list_of_paths = treesrl.get_selected_rows()
+            ids = []
+            for path in list_of_paths:
+                id = model.get_value(model.get_iter(path),0)
+                ids.append(id)
+            string = str(tuple(ids)).replace(",)", ")")
+            selection.set(selection.target, 8, string)
         
     def on_tag_cloud_textview_drag_data_received(self, widget, context, x, y,
                                                  selection, targetType, time):
         if targetType == self.DND_TARGETS[0][2]:
-            print selection.data
-        print "kupa"
+            iter = widget.get_iter_at_location(x, y)
+            ids = selection.data.rstrip(")").lstrip("(").split(",")
+            try:
+                tag = iter.get_tags()[0]
+                for id in ids:
+                    it = int(tag.get_property('name'))
+                    tn = self.model.get_tag_by_id(it)
+                    self.model.add_tags(int(id.strip()), tn)
+            except:
+                if selection.data != '':
+                    tags = Dialogs.TagsDialog().run()
+                    if not tags:
+                        return
+                    for id in ids:
+                        self.model.add_tags(int(id.strip()), tags)
+                        
+        self.__tag_cloud()
+        print "end", selection.data
             
     def on_edit2_activate(self, menu_item):
         try:
@@ -324,9 +355,10 @@ class MainController(Controller):
         w = self.view['tag_cloud_textview'].get_window(gtk.TEXT_WINDOW_TEXT)
         if w:
             w.set_cursor(None)
-
+    
+    # NOTE: quit / close window
     def on_main_destroy_event(self, window, event):
-        self.on_quit1_activate(widget)
+        self.on_quit1_activate(window)
         return True
 
     def on_tb_quit_clicked(self, widget):
@@ -349,10 +381,23 @@ class MainController(Controller):
         
 
     def on_new1_activate(self, widget):
-        self.__new_db()
+        """Create new database file"""
+        if self.model.unsaved_project:
+            if not Dialogs.Qst('Unsaved data - pyGTKtalog',
+                               "Current database isn't saved",
+                               "All changes will be lost. Do you really \
+                               want to abandon it?").run():
+                return
+        self.model.new()
+
+        # clear "details" buffer
+        buf = self.view['description'].get_buffer()
+        buf.set_text("")
+        self.view['description'].set_buffer(buf)
+        self.__activate_ui()
 
     def on_tb_new_clicked(self, widget):
-        self.__new_db()
+        self.on_new1_activate(widget)
 
     def on_add_cd_activate(self, widget, label=None, current_id=None):
         """Add directory structure from cd/dvd disc"""
@@ -383,11 +428,25 @@ class MainController(Controller):
     def on_tb_addcd_clicked(self, widget):
         self.on_add_cd_activate(widget)
 
-    def on_add_directory1_activate(self, widget):
+    def on_add_directory1_activate(self, widget, path=None, label=None,
+                                   current_id=None):
         """Show dialog for choose drectory to add from filesystem."""
-        self.__add_directory()
+        if not label or not path:
+            res = Dialogs.PointDirectoryToAdd().run()
+            if res !=(None,None):
+                path = res[1]
+                label = res[0]
+            else:
+                return False
+
+        self.scan_cd = False
+        self.model.source = self.model.DR
+        self.model.scan(path, label, current_id)
+        self.model.unsaved_project = True
+        self.__set_title(filepath=self.model.filename, modified=True)
         return
 
+    # NOTE: about
     def on_about1_activate(self, widget):
         """Show about dialog"""
         Dialogs.Abt("pyGTKtalog", __version__, "About",
@@ -440,8 +499,9 @@ class MainController(Controller):
                 Dialogs.Err("Error writing file - pyGTKtalog",
                             "Cannot write file %s." % path, "%s" % err)
 
-    def on_stat1_activate(self, menu_item):
-        self.__show_stats()
+    def on_stat1_activate(self, menu_item, selected_id=None):
+        data = self.model.get_stats(selected_id)
+        label = Dialogs.StatsDialog(data).run()
 
     def on_statistics1_activate(self, menu_item):
         model = self.view['discs'].get_model()
@@ -452,7 +512,7 @@ class MainController(Controller):
             return
 
         selected_id = self.model.discs_tree.get_value(selected_iter, 0)
-        self.__show_stats(selected_id)
+        self.on_stat1_activate(menu_item, selected_id)
 
     def on_tb_open_clicked(self, widget):
         self.on_open1_activate(widget)
@@ -486,10 +546,10 @@ class MainController(Controller):
         model = self.view['discs'].get_model()
         path, column = self.view['discs'].get_cursor()
         iter = self.model.discs_tree.get_iter(path)
-        selected_item = self.model.discs_tree.get_value(iter,0)
-        self.model.get_root_entries(selected_item)
+        id = self.model.discs_tree.get_value(iter,0)
+        self.model.get_root_entries(id)
 
-        self.__get_item_info(selected_item)
+        self.__get_item_info(id)
         return
 
     def on_discs_row_activated(self, treeview, path, treecolumn):
@@ -622,8 +682,8 @@ class MainController(Controller):
         try:
             itera = model.get_iter(paths[0])
             iter = model.get_iter(treeview.get_cursor()[0])
-            selected_item = self.model.files_list.get_value(iter, 0)
-            self.__get_item_info(selected_item)
+            id = self.model.files_list.get_value(iter, 0)
+            self.__get_item_info(id)
         except:
             if __debug__:
                 print "c_main.py: on_files_cursor_changed() insufficient",
@@ -657,6 +717,9 @@ class MainController(Controller):
                             iter = None
                         else:
                             iter = self.model.discs_tree.iter_next()
+        
+        ids = self.__get_tv_selection_ids(self.view['files'])
+        
 
     def on_files_row_activated(self, files_obj, row, column):
         """On directory doubleclick in files listview dive into desired
@@ -685,31 +748,34 @@ class MainController(Controller):
         return
 
     def on_cancel1_activate(self, widget):
-        self.__abort()
+        self.on_cancel_clicked(widget)
 
     def on_cancel_clicked(self, widget):
-        self.__abort()
+        """When scanning thread is runing and user push the cancel button,
+        models abort attribute trigger cancelation for scan operation"""
+        self.model.abort = True
+        return
 
     def on_tb_find_clicked(self, widget):
         # TODO: implement searcher
         return
 
+    # NOTE: recent signal
     def recent_item_response(self, path):
-        self.on_open1_activate(widget)
+        self.on_open1_activate(self, path)
         return
 
+    # NOTE: add tags / images
     def on_add_tag1_activate(self, menu_item):
         #try:
-        selection = self.view['files'].get_selection()
-        model, list_of_paths = selection.get_selected_rows()
         tags = Dialogs.TagsDialog().run()
         if not tags:
             return
-            
-        for path in list_of_paths:
-            id = model.get_value(model.get_iter(path),0)
+        ids = self.__get_tv_selection_ids(self.view['files'])
+        for id in ids:
             self.model.add_tags(id, tags)
         #except:
+        #    # DEBUG: TV no selection / error rmoving thumbs
         #    if __debug__:
         #        print "c_main.py: on_remove_thumb1_activate(): error on",
         #        print "getting selected items or removing thumbnails"
@@ -752,7 +818,8 @@ class MainController(Controller):
 
         self.__get_item_info(id)
         return
-
+    
+    
     def on_update1_activate(self, menu_item):
         """Update disc under cursor position"""
         path, column = self.view['discs'].get_cursor()
@@ -766,7 +833,7 @@ class MainController(Controller):
         if self.model.get_source(path) == self.model.CD:
             self.on_add_cd_activate(widget, label, fid)
         elif self.model.get_source(path) == self.model.DR:
-            self.__add_directory(filepath, label, fid)
+            self.on_add_directory1_activate(widget, filepath, label, fid)
 
         return
 
@@ -786,7 +853,7 @@ class MainController(Controller):
 
         # remove from model
         path = model.get_path(selected_iter)
-        current_id = self.model.discs_tree.get_value(selected_iter, 0)
+        id = self.model.discs_tree.get_value(selected_iter, 0)
         model.remove(selected_iter)
         selection.select_path(path)
 
@@ -797,17 +864,17 @@ class MainController(Controller):
                 path = (row, )
 
         # delete from db
-        self.model.delete(current_id)
+        self.model.delete(id)
 
         # refresh files treeview
         try:
-            current_id = model.get_value(model.get_iter(path), 0)
+            id = model.get_value(model.get_iter(path), 0)
         except:
-            current_id = model.get_value(model.get_iter_first(), 0)
-        self.model.get_root_entries(current_id)
+            id = model.get_value(model.get_iter_first(), 0)
+        self.model.get_root_entries(id)
 
         # refresh file info view
-        self.__get_item_info(current_id)
+        self.__get_item_info(id)
 
         self.model.unsaved_project = True
         self.__set_title(filepath=self.model.filename, modified=True)
@@ -938,40 +1005,23 @@ class MainController(Controller):
 
     #########################
     # private class functions
-    def __add_directory(self, path=None, label=None, current_id=None):
-        if not label or not path:
-            res = Dialogs.PointDirectoryToAdd().run()
-            if res !=(None,None):
-                path = res[1]
-                label = res[0]
-            else:
-                return False
-
-        self.scan_cd = False
-        self.model.source = self.model.DR
-        self.model.scan(path, label, current_id)
-        self.model.unsaved_project = True
-        self.__set_title(filepath=self.model.filename, modified=True)
-        return True
-
-    def __new_db(self):
-        """Create new database file"""
-        if self.model.unsaved_project:
-            if not Dialogs.Qst('Unsaved data - pyGTKtalog',
-                               "Current database isn't saved",
-                               "All changes will be lost. Do you really \
-                               want to abandon it?").run():
-                return
-        self.model.new()
-
-        # clear "details" buffer
-        buf = self.view['description'].get_buffer()
-        buf.set_text("")
-        self.view['description'].set_buffer(buf)
-        self.__activate_ui()
-
-        return
-
+    def __get_tv_selection_ids(self, treev):
+        """get selection from treeview and return coresponding ids' from
+        connected model or None"""
+        ids = []
+        try:
+            selection = treev.get_selection()
+            model, list_of_paths = selection.get_selected_rows()
+            for path in list_of_paths:
+                ids.append(model.get_value(model.get_iter(path),0))
+            return ids
+        except:
+            # DEBUG: treeview have no selection or smth is broken
+            if __debug__:
+                print "c_main.py: __get_tv_selection_ids(): error on",
+                print "getting selected items"
+            return
+        return None
     def __setup_disc_treeview(self):
         """Setup TreeView discs widget as tree."""
         self.view['discs'].set_model(self.model.discs_tree)
@@ -1048,12 +1098,6 @@ class MainController(Controller):
         self.view['exif_tree'].append_column(c)
         return
 
-    def __abort(self):
-        """When scanning thread is runing and user push the cancel button,
-        models abort attribute trigger cancelation for scan operation"""
-        self.model.abort = True
-        return
-
     def __activate_ui(self, name=None):
         """Make UI active, and set title"""
         self.model.unsaved_project = False
@@ -1095,6 +1139,7 @@ class MainController(Controller):
         return
 
     def __popup_menu(self, event, menu='discs_popup'):
+        """Popoup desired menu"""
         self.view[menu].popup(None, None, None, event.button,
                                        event.time)
         self.view[menu].show_all()
@@ -1175,14 +1220,11 @@ class MainController(Controller):
         else:
             self.view['thumb_box'].hide()
         return
-    '''    
-    def on_tag_cloud_textview_drag_motion(self, widget, context, x, y, time):
-        context.drag_status(gtk.gdk.ACTION_COPY, time)
-        print "motion", x, y
-'''
+        
     def __tag_cloud(self):
         """generate tag cloud"""
         # TODO: checkit!
+        self.tag_switched = True
         v = self.view['tag_cloud_textview']
         def tag_cloud_click(tag, textview, event, iter, e):
             """react on click on connected tag items"""
@@ -1207,20 +1249,26 @@ class MainController(Controller):
 
         if len(self.model.tag_cloud) > 0:
             buff = v.get_buffer()
+            
+            # NOTE: remove old tags
+            tag_table = buff.get_tag_table()
+            def rem(texttag, data):
+                tag_table.remove(texttag)
+            tag_table.foreach(rem)
+            
             buff.set_text('')
             for cloud in self.model.tag_cloud:
                 iter = insert_blank(buff, buff.get_end_iter())
                 tag = buff.create_tag(str(cloud['id']))
                 tag.set_property('size-points', cloud['size'])
                 tag.set_property('foreground', cloud['color'])
+                tag.set_property("weight", pango.WEIGHT_NORMAL)
                 tag.connect('event', tag_cloud_click, tag)
-                buff.insert_with_tags(iter, cloud['name'], tag)
+                buff.insert_with_tags(iter,
+                                      cloud['name'] + "(%d)" % cloud['count'],
+                                      tag)
             v.set_buffer(buff)
 
-    def __show_stats(self, selected_id=None):
-        data = self.model.get_stats(selected_id)
-        label = Dialogs.StatsDialog(data).run()
-        
     def __find_tag_in_textview(self, widget, x, y):
         pass
 
