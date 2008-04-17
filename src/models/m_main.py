@@ -151,6 +151,15 @@ class MainModel(ModelMT):
         self.get_tags()
         return
 
+    def get_tag_by_id(self, tag_id):
+        """get tag (string) by its id"""
+        sql = """SELECT tag FROM tags WHERE id = ?"""
+        self.db_cursor.execute(sql, (tag_id, ))
+        res = self.db_cursor.fetchone()
+        if not res:
+            return None
+        return res[0]
+        
     def get_tags(self):
         sql = """SELECT COUNT(f.file_id), t.id, t.tag FROM tags_files f
         LEFT JOIN tags t ON f.tag_id = t.id
@@ -165,6 +174,7 @@ class MainModel(ModelMT):
                 self.tag_cloud.append({'id': row[1],
                                       'name': row[2],
                                       'size': row[0],
+                                      'count': row[0],
                                       'color':'black'})
 
         def tag_weight(x):
@@ -880,7 +890,7 @@ class MainModel(ModelMT):
         sql = """INSERT INTO files
                 VALUES(1, 1, 'root', null, 0, 0, 0, 0, null, null)"""
         self.db_cursor.execute(sql)
-        sql = """INSERT INSERT groups VALUES(1, 'default', 'black')"""
+        sql = """INSERT INTO groups VALUES(1, 'default', 'black')"""
         self.db_cursor.execute(sql)
         self.db_connection.commit()
 
