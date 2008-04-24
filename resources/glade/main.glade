@@ -27,7 +27,7 @@
                         <property name="label">gtk-new</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_new1_activate"/>
+                        <signal name="activate" handler="on_new_activate"/>
                       </widget>
                     </child>
                     <child>
@@ -36,7 +36,7 @@
                         <property name="label">gtk-open</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_open1_activate"/>
+                        <signal name="activate" handler="on_open_activate"/>
                       </widget>
                     </child>
                     <child>
@@ -45,7 +45,7 @@
                         <property name="label">gtk-save</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_save1_activate"/>
+                        <signal name="activate" handler="on_save_activate"/>
                       </widget>
                     </child>
                     <child>
@@ -54,7 +54,7 @@
                         <property name="label">gtk-save-as</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_save_as1_activate"/>
+                        <signal name="activate" handler="on_save_as_activate"/>
                       </widget>
                     </child>
                     <child>
@@ -81,7 +81,7 @@
                         <property name="label">gtk-quit</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_quit1_activate"/>
+                        <signal name="activate" handler="on_quit_activate"/>
                       </widget>
                     </child>
                   </widget>
@@ -142,7 +142,7 @@
                         <property name="label">gtk-find</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_find1_activate"/>
+                        <signal name="activate" handler="on_find_activate"/>
                         <accelerator key="f" modifiers="GDK_CONTROL_MASK" signal="activate"/>
                       </widget>
                     </child>
@@ -213,7 +213,7 @@
                         <property name="visible">True</property>
                         <property name="label" translatable="yes">Cancel</property>
                         <property name="use_underline">True</property>
-                        <signal name="activate" handler="on_cancel1_activate"/>
+                        <signal name="activate" handler="on_cancel_clicked"/>
                         <child internal-child="image">
                           <widget class="GtkImage" id="image3">
                             <property name="visible">True</property>
@@ -316,7 +316,7 @@
                 <property name="visible">True</property>
                 <property name="tooltip" translatable="yes">Create new catalog</property>
                 <property name="stock_id">gtk-new</property>
-                <signal name="clicked" handler="on_tb_new_clicked"/>
+                <signal name="clicked" handler="on_new_activate"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -327,7 +327,7 @@
                 <property name="visible">True</property>
                 <property name="tooltip" translatable="yes">Open catalog file</property>
                 <property name="stock_id">gtk-open</property>
-                <signal name="clicked" handler="on_tb_open_clicked"/>
+                <signal name="clicked" handler="on_open_activate"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -338,7 +338,7 @@
                 <property name="visible">True</property>
                 <property name="tooltip" translatable="yes">Save catalog</property>
                 <property name="stock_id">gtk-save</property>
-                <signal name="clicked" handler="on_tb_save_clicked"/>
+                <signal name="clicked" handler="on_save_activate"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -365,7 +365,7 @@
                 <property name="label" translatable="yes">Add CD</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-cdrom</property>
-                <signal name="clicked" handler="on_tb_addcd_clicked"/>
+                <signal name="clicked" handler="on_add_cd_activate"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -376,7 +376,7 @@
                 <property name="visible">True</property>
                 <property name="tooltip" translatable="yes">Find file</property>
                 <property name="stock_id">gtk-find</property>
-                <signal name="clicked" handler="on_tb_find_clicked"/>
+                <signal name="clicked" handler="on_find_activate"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -414,7 +414,7 @@
                 <property name="visible">True</property>
                 <property name="tooltip" translatable="yes">Quit pyGTKtalog</property>
                 <property name="stock_id">gtk-quit</property>
-                <signal name="clicked" handler="on_tb_quit_clicked"/>
+                <signal name="clicked" handler="on_quit_activate"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -437,6 +437,42 @@
             <property name="expand">False</property>
             <property name="fill">False</property>
             <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <widget class="GtkHBox" id="tag_path_box">
+            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+            <property name="border_width">1</property>
+            <property name="spacing">2</property>
+            <child>
+              <widget class="GtkEntry" id="tag_path">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                <property name="editable">False</property>
+                <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
+              </widget>
+            </child>
+            <child>
+              <widget class="GtkButton" id="clear">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                <property name="label" translatable="yes">gtk-clear</property>
+                <property name="use_stock">True</property>
+                <property name="response_id">0</property>
+                <signal name="clicked" handler="on_clear_clicked"/>
+              </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </widget>
+          <packing>
+            <property name="expand">False</property>
+            <property name="position">2</property>
           </packing>
         </child>
         <child>
@@ -481,73 +517,25 @@
                   </packing>
                 </child>
                 <child>
-                  <widget class="GtkVBox" id="vbox2">
+                  <widget class="GtkScrolledWindow" id="scrolledwindow3">
                     <property name="visible">True</property>
+                    <property name="can_focus">True</property>
                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                    <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+                    <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                     <child>
-                      <widget class="GtkHBox" id="hbox2">
-                        <property name="visible">True</property>
-                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                        <child>
-                          <widget class="GtkScrolledWindow" id="scroll_path">
-                            <property name="can_focus">True</property>
-                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                            <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
-                            <property name="vscrollbar_policy">GTK_POLICY_NEVER</property>
-                            <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
-                            <child>
-                              <widget class="GtkTextView" id="path_txt">
-                                <property name="can_focus">True</property>
-                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                <property name="editable">False</property>
-                                <property name="cursor_visible">False</property>
-                              </widget>
-                            </child>
-                          </widget>
-                        </child>
-                        <child>
-                          <widget class="GtkButton" id="reset_btn">
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
-                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                            <property name="label" translatable="yes">Reset</property>
-                            <property name="response_id">0</property>
-                          </widget>
-                          <packing>
-                            <property name="expand">False</property>
-                            <property name="fill">False</property>
-                            <property name="position">1</property>
-                          </packing>
-                        </child>
-                      </widget>
-                      <packing>
-                        <property name="expand">False</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkScrolledWindow" id="scrolledwindow3">
+                      <widget class="GtkTextView" id="tag_cloud_textview">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                        <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
-                        <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
-                        <child>
-                          <widget class="GtkTextView" id="tag_cloud_textview">
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                            <property name="editable">False</property>
-                            <property name="wrap_mode">GTK_WRAP_WORD</property>
-                            <property name="cursor_visible">False</property>
-                            <signal name="drag_motion" handler="on_tag_cloud_textview_drag_motion"/>
-                            <signal name="drag_data_received" handler="on_tag_cloud_textview_drag_data_received"/>
-                            <signal name="drag_drop" handler="on_tag_cloud_textview_drag_drop"/>
-                          </widget>
-                        </child>
+                        <property name="editable">False</property>
+                        <property name="wrap_mode">GTK_WRAP_WORD</property>
+                        <property name="cursor_visible">False</property>
+                        <signal name="visibility_notify_event" handler="on_tag_cloud_textview_visibility_notify_event"/>
+                        <signal name="drag_motion" handler="on_tag_cloud_textview_drag_motion"/>
+                        <signal name="drag_data_received" handler="on_tag_cloud_textview_drag_data_received"/>
+                        <signal name="drag_drop" handler="on_tag_cloud_textview_drag_drop"/>
                       </widget>
-                      <packing>
-                        <property name="position">1</property>
-                      </packing>
                     </child>
                   </widget>
                   <packing>
@@ -748,7 +736,7 @@
             </child>
           </widget>
           <packing>
-            <property name="position">2</property>
+            <property name="position">3</property>
           </packing>
         </child>
         <child>
@@ -758,7 +746,7 @@
           <packing>
             <property name="expand">False</property>
             <property name="padding">1</property>
-            <property name="position">3</property>
+            <property name="position">4</property>
           </packing>
         </child>
         <child>
@@ -784,7 +772,7 @@
           </widget>
           <packing>
             <property name="expand">False</property>
-            <property name="position">4</property>
+            <property name="position">5</property>
           </packing>
         </child>
       </widget>
