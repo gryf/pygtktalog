@@ -26,7 +26,6 @@ import os
 import sys
 import shutil
 import tarfile
-import string
 import math
 
 import gtk
@@ -63,7 +62,7 @@ class MainModel(ModelMT):
     CD = 1 # sorce: cd/dvd
     DR = 2 # source: filesystem
 
-    EXIF_DICT= {0: 'Camera',
+    EXIF_DICT = {0: 'Camera',
             1: 'Date',
             2: 'Aperture',
             3: 'Exposure program',
@@ -82,8 +81,8 @@ class MainModel(ModelMT):
            'xbm', 'xpm', 'jp2', 'jpx', 'pnm']
 
     def __init__(self):
+        """initialize"""
         ModelMT.__init__(self)
-        self.config = ConfigModel()
         self.unsaved_project = False
         self.filename = None # catalog saved/opened filename
         self.internal_dirname = None
@@ -91,7 +90,15 @@ class MainModel(ModelMT):
         self.db_cursor = None
         self.abort = False
         self.source = self.CD
+        self.config = ConfigModel()
         self.config.load()
+        self.path = None
+        self.label = None
+        self.currentid = None
+        self.thread = None
+        self.busy = False
+        self.statusmsg = "Idle"
+        self.selected_tags = {}
 
         # Directory tree: id, name, icon, type
         self.discs_tree = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,
@@ -117,54 +124,88 @@ class MainModel(ModelMT):
         # - #rrggbb
         self.tag_cloud = []
         return
-        
-    def add_tags(self, id, tags):
+
+    def add_tags(self, fid, tags):
+        """add tag (if not exists) and connect it with file"""
         for tag in tags.split(','):
             tag = tag.strip()
 
-            # first, checkerap if we already have tag in tags table
+            # SQL: first, chek if we already have tag in tags table; get id
             sql = """SELECT id FROM tags WHERE tag = ?"""
             self.db_cursor.execute(sql, (tag, ))
             res = self.db_cursor.fetchone()
             if not res:
-                # insert new tag
+                # SQL: insert new tag
                 sql = """INSERT INTO tags(tag, group_id)
                 VALUES(?, ?)"""
                 self.db_cursor.execute(sql, (tag, 1))
                 self.db_connection.commit()
+                # SQL: get tag id
                 sql = """SELECT id FROM tags WHERE tag = ?"""
                 self.db_cursor.execute(sql, (tag, ))
                 res = self.db_cursor.fetchone()
-            
+
             tag_id = res[0]
-            
-            # then checkout if file have already tag assigned
+
+            # SQL: then checkout if file have already tag assigned
             sql = """SELECT file_id FROM tags_files
             WHERE file_id = ? AND tag_id = ?"""
-            self.db_cursor.execute(sql, (id, tag_id))
+            self.db_cursor.execute(sql, (fid, tag_id))
             res = self.db_cursor.fetchone()
             if not res:
+                # SQL: connect tag with file
                 sql = """INSERT INTO tags_files(file_id, tag_id)
                 VALUES(?, ?)"""
-                self.db_cursor.execute(sql, (id, tag_id))
+                self.db_cursor.execute(sql, (fid, tag_id))
                 self.db_connection.commit()
         self.get_tags()
         return
 
     def get_tag_by_id(self, tag_id):
         """get tag (string) by its id"""
+        # SQL: get tag by id
         sql = """SELECT tag FROM tags WHERE id = ?"""
-        self.db_cursor.execute(sql, (tag_id, ))
+        self.db_cursor.execute(sql, (int(tag_id), ))
         res = self.db_cursor.fetchone()
         if not res:
             return None
         return res[0]
         
-    def get_tags(self):
-        sql = """SELECT COUNT(f.file_id), t.id, t.tag FROM tags_files f
-        LEFT JOIN tags t ON f.tag_id = t.id
-        GROUP BY f.tag_id
+    def get_file_tags(self, file_id):
+        """get tags of file"""
+        
+        # SQL: get tag by id
+        sql = """SELECT t.id, t.tag FROM tags t
+        LEFT JOIN tags_files f ON t.id=f.tag_id
+        WHERE f.file_id = ?
         ORDER BY t.tag"""
+        self.db_cursor.execute(sql, (int(file_id), ))
+        res = self.db_cursor.fetchall()
+        
+        tmp = {}
+        if len(res) == 0:
+            return None
+            
+        for row in res:
+            tmp[row[0]] = row[1]
+            
+        return tmp
+        
+    def get_tags(self):
+        """fill tags dict with values from db"""
+        if not self.selected_tags:
+            sql = """SELECT COUNT(f.file_id), t.id, t.tag FROM tags_files f
+            LEFT JOIN tags t ON f.tag_id = t.id
+            GROUP BY f.tag_id
+            ORDER BY t.tag"""
+        else:
+            id_filter = self.__filter()
+            sql = """SELECT COUNT(f.file_id), t.id, t.tag FROM tags_files f
+            LEFT JOIN tags t ON f.tag_id = t.id
+            WHERE f.file_id in """ + str(tuple(id_filter)) + \
+            """GROUP BY f.tag_id
+            ORDER BY t.tag"""
+            
         self.db_cursor.execute(sql)
         res = self.db_cursor.fetchall()
 
@@ -177,71 +218,81 @@ class MainModel(ModelMT):
                                       'count': row[0],
                                       'color':'black'})
 
-        def tag_weight(x):
+        def tag_weight(initial_value):
             """Calculate 'weight' of tag.
             Tags can have sizes between 9 to ~40. Upper size is calculated with
             logarythm and can take in extereme situation around value 55 like
             for 1 milion tags."""
-            if x==None or x==0:
-                 x = 1
-            return 4 * math.log(x, math.e)
+            if not initial_value:
+                initial_value = 1
+            return 4 * math.log(initial_value, math.e)
 
         # correct font sizes with tag_weight function.
         count = 0
-        for ta in self.tag_cloud:
-            tmp = int(tag_weight(ta['size']))
+        for tag0 in self.tag_cloud:
+            tmp = int(tag_weight(tag0['size']))
             if tmp == 0:
                 tmp = 1
             self.tag_cloud[count]['size'] = tmp + 8
-            count+=1
-
-    def add_image(self, image, id, only_thumbs=False):
+            count += 1
+            
+    def add_tag_to_path(self, tag_id):
+        """add tag to filter"""
+        temp = {}
+        tag_name = self.get_tag_by_id(tag_id)
+        for i in self.selected_tags:
+            temp[i] = self.selected_tags[i]
+            
+        temp[int(tag_id)] = tag_name
+        self.selected_tags = temp
+        
+    def add_image(self, image, file_id, only_thumbs=False):
         """add single image to file/directory"""
         sql = """INSERT INTO images(file_id, thumbnail, filename)
         VALUES(?, null, null)"""
-        self.db_cursor.execute(sql, (id,))
+        self.db_cursor.execute(sql, (file_id,))
         self.db_connection.commit()
 
         sql = """SELECT id FROM images WHERE thumbnail is null
         AND filename IS null AND file_id=?"""
-        self.db_cursor.execute(sql, (id,))
+        self.db_cursor.execute(sql, (file_id,))
         res = self.db_cursor.fetchone()
         if res:
-            tp, ip, rc = Img(image, self.internal_dirname).save(res[0])
-            if rc != -1:
+            thp, imp, rec = Img(image, self.internal_dirname).save(res[0])
+            if rec != -1:
                 sql = """UPDATE images SET filename=?,
                 thumbnail=? WHERE id=?"""
                 if only_thumbs:
                     img = None
                 else:
-                    img = ip.split(self.internal_dirname)[1][1:]
+                    img = imp.split(self.internal_dirname)[1][1:]
                 self.db_cursor.execute(sql,
                                       (img,
-                                       tp.split(self.internal_dirname)[1][1:],
+                                       thp.split(self.internal_dirname)[1][1:],
                                        res[0]))
         self.db_connection.commit()
 
-    def del_images(self, id):
+    def del_images(self, file_id):
         """removes images and their thumbnails from selected file/dir"""
         # remove images
         sql = """SELECT filename, thumbnail FROM images WHERE file_id =?"""
-        self.db_cursor.execute(sql, (id,))
+        self.db_cursor.execute(sql, (file_id,))
         res = self.db_cursor.fetchall()
         if len(res) > 0:
-            for fn in res:
-                if fn[0]:
-                    os.unlink(os.path.join(self.internal_dirname, fn[0]))
-                os.unlink(os.path.join(self.internal_dirname, fn[1]))
+            for filen in res:
+                if filen[0]:
+                    os.unlink(os.path.join(self.internal_dirname, filen[0]))
+                os.unlink(os.path.join(self.internal_dirname, filen[1]))
 
         # remove images records
         sql = """DELETE FROM images WHERE file_id = ?"""
-        self.db_cursor.execute(sql, (id,))
+        self.db_cursor.execute(sql, (file_id,))
         self.db_connection.commit()
 
-    def delete_image(self, id):
+    def delete_image(self, image_id):
         """removes image on specified image id"""
         sql = """SELECT filename, thumbnail FROM images WHERE id=?"""
-        self.db_cursor.execute(sql, (id,))
+        self.db_cursor.execute(sql, (image_id,))
         res = self.db_cursor.fetchone()
         if res:
             if res[0]:
@@ -254,57 +305,56 @@ class MainModel(ModelMT):
                 print res[1]
         # remove images records
         sql = """DELETE FROM images WHERE id = ?"""
-        self.db_cursor.execute(sql, (id,))
+        self.db_cursor.execute(sql, (image_id,))
         self.db_connection.commit()
 
-    def add_thumbnail(self, img_fn, id):
+    def add_thumbnail(self, img_fn, file_id):
         """generate and add thumbnail to selected file/dir"""
         if self.config.confd['thumbs']:
-            self.del_thumbnail(id)
-            p, e, ret_code = Thumbnail(img_fn,
-                                       base=self.internal_dirname).save(id)
-            if ret_code != -1:
+            self.del_thumbnail(file_id)
+            thumb = Thumbnail(img_fn, base=self.internal_dirname)
+            retval = thumb.save(file_id)
+            if retval[2] != -1:
+                path = retval[0].split(self.internal_dirname)[1][1:]
                 sql = """insert into thumbnails(file_id, filename)
                 values (?, ?)"""
-                self.db_cursor.execute(sql,
-                                       (id,
-                                        p.split(self.internal_dirname)[1][1:]))
+                self.db_cursor.execute(sql, (file_id, path))
                 self.db_connection.commit()
                 return True
         return False
 
-    def del_thumbnail(self, id):
+    def del_thumbnail(self, file_id):
         """removes thumbnail from selected file/dir"""
 
         # remove thumbnail files
         sql = """SELECT filename FROM thumbnails WHERE file_id=?"""
-        self.db_cursor.execute(sql, (id,))
+        self.db_cursor.execute(sql, (file_id,))
         res = self.db_cursor.fetchone()
         if res:
             os.unlink(os.path.join(self.internal_dirname, res[0]))
 
         # remove thumbs records
         sql = """DELETE FROM thumbnails WHERE file_id=?"""
-        self.db_cursor.execute(sql, (id,))
+        self.db_cursor.execute(sql, (file_id,))
         self.db_connection.commit()
 
     def cleanup(self):
+        """remove temporary directory tree from filesystem"""
         self.__close_db_connection()
         if self.internal_dirname != None:
             try:
                 shutil.rmtree(self.internal_dirname)
-            except:
+            except OSError:
                 pass
         return
 
     def new(self):
+        """create new project"""
         self.unsaved_project = False
         self.__create_internal_dirname()
         self.__connect_to_db()
         self.__create_database()
-
         self.__clear_trees()
-
         return
 
     def save(self, filename=None):
@@ -329,10 +379,10 @@ class MainModel(ModelMT):
 
         try:
             tar = tarfile.open(filename, "r:gz")
-        except:
+        except IOError:
             try:
                 tar = tarfile.open(filename, "r")
-            except:
+            except IOError:
                 self.filename = None
                 self.internal_dirname = None
                 return
@@ -364,16 +414,14 @@ class MainModel(ModelMT):
 
             # Set correct owner, mtime and filemode on directories.
             for tarinfo in directories:
-                path = os.path.join('.', tarinfo.name)
                 try:
                     os.chown(tarinfo, '.')
                     os.utime(tarinfo, '.')
                     os.chmod(tarinfo, '.')
-                except:
+                except OSError:
                     if __debug__:
                         print "m_main.py: open(): setting corrext owner,",
                         print "mtime etc"
-                    pass
         tar.close()
 
         self.__connect_to_db()
@@ -398,10 +446,11 @@ class MainModel(ModelMT):
         self.thread.start()
         return
 
-    def rename(self, id, new_name=None):
+    def rename(self, file_id, new_name=None):
+        """change name of selected object id"""
         if new_name:
             self.db_cursor.execute("update files set filename=? \
-                                   WHERE id=?", (new_name, id))
+                                   WHERE id=?", (new_name, file_id))
             self.db_connection.commit()
             self.__fetch_db_into_treestore()
             self.unsaved_project = True
@@ -411,63 +460,88 @@ class MainModel(ModelMT):
         return
 
     def refresh_discs_tree(self):
+        """re-fetch discs tree"""
         self.__fetch_db_into_treestore()
 
-    def get_root_entries(self, id=None):
+    def get_root_entries(self, parent_id):
         """Get all children down from sepcified root"""
-        try:
-            self.files_list.clear()
-        except:
-            pass
-
+        self.__clear_files_tree()
+        
         # directories first
-        sql = """SELECT id, filename, size, date FROM files
+        if not self.selected_tags:
+            sql = """SELECT id, filename, size, date FROM files
                 WHERE parent_id=? AND type=1
                 ORDER BY filename"""
-        self.db_cursor.execute(sql, (id,))
+        else:
+            id_filter = self.__filter()
+            if id_filter != None:
+                sql = """SELECT id, filename, size, date FROM files
+                WHERE parent_id=? AND type=1 AND id in """ + \
+                str(tuple(id_filter)) + """ ORDER BY filename"""
+            else:
+                sql="""SELECT id, filename, size, date FROM files
+                WHERE 1=0"""
+                
+        
+        self.db_cursor.execute(sql, (parent_id,))
         data = self.db_cursor.fetchall()
-        for ch in data:
+        for row in data:
             myiter = self.files_list.insert_before(None, None)
-            self.files_list.set_value(myiter, 0, ch[0])
-            self.files_list.set_value(myiter, 1, ch[1])
-            self.files_list.set_value(myiter, 2, ch[2])
+            self.files_list.set_value(myiter, 0, row[0])
+            self.files_list.set_value(myiter, 1, row[1])
+            self.files_list.set_value(myiter, 2, row[2])
             self.files_list.set_value(myiter, 3,
-                                      datetime.fromtimestamp(ch[3]))
+                                      datetime.fromtimestamp(row[3]))
             self.files_list.set_value(myiter, 4, 1)
             self.files_list.set_value(myiter, 5, 'direktorja')
             self.files_list.set_value(myiter, 6, gtk.STOCK_DIRECTORY)
 
         # all the rest
-        sql = """SELECT f.id, f.filename, f.size, f.date, f.type
+        if not self.selected_tags:
+            sql = """SELECT f.id, f.filename, f.size, f.date, f.type
+            FROM files f
+            WHERE f.parent_id=? AND f.type!=1
+            ORDER BY f.filename"""
+        else:
+            if id_filter != None:
+                sql = """SELECT f.id, f.filename, f.size, f.date, f.type
                 FROM files f
-                WHERE f.parent_id=? AND f.type!=1
-                ORDER BY f.filename"""
-        self.db_cursor.execute(sql, (id,))
+                WHERE f.parent_id=? AND f.type!=1 AND id IN """ + \
+                str(tuple(id_filter)) + """ ORDER BY f.filename"""
+            else:
+                sql="""SELECT f.id, f.filename, f.size, f.date, f.type
+                FROM files f
+                WHERE 1=0"""
+                
+        
+        self.db_cursor.execute(sql, (parent_id,))
         data = self.db_cursor.fetchall()
-        for ch in data:
+        for row in data:
             myiter = self.files_list.insert_before(None, None)
-            self.files_list.set_value(myiter, 0, ch[0])
-            self.files_list.set_value(myiter, 1, ch[1])
-            self.files_list.set_value(myiter, 2, ch[2])
-            self.files_list.set_value(myiter, 3, datetime.fromtimestamp(ch[3]))
-            self.files_list.set_value(myiter, 4, ch[4])
+            self.files_list.set_value(myiter, 0, row[0])
+            self.files_list.set_value(myiter, 1, row[1])
+            self.files_list.set_value(myiter, 2, row[2])
+            self.files_list.set_value(myiter, 3,
+                                      datetime.fromtimestamp(row[3]))
+            self.files_list.set_value(myiter, 4, row[4])
             self.files_list.set_value(myiter, 5, 'kategoria srategoria')
-            if ch[4] == self.FIL:
+            if row[4] == self.FIL:
                 self.files_list.set_value(myiter, 6, gtk.STOCK_FILE)
-            elif ch[4] == self.LIN:
+            elif row[4] == self.LIN:
                 self.files_list.set_value(myiter, 6, gtk.STOCK_INDEX)
         return
 
     def get_parent_discs_value(self, child_id):
+        """get root id from specified child"""
         if child_id:
             sql = """SELECT parent_id FROM files WHERE id=?"""
             self.db_cursor.execute(sql, (child_id,))
-            set = self.db_cursor.fetchone()
-            if set:
-                return set[0]
+            res = self.db_cursor.fetchone()
+            if res:
+                return res[0]
         return None
 
-    def get_file_info(self, id):
+    def get_file_info(self, file_id):
         """get file info from database"""
         retval = {}
         sql = """SELECT f.filename, f.date, f.size, f.type,
@@ -475,34 +549,34 @@ class MainModel(ModelMT):
                 FROM files f
                 LEFT JOIN thumbnails t ON t.file_id = f.id
                 WHERE f.id = ?"""
-        self.db_cursor.execute(sql, (id,))
-        set = self.db_cursor.fetchone()
-        if set:
-            retval['debug'] = {'id': id,
-            'date': datetime.fromtimestamp(set[1]),
-            'size': set[2], 'type': set[3]}
+        self.db_cursor.execute(sql, (file_id,))
+        res = self.db_cursor.fetchone()
+        if res:
+            retval['debug'] = {'id': file_id,
+            'date': datetime.fromtimestamp(res[1]),
+            'size': res[2], 'type': res[3]}
 
-            retval['filename'] = set[0]
+            retval['filename'] = res[0]
 
-            if set[5]:
-                retval['description'] = set[5]
+            if res[5]:
+                retval['description'] = res[5]
 
-            if set[6]:
-                retval['note'] = set[6]
+            if res[6]:
+                retval['note'] = res[6]
 
-            if set[4]:
-                pa = os.path.join(self.internal_dirname, set[4])
-                retval['thumbnail'] = pa
+            if res[4]:
+                path = os.path.join(self.internal_dirname, res[4])
+                retval['thumbnail'] = path
 
-        sql = """SELECT id, filename, thumbnail FROM images
+        sql = """SELECT id, thumbnail FROM images
                 WHERE file_id = ?"""
-        self.db_cursor.execute(sql, (id,))
-        set = self.db_cursor.fetchall()
-        if set:
+        self.db_cursor.execute(sql, (file_id,))
+        res = self.db_cursor.fetchall()
+        if res:
             self.images_store = gtk.ListStore(gobject.TYPE_INT, gtk.gdk.Pixbuf)
-            for idi, img, thb in set:
-                im = os.path.join(self.internal_dirname,thb)
-                pix = gtk.gdk.pixbuf_new_from_file(im)
+            for idi, thb in res:
+                img = os.path.join(self.internal_dirname, thb)
+                pix = gtk.gdk.pixbuf_new_from_file(img)
                 self.images_store.append([idi, pix])
             retval['images'] = True
 
@@ -511,27 +585,27 @@ class MainModel(ModelMT):
         flash, light_source, resolution, orientation
         FROM exif
         WHERE file_id = ?"""
-        self.db_cursor.execute(sql, (id,))
-        set = self.db_cursor.fetchone()
+        self.db_cursor.execute(sql, (file_id,))
+        res = self.db_cursor.fetchone()
 
-        if set:
+        if res:
             self.exif_list = gtk.ListStore(gobject.TYPE_STRING,
                                            gobject.TYPE_STRING)
             for key in self.EXIF_DICT:
                 myiter = self.exif_list.insert_before(None, None)
                 self.exif_list.set_value(myiter, 0, self.EXIF_DICT[key])
-                self.exif_list.set_value(myiter, 1, set[key])
+                self.exif_list.set_value(myiter, 1, res[key])
             retval['exif'] = True
 
         # gthumb
         sql = """SELECT note, place, date FROM gthumb WHERE file_id = ?"""
-        self.db_cursor.execute(sql, (id,))
-        set = self.db_cursor.fetchone()
+        self.db_cursor.execute(sql, (file_id,))
+        res = self.db_cursor.fetchone()
 
-        if set:
-            retval['gthumb'] = {'note': set[0],
-                                'place': set[1],
-                                'date': set[2]}
+        if res:
+            retval['gthumb'] = {'note': res[0],
+                                'place': res[1],
+                                'date': res[2]}
 
         return retval
 
@@ -558,9 +632,9 @@ class MainModel(ModelMT):
         return res[0], res[1]
 
     def delete(self, root_id, db_cursor=None, db_connection=None):
-        """Remove subtree from main tree, remove tags from database
-        remove all possible data, like thumbnails, images, gthumb info, exif
-        etc"""
+        """Remove subtree (item and its children) from main tree, remove tags
+        from database remove all possible data, like thumbnails, images, gthumb
+        info, exif etc"""
 
         fids = []
 
@@ -576,6 +650,7 @@ class MainModel(ModelMT):
         parent_id = res[0]
 
         def get_children(fid):
+            """get children of specified id"""
             fids.append(fid)
             sql = """SELECT id FROM files where parent_id = ?"""
             db_cursor.execute(sql, (fid,))
@@ -587,8 +662,9 @@ class MainModel(ModelMT):
         get_children(root_id)
 
         def generator():
-            for c in fids:
-                yield (c,)
+            """simple generator for use in executemany() function"""
+            for field in fids:
+                yield (field,)
 
         # remove files records
         sql = """DELETE FROM files WHERE id = ?"""
@@ -605,8 +681,8 @@ class MainModel(ModelMT):
         db_cursor.execute(sql)
         res = db_cursor.fetchall()
         if len(res) > 0:
-            for fn in res:
-                os.unlink(os.path.join(self.internal_dirname, fn[0]))
+            for row in res:
+                os.unlink(os.path.join(self.internal_dirname, row[0]))
 
         # remove images
         sql = """SELECT filename, thumbnail FROM images
@@ -614,10 +690,10 @@ class MainModel(ModelMT):
         db_cursor.execute(sql)
         res = db_cursor.fetchall()
         if len(res) > 0:
-            for fn in res:
-                if res[0]:
-                    os.unlink(os.path.join(self.internal_dirname, fn[0]))
-                os.unlink(os.path.join(self.internal_dirname, fn[1]))
+            for row in res:
+                if row[0]:
+                    os.unlink(os.path.join(self.internal_dirname, row[0]))
+                os.unlink(os.path.join(self.internal_dirname, row[1]))
 
         # remove thumbs records
         sql = """DELETE FROM thumbnails WHERE file_id = ?"""
@@ -674,6 +750,7 @@ class MainModel(ModelMT):
             parents = []
 
             def _recurse(fid):
+                """recursive gather direcotories ids and store it in list"""
                 parents.append(fid)
                 sql = """SELECT id FROM files
                 WHERE type=? AND parent_id=? AND parent_id!=1"""
@@ -693,13 +770,13 @@ class MainModel(ModelMT):
 
             files_count = 0
 
-            for p in parents:
+            for parent in parents:
                 sql = """SELECT count(id) FROM files
                 WHERE type!=0 AND type!=1 AND parent_id=?"""
-                self.db_cursor.execute(sql, (p,))
+                self.db_cursor.execute(sql, (parent,))
                 res = self.db_cursor.fetchone()
                 if res:
-                    files_count+=res[0]
+                    files_count += res[0]
             retval['files'] = files_count
             sql = """SELECT size FROM files WHERE id=?"""
             self.db_cursor.execute(sql, (selected_id,))
@@ -746,14 +823,15 @@ class MainModel(ModelMT):
                 return os.path.join(self.internal_dirname, res[0])
         return None
 
-    def update_desc_and_note(self, id, desc='', note=''):
+    def update_desc_and_note(self, file_id, desc='', note=''):
         """update note and description"""
         sql = """UPDATE files SET description=?, note=? WHERE id=?"""
-        self.db_cursor.execute(sql, (desc, note, id))
+        self.db_cursor.execute(sql, (desc, note, file_id))
         return
 
     # private class functions
     def __bytes_to_human(self, integer):
+        """return integer digit in human readable string representation"""
         if integer <= 0 or integer < 1024:
             return "%d bytes" % integer
 
@@ -763,31 +841,35 @@ class MainModel(ModelMT):
         #        s_int = str(integer)[-3:]
         #    else:
         #        s_int = str(integer)[-(3*int(i)+3):-(3*int(i))] + " " + s_int
-
-        t = integer
+        power = None
+        temp = integer
         for power in ['kB', 'MB', 'GB', 'TB']:
-            t = t /1024.0
-            if t < 1 or t < 1024:
+            temp = temp /1024.0
+            if temp < 1 or temp < 1024:
                 break
-        return "%0.2f %s (%d bytes)" % (t, power, integer)
+        return "%0.2f %s (%d bytes)" % (temp, power, integer)
 
     def __clear_trees(self):
+        """clears treemodel and treestore of files and discs tree"""
         self.__clear_files_tree()
         self.__clear_discs_tree()
 
     def __clear_discs_tree(self):
+        """try to clear model for discs"""
         try:
             self.discs_tree.clear()
         except:
             pass
 
     def __clear_files_tree(self):
+        """try to clear store for files/directories"""
         try:
             self.files_list.clear()
         except:
             pass
 
     def __connect_to_db(self):
+        """initialize db connection and store it in class attributes"""
         self.db_connection = sqlite.connect("%s" % \
                     (self.internal_dirname + '/db.sqlite'),
                     detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
@@ -795,6 +877,7 @@ class MainModel(ModelMT):
         return
 
     def __close_db_connection(self):
+        """close db conection"""
         if self.db_cursor != None:
             self.db_cursor.close()
             self.db_cursor = None
@@ -804,6 +887,8 @@ class MainModel(ModelMT):
         return
 
     def __create_internal_dirname(self):
+        """create temporary directory for working thumb/image files and
+        database"""
         self.cleanup()
         self.internal_dirname = "/tmp/pygtktalog%d" % \
             datetime.now().microsecond
@@ -814,6 +899,8 @@ class MainModel(ModelMT):
         return
 
     def __compress_and_save(self):
+        """create (and optionaly compress) tar archive from working directory
+        and write it to specified file"""
         try:
             if self.config.confd['compress']:
                 tar = tarfile.open(self.filename, "w:gz")
@@ -894,6 +981,51 @@ class MainModel(ModelMT):
         self.db_cursor.execute(sql)
         self.db_connection.commit()
 
+        
+    def __filter(self):
+        """return list of ids of files (AND their parent, even if they have no
+        assigned tags) that corresponds to tags"""
+        
+        filtered_ids = []
+        count = 0
+        for tid in self.selected_tags:
+            temp1 = []
+            sql = """SELECT file_id
+            FROM tags_files
+            WHERE tag_id=? """
+            self.db_cursor.execute(sql, (tid, ))
+            data = self.db_cursor.fetchall()
+            for row in data:
+                temp1.append(row[0])
+                
+            if count > 0:
+                filtered_ids = list(set(filtered_ids).intersection(temp1))
+            else:
+                filtered_ids = temp1
+            count += 1
+                
+        parents = []
+        for i in filtered_ids:
+            sql = """SELECT parent_id
+            FROM files
+            WHERE id = ?"""
+            self.db_cursor.execute(sql, (i, ))
+            data = self.db_cursor.fetchone()
+            if data:
+                parents.append(data[0])
+                while True:
+                    sql = """SELECT parent_id
+                    FROM files
+                    WHERE id = ? and id!=parent_id"""
+                    self.db_cursor.execute(sql, (data[0], ))
+                    data = self.db_cursor.fetchone()
+                    if not data:
+                        break
+                    else:
+                        parents.append(data[0])
+                        
+        return list(set(parents).union(filtered_ids))
+        
     def __scan(self):
         """scan content of the given path"""
         self.busy = True
@@ -944,7 +1076,7 @@ class MainModel(ModelMT):
 
             if parent_id == 1:
                 self.fresh_disk_iter = myit
-                self.discs_tree.set_value(myit,2,gtk.STOCK_CDROM)
+                self.discs_tree.set_value(myit, 2, gtk.STOCK_CDROM)
                 sql = """INSERT INTO
                             files(parent_id, filename, filepath, date,
                                   size, type, source)
@@ -952,7 +1084,7 @@ class MainModel(ModelMT):
                 db_cursor.execute(sql, (parent_id, name, path, date, size,
                                         filetype, self.source))
             else:
-                self.discs_tree.set_value(myit,2,gtk.STOCK_DIRECTORY)
+                self.discs_tree.set_value(myit, 2, gtk.STOCK_DIRECTORY)
                 sql = """INSERT INTO
                 files(parent_id, filename, filepath, date, size, type)
                 VALUES(?,?,?,?,?,?)"""
@@ -961,11 +1093,11 @@ class MainModel(ModelMT):
 
             sql = """SELECT seq FROM sqlite_sequence WHERE name='files'"""
             db_cursor.execute(sql)
-            currentid=db_cursor.fetchone()[0]
+            currentid = db_cursor.fetchone()[0]
 
-            self.discs_tree.set_value(myit,0,currentid)
-            self.discs_tree.set_value(myit,1,name)
-            self.discs_tree.set_value(myit,3,parent_id)
+            self.discs_tree.set_value(myit, 0, currentid)
+            self.discs_tree.set_value(myit, 1, name)
+            self.discs_tree.set_value(myit, 3, parent_id)
 
             try:
                 root, dirs, files = os.walk(path).next()
@@ -1125,7 +1257,7 @@ class MainModel(ModelMT):
                         # Extensions - user defined actions
                         if ext in self.config.confd['extensions'].keys():
                             cmd = self.config.confd['extensions'][ext]
-                            arg = string.replace(current_file, '"', '\\"')
+                            arg = current_file.replace('"', '\\"')
                             output = os.popen(cmd % arg).readlines()
                             desc = ''
                             for line in output:
@@ -1141,7 +1273,7 @@ class MainModel(ModelMT):
                     self.progress = step * self.count
 
             sql = """UPDATE files SET size=? WHERE id=?"""
-            db_cursor.execute(sql,(_size, currentid))
+            db_cursor.execute(sql, (_size, currentid))
             if self.abort:
                 return -1
             else:
@@ -1192,22 +1324,28 @@ class MainModel(ModelMT):
         db_cursor = db_connection.cursor()
 
         # fetch all the directories
-        sql = """SELECT id, parent_id, filename FROM files
-        WHERE type=1 ORDER BY parent_id, filename"""
-        db_cursor.execute(sql)
-        data = db_cursor.fetchall()
-        try:
+        #try:
+        if not self.selected_tags:
             sql = """SELECT id, parent_id, filename FROM files
             WHERE type=1 ORDER BY parent_id, filename"""
-            db_cursor.execute(sql)
-            data = db_cursor.fetchall()
-        except:
-            # cleanup
-            self.cleanup()
-            self.filename = None
-            self.internal_dirname = None
-            print "%s: Wrong database format!" % self.filename
-            return
+        else:
+            id_filter = self.__filter()
+            if id_filter != None:
+                sql = """SELECT id, parent_id, filename FROM files
+                WHERE type=1 and id in """ + str(tuple(id_filter)) \
+                + """ ORDER BY parent_id, filename"""
+            else:
+                sql="""SELECT id, parent_id, filename FROM files
+                WHERE 1=0"""
+        db_cursor.execute(sql)
+        data = db_cursor.fetchall()
+        #except:
+        #    # cleanup
+        #    self.cleanup()
+        #    self.filename = None
+        #    self.internal_dirname = None
+        #    print "%s: Wrong database format!" % self.filename
+        #    return
 
         def get_children(parent_id = 1, iterator = None):
             """fetch all children and place them in model"""
@@ -1280,8 +1418,10 @@ class MainModel(ModelMT):
         return
 
     def __decode_filename(self, txt):
+        """decode filename with encoding taken form ENV, returns unicode
+        string"""
         if self.fsenc:
             return txt.decode(self.fsenc)
         else:
             return txt
-            
+
