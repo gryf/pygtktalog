@@ -415,8 +415,9 @@ class MainModel(ModelMT):
             # Set correct owner, mtime and filemode on directories.
             for tarinfo in directories:
                 try:
-                    os.chown(os.path.join('.', tarinfo.name), t.uid)
-                    os.utime(os.path.join('.', tarinfo.name), (0, t.mtime))
+                    os.chown(os.path.join('.', tarinfo.name), tarinfo.uid)
+                    os.utime(os.path.join('.', tarinfo.name),
+                             (0, tarinfo.mtime))
                 except OSError:
                     if __debug__:
                         print "m_main.py: open(): setting corrext owner,",
