@@ -379,10 +379,10 @@ class MainModel(ModelMT):
 
         try:
             tar = tarfile.open(filename, "r:gz")
-        except IOError:
+        except:
             try:
                 tar = tarfile.open(filename, "r")
-            except IOError:
+            except:
                 self.filename = None
                 self.internal_dirname = None
                 return
