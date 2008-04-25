@@ -401,7 +401,7 @@ class MainModel(ModelMT):
                     # Extract directory with a safe mode, so that
                     # all files below can be extracted as well.
                     try:
-                        os.makedirs(os.path.join('.', tarinfo.name), 0777)
+                        os.makedirs(os.path.join('.', tarinfo.name), 0700)
                     except EnvironmentError:
                         pass
                     directories.append(tarinfo)
@@ -415,9 +415,8 @@ class MainModel(ModelMT):
             # Set correct owner, mtime and filemode on directories.
             for tarinfo in directories:
                 try:
-                    os.chown(tarinfo, '.')
-                    os.utime(tarinfo, '.')
-                    os.chmod(tarinfo, '.')
+                    os.chown(os.path.join('.', tarinfo.name), t.uid)
+                    os.utime(os.path.join('.', tarinfo.name), (0, t.mtime))
                 except OSError:
                     if __debug__:
                         print "m_main.py: open(): setting corrext owner,",
