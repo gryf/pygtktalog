@@ -61,7 +61,6 @@ class MainController(Controller):
         """Initialize controller"""
         self.DND_TARGETS = [('files_tags', 0, 69)]
         Controller.__init__(self, model)
-        self.tag_switched = True
         self.hovering = False
         self.first = True
         return
@@ -124,7 +123,11 @@ class MainController(Controller):
 
         # generate recent menu
         self.__generate_recent_menu()
-
+        
+        # in case model has opened file, register tags
+        if self.model.internal_dirname:
+            self.__tag_cloud()
+        
         # Show main window
         self.view['main'].show();
         self.view['main'].drag_dest_set(0, [], 0)
@@ -139,21 +142,25 @@ class MainController(Controller):
     def on_tag_cloud_textview_drag_motion(self, filestv, context, x, y, time):
         context.drag_status(gtk.gdk.ACTION_COPY, time)
         iter = filestv.get_iter_at_location(x, y)
+        buff = filestv.get_buffer()
+        tag_table = buff.get_tag_table()
+        
+        # clear weight of tags
+        def foreach_tag(texttag, user_data):
+            """set every text tag's weight to normal"""
+            texttag.set_property("underline", pango.UNDERLINE_NONE)
+        tag_table.foreach(foreach_tag, None)
+        
         try:
             tag = iter.get_tags()[0]
-            self.tag_switched = False
-            tag.set_property("weight", pango.WEIGHT_BOLD)
+            tag.set_property("underline", pango.UNDERLINE_LOW)
         except:
-            if not self.tag_switched:
-                self.__tag_cloud()
             pass
-        #buff = filestv.get_buffer()
-
-        #self.__find_tag_in_textview()
         return True
 
     def on_files_drag_data_get(self, treeview, context, selection,
                                targetType, eventTime):
+        """responce to "data get" DnD signal"""
         # get selection, and send it to the client
         if targetType == self.DND_TARGETS[0][2]:
             # get selection
@@ -166,8 +173,53 @@ class MainController(Controller):
             string = str(tuple(ids)).replace(",)", ")")
             selection.set(selection.target, 8, string)
 
+    def on_tag_cloud_textview_event_after(self, textview, event):
+        if event.type != gtk.gdk.BUTTON_RELEASE:
+            return False
+        if event.button != 1:
+            return False
+            
+        buff = textview.get_buffer()
+        try:
+            (start, end) = buff.get_selection_bounds()
+        except ValueError:
+            pass
+        else:
+            if start.get_offset() != end.get_offset():
+                return False
+
+        # get the iter at the mouse position
+        (x, y) = textview.window_to_buffer_coords(gtk.TEXT_WINDOW_WIDGET,
+                                              int(event.x), int(event.y))
+        iterator = textview.get_iter_at_location(x, y)
+        
+        # call open_url if an URL is assigned to the iter
+        tags = iterator.get_tags()
+        
+        if len(tags) == 1:
+            tag = tags[0]
+            self.model.add_tag_to_path(tag.get_property('name'))
+            self.view['tag_path_box'].show()
+            
+            # fill the path of tag
+            self.view['tag_path'].set_text('')
+            temp = self.model.selected_tags.values()
+            self.model.refresh_discs_tree()
+            #self.on_discs_cursor_changed(textview)
+            
+            temp.sort()
+            for tag1 in temp:
+                txt = self.view['tag_path'].get_text()
+                if txt == '':
+                    self.view['tag_path'].set_text(tag1)
+                else:
+                    self.view['tag_path'].set_text(txt + ", " +tag1)
+            self.__tag_cloud()
+            
+            
     def on_tag_cloud_textview_drag_data_received(self, widget, context, x, y,
                                                  selection, targetType, time):
+        """recive data from source TV"""
         if targetType == self.DND_TARGETS[0][2]:
             iter = widget.get_iter_at_location(x, y)
             ids = selection.data.rstrip(")").lstrip("(").split(",")
@@ -302,9 +354,9 @@ class MainController(Controller):
 
         if new_name and new_name != name:
             self.model.rename(id, new_name)
-            self.__set_title(filepath=self.model.filename, modified=True)
             self.model.unsaved_project = True
             self.__set_title(filepath=self.model.filename, modified=True)
+        return True
 
     def on_rename2_activate(self, widget):
         try:
@@ -325,18 +377,17 @@ class MainController(Controller):
 
         if new_name and new_name != name:
             self.model.rename(fid, new_name)
+            self.__get_item_info(fid)
             self.__set_title(filepath=self.model.filename, modified=True)
 
-        try:
-            path, column = self.view['discs'].get_cursor()
-            iter = model.get_iter(path)
-            self.model.get_root_entries(model.get_value(iter, 0))
-        except TypeError:
-            self.model.get_root_entries(1)
-            return
+        #try:
+        #    path, column = self.view['discs'].get_cursor()
+        #    iter = model.get_iter(path)
+        #    self.model.get_root_entries(model.get_value(iter, 0))
+        #except TypeError:
+        #    self.model.get_root_entries(1)
+        #    return
 
-        self.model.unsaved_project = True
-        self.__set_title(filepath=self.model.filename, modified=True)
         return
 
     def on_tag_cloud_textview_motion_notify_event(self, widget):
@@ -352,7 +403,18 @@ class MainController(Controller):
         self.model.refresh_discs_tree()
         self.on_discs_cursor_changed(w)
         self.__tag_cloud()
+    
+    def on_tag_cloud_textview_drag_leave(self, textview, dragcontext, time):
+        """clean up tags properties"""
+        buff = textview.get_buffer()
+        tag_table = buff.get_tag_table()
         
+        # clear weight of tags
+        def foreach_tag(texttag, user_data):
+            """set every text tag's weight to normal"""
+            texttag.set_property("underline", pango.UNDERLINE_NONE)
+        tag_table.foreach(foreach_tag, None)
+    
     # NOTE: text view "links" functions
     def on_tag_cloud_textview_visibility_notify_event(self, textview, event):
         (wx, wy, mod) = textview.window.get_pointer()
@@ -399,7 +461,7 @@ class MainController(Controller):
             self.view['tag_path'].set_text('')
             temp = self.model.selected_tags.values()
             self.model.refresh_discs_tree()
-            self.on_discs_cursor_changed(textview)
+            #self.on_discs_cursor_changed(textview)
             
             temp.sort()
             for tag1 in temp:
@@ -454,6 +516,7 @@ class MainController(Controller):
         buf.set_text("")
         self.view['description'].set_buffer(buf)
         self.__activate_ui()
+        self.__tag_cloud()
 
     def on_add_cd_activate(self, widget, label=None, current_id=None):
         """Add directory structure from cd/dvd disc"""
@@ -627,16 +690,18 @@ class MainController(Controller):
 
     def on_img_delete_activate(self, menu_item):
         if self.model.config.confd['delwarn']:
-            obj = Dialogs.Qst('Delete image', 'Delete image?',
-                  'Selected image will be permanently removed from catalog.')
+            obj = Dialogs.Qst('Delete images', 'Delete selected images?',
+                  'Selected images will be permanently removed from catalog.')
             if not obj.run():
                 return
         list_of_paths = self.view['images'].get_selected_items()
         model = self.view['images'].get_model()
-        iter = model.get_iter(list_of_paths[0])
-        id = model.get_value(iter, 0)
-        self.model.delete_image(id)
-
+        for path in list_of_paths:
+            iter = model.get_iter(path)
+            id = model.get_value(iter, 0)
+            self.model.delete_image(id)
+        
+        # refresh files tree
         try:
             path, column = self.view['files'].get_cursor()
             model = self.view['files'].get_model()
@@ -650,6 +715,64 @@ class MainController(Controller):
         self.__set_title(filepath=self.model.filename, modified=True)
         return
 
+    def on_img_save_activate(self, menu_item):
+        """export images (not thumbnails) into desired direcotry"""
+        dialog = Dialogs.SelectDirectory("Choose directory to save images")
+        filepath = dialog.run()
+        
+        if not filepath:
+            return
+            
+        list_of_paths = self.view['images'].get_selected_items()
+        model = self.view['images'].get_model()
+        
+        count = 0
+        
+        for path in list_of_paths:
+            icon_iter = model.get_iter(path)
+            img_id = model.get_value(icon_iter, 0)
+            if self.model.save_image(img_id, filepath):
+                count += 1
+        if len(list_of_paths) > 0:
+            if count > 0:
+                Dialogs.Inf("Save images",
+                            "%d images was succsefully saved." % count,
+                            "Images are placed in directory:\n%s." % filepath)
+            else:
+                Dialogs.Inf("Save images",
+                            "No images was saved.",
+                            "Images probably don't have real images - only" + \
+                            " thumbnails.")
+    
+    def on_img_delete2_activate(self, menu_item):
+        """remove images, but keep thumbnails"""
+        if self.model.config.confd['delwarn']:
+            obj = Dialogs.Qst('Delete images', 'Delete selected images?',
+                  'Selected images will be permanently removed from ' + \
+                  'catalog,\nthumbnails will be keeped.')
+            if not obj.run():
+                return
+                
+        list_of_paths = self.view['images'].get_selected_items()
+        model = self.view['images'].get_model()
+        for path in list_of_paths:
+            iter = model.get_iter(path)
+            id = model.get_value(iter, 0)
+            self.model.delete_images_wth_thumbs(id)
+
+        try:
+            path, column = self.view['files'].get_cursor()
+            model = self.view['files'].get_model()
+            iter = model.get_iter(path)
+            id = model.get_value(iter, 0)
+            self.__get_item_info(id)
+        except:
+            pass
+
+        self.model.unsaved_project = True
+        self.__set_title(filepath=self.model.filename, modified=True)
+        return
+        
     def on_img_add_activate(self, menu_item):
         self.on_add_image1_activate(menu_item)
 
@@ -1096,6 +1219,7 @@ class MainController(Controller):
         """Setup IconView images widget."""
         self.view['images'].set_model(self.model.images_store)
         self.view['images'].set_pixbuf_column(1)
+        self.view['images'].set_selection_mode(gtk.SELECTION_MULTIPLE)
         return
 
     def __setup_files_treeview(self):
@@ -1207,10 +1331,10 @@ class MainController(Controller):
         self.view['recent_files1'].set_submenu(self.recent_menu)
         return
 
-    def __get_item_info(self, item):
+    def __get_item_info(self, file_id):
         
         buf = gtk.TextBuffer()
-        if not item:
+        if not file_id:
             buf.set_text('')
             self.view['img_container'].hide()
             self.view['exifinfo'].hide()
@@ -1218,7 +1342,7 @@ class MainController(Controller):
             self.view['description'].set_buffer(buf)
             return
         #self.view['description'].show()
-        set = self.model.get_file_info(item)
+        set = self.model.get_file_info(file_id)
 
         if __debug__ and 'debug' in set:
             tag = buf.create_tag()
@@ -1259,14 +1383,16 @@ class MainController(Controller):
             buf.insert_with_tags(buf.get_end_iter(), "Note:\n", tag)
             buf.insert(buf.get_end_iter(), set['note'])
         
-        tags = self.model.get_file_tags(item)
+        tags = self.model.get_file_tags(file_id)
         if tags:
             buf.insert(buf.get_end_iter(), "\n")
             tag = buf.create_tag()
             tag.set_property('weight', pango.WEIGHT_BOLD)
             buf.insert_with_tags(buf.get_end_iter(), "File tags:\n", tag)
+            tags = tags.values()
+            tags.sort()
             for tag in tags:
-                buf.insert(buf.get_end_iter(), tags[tag] + ", ")
+                buf.insert(buf.get_end_iter(), tag + ", ")
 
         self.view['description'].set_buffer(buf)
 
@@ -1291,7 +1417,6 @@ class MainController(Controller):
 
     def __tag_cloud(self):
         """generate tag cloud"""
-        self.tag_switched = True
         tag_cloud = self.view['tag_cloud_textview']
         self.model.get_tags()
         
@@ -1303,32 +1428,30 @@ class MainController(Controller):
                 b_iter = buff.get_end_iter()
             return b_iter
 
+        buff = tag_cloud.get_buffer()
+        
+        # NOTE: remove old tags
+        def foreach_rem(texttag, data):
+            """remove old tags"""
+            tag_table.remove(texttag)
+            
+        tag_table = buff.get_tag_table()
+        while tag_table.get_size() > 0:
+            tag_table.foreach(foreach_rem, None)
+        
+        buff.set_text('')
+        
         if len(self.model.tag_cloud) > 0:
-            buff = tag_cloud.get_buffer()
-            #buff = gtk.TextBuffer()
-            
-            # NOTE: remove old tags
-            tag_table = buff.get_tag_table()
-
-            def rem(texttag, data):
-                tag_table.remove(texttag)
-            tag_table.foreach(rem)
-            tag_table.foreach(rem)
-            buff.set_text('')
-            
             for cloud in self.model.tag_cloud:
-                iter = insert_blank(buff, buff.get_end_iter())
-                tag = buff.create_tag(str(cloud['id']))
-                tag.set_property('size-points', cloud['size'])
-                tag.set_property('foreground', cloud['color'])
-                tag.set_property("weight", pango.WEIGHT_NORMAL)
-                tag.connect('event', self.on_tag_cloud_click, tag)
-                buff.insert_with_tags(iter,
-                                      cloud['name'] + "(%d)" % cloud['count'],
-                                      tag)
-            #tag_cloud.set_buffer(buff)
-
-    def __find_tag_in_textview(self, widget, x, y):
-        pass
+                buff_iter = insert_blank(buff, buff.get_end_iter())
+                try:
+                    tag = buff.create_tag(str(cloud['id']))
+                    tag.set_property('size-points', cloud['size'])
+                    #tag.connect('event', self.on_tag_cloud_click, tag)
+                    buff.insert_with_tags(buff_iter,
+                                          cloud['name'] + "(%d)" % cloud['count'],
+                                          tag)
+                except:
+                    print "fuckup", cloud
 
     pass # end of class

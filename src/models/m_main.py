@@ -103,7 +103,7 @@ class MainModel(ModelMT):
         # Directory tree: id, name, icon, type
         self.discs_tree = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,
                                         str, gobject.TYPE_INT)
-        # File list of selected directory: child_id(?), filename, size,
+        # File list of selected directory: is, filename, size,
         # date, type, icon
         self.files_list = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING,
                                         gobject.TYPE_UINT64,
@@ -116,8 +116,9 @@ class MainModel(ModelMT):
         self.exif_list = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING,
                                        gobject.TYPE_STRING)
 
-        # tag cloud array element is a dict with 4 keys:
-        # elem = {'id': str(id), 'name': tagname, 'size': size, 'color': color}
+        # tag cloud array element is a dict with 5 keys:
+        # elem = {'id': str(id), 'name': tagname, 'size': size,
+        #         'count': cout, 'color': color}
         # where color is in one of format:
         # - named (i.e. red, blue, black and so on)
         # - #rgb
@@ -222,7 +223,7 @@ class MainModel(ModelMT):
             """Calculate 'weight' of tag.
             Tags can have sizes between 9 to ~40. Upper size is calculated with
             logarythm and can take in extereme situation around value 55 like
-            for 1 milion tags."""
+            for 1 milion tagged files."""
             if not initial_value:
                 initial_value = 1
             return 4 * math.log(initial_value, math.e)
@@ -288,7 +289,48 @@ class MainModel(ModelMT):
         sql = """DELETE FROM images WHERE file_id = ?"""
         self.db_cursor.execute(sql, (file_id,))
         self.db_connection.commit()
+        
+    def save_image(self, image_id, file_path):
+        """save image with specified id into file path (directory)"""
+        sql = """SELECT i.filename, f.filename FROM images i
+        LEFT JOIN files f on i.file_id=f.id
+        WHERE i.id=?"""
+        self.db_cursor.execute(sql, (image_id,))
+        res = self.db_cursor.fetchone()
+        if res and res[0]:
+            source = os.path.join(self.internal_dirname, res[0])
+            count = 1
+            dest = os.path.join(file_path, res[1] + "_%d." % count + \
+                                res[0].split('.')[-1])
+            
+            while os.path.exists(dest):
+                count += 1
+                dest = os.path.join(file_path, res[1] + "_%d." % count + \
+                                res[0].split('.')[-1])
+                
+            shutil.copy(source, dest)
+            return True
+                #os.unlink()
+        else:
+            return False
+        
+    def delete_images_wth_thumbs(self, image_id):
+        """removes image (without thumbnail) on specified image id"""
+        sql = """SELECT filename FROM images WHERE id=?"""
+        self.db_cursor.execute(sql, (image_id,))
+        res = self.db_cursor.fetchone()
+        if res:
+            if res[0]:
+                os.unlink(os.path.join(self.internal_dirname, res[0]))
 
+            if __debug__:
+                print "m_main.py: delete_image(): removed images:"
+                print res[0]
+        # remove images records
+        sql = """UPDATE images set filename=NULL WHERE id = ?"""
+        self.db_cursor.execute(sql, (image_id,))
+        self.db_connection.commit()
+        
     def delete_image(self, image_id):
         """removes image on specified image id"""
         sql = """SELECT filename, thumbnail FROM images WHERE id=?"""
@@ -355,6 +397,8 @@ class MainModel(ModelMT):
         self.__connect_to_db()
         self.__create_database()
         self.__clear_trees()
+        self.tag_cloud = []
+        self.selected_tags = None
         return
 
     def save(self, filename=None):
@@ -394,7 +438,7 @@ class MainModel(ModelMT):
                 print "m_main.py: extracted tarfile into",
                 print self.internal_dirname
         except AttributeError:
-            # python's 2.4 tarfile module lacks of method extractall()
+            # python 2.4 tarfile module lacks of method extractall()
             directories = []
             for tarinfo in tar:
                 if tarinfo.isdir():
@@ -450,10 +494,24 @@ class MainModel(ModelMT):
     def rename(self, file_id, new_name=None):
         """change name of selected object id"""
         if new_name:
+            # do it in DB
             self.db_cursor.execute("update files set filename=? \
                                    WHERE id=?", (new_name, file_id))
             self.db_connection.commit()
-            self.__fetch_db_into_treestore()
+            
+            for row in self.files_list:
+                if row[0] == file_id:
+                    print row[0], row[1], row[2]
+                    row[1] = new_name
+                    break
+            
+            def foreach_discs_tree(model, path, iterator, data):
+                if model.get_value(iterator, 0) == data[0]:
+                    model.set_value(iterator, 1, data[1])
+                
+            self.discs_tree.foreach(foreach_discs_tree, (file_id, new_name))
+            
+            #self.__fetch_db_into_treestore()
             self.unsaved_project = True
         else:
             if __debug__:
