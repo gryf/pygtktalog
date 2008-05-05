@@ -23,6 +23,7 @@
 #  -------------------------------------------------------------------------
 
 import gtk
+import gobject
 import os
 import utils.globals
 
@@ -497,6 +498,65 @@ class TagsDialog(object):
         if result == gtk.RESPONSE_OK:
             return entry.get_text()
         return None
+        
+class TagsRemoveDialog(object):
+    """Sepcific dialog for display stats"""
+
+    def __init__(self, tag_dict=None):
+        self.gladefile = os.path.join(utils.globals.GLADE_DIR, "dialogs.glade")
+        self.tag_dict = tag_dict
+
+    def run(self):
+        if not self.tag_dict:
+            return None
+            
+        gladexml = gtk.glade.XML(self.gladefile, "tagRemove")
+        dialog = gladexml.get_widget("tagRemove")
+        
+        # fill model with dict
+        model = gtk.ListStore(gobject.TYPE_INT,
+                              gobject.TYPE_STRING, gobject.TYPE_BOOLEAN)
+        for tag in self.tag_dict:
+            myiter = model.insert_before(None, None)
+            model.set_value(myiter, 0, tag)
+            model.set_value(myiter, 1, self.tag_dict[tag])
+            model.set_value(myiter, 2, None)
+        
+        def toggle(cell, path, model):
+            model[path][2] = not model[path][2]
+            
+        def toggle_all(column, model):
+            for row in model:
+                row[2] = not row[2]
+            
+        treeview = gladexml.get_widget("treeview1")
+        treeview.set_model(model)
+        
+        renderer = gtk.CellRendererText()
+        column = gtk.TreeViewColumn("Tag", renderer, text=1)
+        column.set_property('expand', True)
+        treeview.append_column(column)
+        
+        renderer = gtk.CellRendererToggle()
+        renderer.set_property('activatable', True)
+        renderer.connect('toggled', toggle, model)
+        column = gtk.TreeViewColumn("Toggle", renderer)
+        column.add_attribute(renderer, "active", 2)
+        column.set_property('expand', False)
+        column.set_property("clickable", True)
+        column.connect("clicked", toggle_all, model)
+        treeview.append_column(column)
+        
+        result = dialog.run()
+
+        dialog.destroy()
+        if result == gtk.RESPONSE_OK:
+            ids = []
+            for i in model:
+                if i[2]:
+                    ids.append(i[0])
+            return "ok", ids
+        return None, None
 
 class EditDialog(object):
     """Sepcific dialog for display stats"""

@@ -162,6 +162,25 @@ class MainModel(ModelMT):
         self.get_tags()
         return
 
+    def get_tags_by_file_id(self, file_id_list):
+        """return dictionary of tags by connected files"""
+        # SQL: get tags by file_ids
+        if len(file_id_list) == 1:
+            sql = "(%d)" % file_id_list[0]
+        else:
+            sql = str(tuple(file_id_list))
+        sql = """SELECT DISTINCT t.id, t.tag FROM tags_files f
+        LEFT JOIN tags t on t.id = f.tag_id
+        WHERE f.file_id in """ + sql + """
+        ORDER BY t.tag"""
+        self.db_cursor.execute(sql)
+        res = self.db_cursor.fetchall()
+        
+        retval = {}
+        for tag in res:
+            retval[tag[0]] = tag[1]
+        return retval
+        
     def get_tag_by_id(self, tag_id):
         """get tag (string) by its id"""
         # SQL: get tag by id
@@ -191,6 +210,18 @@ class MainModel(ModelMT):
             tmp[row[0]] = row[1]
             
         return tmp
+        
+    def delete_tags(self, file_id_list, tag_id_list):
+        """remove tags from selected files"""
+        for file_id in file_id_list:
+            # SQL: remove tags for selected file
+            if len(tag_id_list) == 1:
+                sql = "(%d)" % tag_id_list[0]
+            else:
+                sql = str(tuple(tag_id_list))
+            sql = """DELETE FROM tags_files WHERE file_id = ?
+            AND tag_id IN """ + sql
+            self.db_cursor.execute(sql, (int(file_id), ))
         
     def get_tags(self):
         """fill tags dict with values from db"""
@@ -398,7 +429,7 @@ class MainModel(ModelMT):
         self.__create_database()
         self.__clear_trees()
         self.tag_cloud = []
-        self.selected_tags = None
+        self.selected_tags = {}
         return
 
     def save(self, filename=None):
@@ -420,6 +451,8 @@ class MainModel(ModelMT):
         self.unsaved_project = False
         self.__create_internal_dirname()
         self.filename = filename
+        self.tag_cloud = []
+        self.selected_tags = {}
 
         try:
             tar = tarfile.open(filename, "r:gz")
@@ -501,7 +534,6 @@ class MainModel(ModelMT):
             
             for row in self.files_list:
                 if row[0] == file_id:
-                    print row[0], row[1], row[2]
                     row[1] = new_name
                     break
             
@@ -522,27 +554,43 @@ class MainModel(ModelMT):
         """re-fetch discs tree"""
         self.__fetch_db_into_treestore()
 
-    def get_root_entries(self, parent_id):
+    def get_root_entries(self, parent_id=None):
         """Get all children down from sepcified root"""
         self.__clear_files_tree()
-        
+        # if we are in "tag" mode, do the boogie
         # directories first
-        if not self.selected_tags:
-            sql = """SELECT id, filename, size, date FROM files
-                WHERE parent_id=? AND type=1
-                ORDER BY filename"""
-        else:
-            id_filter = self.__filter()
+        if not parent_id and self.selected_tags:
+            # no parent_id, get all the tagged dirs
+            id_filter = self.__filter2()
             if id_filter != None:
+                if len(id_filter) == 1:
+                    id_filter = "(%d)" % id_filter[0]
+                else:
+                    id_filter = str(tuple(id_filter))
                 sql = """SELECT id, filename, size, date FROM files
-                WHERE parent_id=? AND type=1 AND id in """ + \
-                str(tuple(id_filter)) + """ ORDER BY filename"""
+                WHERE parent_id!=id AND type=1 AND id in """ + \
+                id_filter + """ ORDER BY filename"""
+        else:
+            # we have parent_id, get all the tagged dirs with parent_id
+            if not self.selected_tags:
+                sql = """SELECT id, filename, size, date FROM files
+                    WHERE parent_id=? AND type=1
+                    ORDER BY filename"""
             else:
-                sql="""SELECT id, filename, size, date FROM files
-                WHERE 1=0"""
-                
+                id_filter = self.__filter()
+                if id_filter != None:
+                    sql = """SELECT id, filename, size, date FROM files
+                    WHERE parent_id=? AND type=1 AND id in """ + \
+                    str(tuple(id_filter)) + """ ORDER BY filename"""
+                else:
+                    sql="""SELECT id, filename, size, date FROM files
+                    WHERE 1=0"""
         
-        self.db_cursor.execute(sql, (parent_id,))
+        if not parent_id and self.selected_tags:
+            self.db_cursor.execute(sql)
+        else:
+            self.db_cursor.execute(sql, (parent_id,))
+            
         data = self.db_cursor.fetchall()
         for row in data:
             myiter = self.files_list.insert_before(None, None)
@@ -556,24 +604,36 @@ class MainModel(ModelMT):
             self.files_list.set_value(myiter, 6, gtk.STOCK_DIRECTORY)
 
         # all the rest
-        if not self.selected_tags:
-            sql = """SELECT f.id, f.filename, f.size, f.date, f.type
-            FROM files f
-            WHERE f.parent_id=? AND f.type!=1
-            ORDER BY f.filename"""
-        else:
+        if not parent_id and self.selected_tags:
+            # no parent_id, get all the tagged files
             if id_filter != None:
                 sql = """SELECT f.id, f.filename, f.size, f.date, f.type
                 FROM files f
-                WHERE f.parent_id=? AND f.type!=1 AND id IN """ + \
-                str(tuple(id_filter)) + """ ORDER BY f.filename"""
-            else:
-                sql="""SELECT f.id, f.filename, f.size, f.date, f.type
+                WHERE f.type!=1 AND id IN """ + id_filter + \
+                """ ORDER BY f.filename"""
+        else:
+            # we have parent_id, get all the tagged files with parent_id
+            if not self.selected_tags:
+                sql = """SELECT f.id, f.filename, f.size, f.date, f.type
                 FROM files f
-                WHERE 1=0"""
-                
-        
-        self.db_cursor.execute(sql, (parent_id,))
+                WHERE f.parent_id=? AND f.type!=1
+                ORDER BY f.filename"""
+            else:
+                if id_filter != None:
+                    sql = """SELECT f.id, f.filename, f.size, f.date, f.type
+                    FROM files f
+                    WHERE f.parent_id=? AND f.type!=1 AND id IN """ + \
+                    str(tuple(id_filter)) + """ ORDER BY f.filename"""
+                else:
+                    sql="""SELECT f.id, f.filename, f.size, f.date, f.type
+                    FROM files f
+                    WHERE 1=0"""
+
+        if not parent_id and self.selected_tags:
+            self.db_cursor.execute(sql)
+        else:
+            self.db_cursor.execute(sql, (parent_id,))
+            
         data = self.db_cursor.fetchall()
         for row in data:
             myiter = self.files_list.insert_before(None, None)
@@ -948,6 +1008,7 @@ class MainModel(ModelMT):
     def __create_internal_dirname(self):
         """create temporary directory for working thumb/image files and
         database"""
+        # TODO: change this stupid rutine into tempfile mkdtemp method
         self.cleanup()
         self.internal_dirname = "/tmp/pygtktalog%d" % \
             datetime.now().microsecond
@@ -1084,6 +1145,30 @@ class MainModel(ModelMT):
                         parents.append(data[0])
                         
         return list(set(parents).union(filtered_ids))
+        
+    def __filter2(self):
+        """return list of ids of files (WITHOUT their parent) that
+        corresponds to tags"""
+        
+        filtered_ids = []
+        count = 0
+        for tid in self.selected_tags:
+            temp1 = []
+            sql = """SELECT file_id
+            FROM tags_files
+            WHERE tag_id=? """
+            self.db_cursor.execute(sql, (tid, ))
+            data = self.db_cursor.fetchall()
+            for row in data:
+                temp1.append(row[0])
+                
+            if count > 0:
+                filtered_ids = list(set(filtered_ids).intersection(temp1))
+            else:
+                filtered_ids = temp1
+            count += 1
+
+        return filtered_ids
         
     def __scan(self):
         """scan content of the given path"""
