@@ -193,7 +193,6 @@ class MainController(Controller):
                                               int(event.x), int(event.y))
         iterator = textview.get_iter_at_location(x, y)
         
-        # call open_url if an URL is assigned to the iter
         tags = iterator.get_tags()
         
         if len(tags) == 1:
@@ -215,8 +214,10 @@ class MainController(Controller):
                 else:
                     self.view['tag_path'].set_text(txt + ", " +tag1)
             self.__tag_cloud()
-            
-            
+        self.model.get_root_entries()
+        self.view['files'].set_model(self.model.files_list)
+        self.__hide_details()
+
     def on_tag_cloud_textview_drag_data_received(self, widget, context, x, y,
                                                  selection, targetType, time):
         """recive data from source TV"""
@@ -401,6 +402,13 @@ class MainController(Controller):
         self.view['tag_path_box'].hide()
         self.model.selected_tags = []
         self.model.refresh_discs_tree()
+        
+        # cleanup files and detiles
+        try:
+            self.model.files_list.clear()
+        except:
+            pass
+        self.__hide_details()
         self.on_discs_cursor_changed(w)
         self.__tag_cloud()
     
@@ -471,6 +479,7 @@ class MainController(Controller):
                 else:
                     self.view['tag_path'].set_text(txt + ", " +tag1)
             self.__tag_cloud()
+            
                     
         #elif event.type == gtk.gdk.MOTION_NOTIFY:
         #    window = tag_cloud.get_window(gtk.TEXT_WINDOW_TEXT)
@@ -511,10 +520,13 @@ class MainController(Controller):
                 return
         self.model.new()
 
-        # clear "details" buffer
-        buf = self.view['description'].get_buffer()
-        buf.set_text("")
-        self.view['description'].set_buffer(buf)
+        # cleanup files and details
+        try:
+            self.model.files_list.clear()
+        except:
+            pass
+        self.__hide_details()
+        self.view['tag_path_box'].hide()
         self.__activate_ui()
         self.__tag_cloud()
 
@@ -639,7 +651,18 @@ class MainController(Controller):
 
         if not path:
             path = Dialogs.LoadDBFile().run()
-
+        
+        # cleanup files and details
+        try:
+            self.model.files_list.clear()
+        except:
+            pass
+        self.__hide_details()
+        self.view['tag_path_box'].hide()
+        buf = self.view['tag_cloud_textview'].get_buffer()
+        buf.set_text('')
+        self.view['tag_cloud_textview'].set_buffer(buf)
+        
         if path:
             if not self.model.open(path):
                 Dialogs.Err("Error opening file - pyGTKtalog",
@@ -928,6 +951,28 @@ class MainController(Controller):
         return
 
     # NOTE: add tags / images
+    def on_delete_tag_activate(self, menu_item):
+        ids = self.__get_tv_selection_ids(self.view['files'])
+        if not ids:
+            Dialogs.Inf("Remove tags", "No files selected",
+                        "You have to select some files first.")
+            return
+        
+        tags = self.model.get_tags_by_file_id(ids)
+        if tags:
+            d = Dialogs.TagsRemoveDialog(tags)
+            retcode, retval = d.run()
+            if retcode=="ok" and not retval:
+                Dialogs.Inf("Remove tags", "No tags selected",
+                            "You have to select any tag to remove from files.")
+                return
+            elif retcode == "ok" and retval:
+                self.model.delete_tags(ids, retval)
+                self.model.get_root_entries()
+                self.view['files'].set_model(self.model.files_list)
+                self.__tag_cloud()
+        return
+        
     def on_add_tag1_activate(self, menu_item):
         #try:
         tags = Dialogs.TagsDialog().run()
@@ -1123,7 +1168,7 @@ class MainController(Controller):
             print "abort = %s" % self.model.abort
             print "self.model.config.recent = %s" % self.model.config.recent
             print "source: %s" % self.model.source
-            self.__tag_cloud()
+            
 
     #####################
     # observed properetis
@@ -1335,11 +1380,7 @@ class MainController(Controller):
         
         buf = gtk.TextBuffer()
         if not file_id:
-            buf.set_text('')
-            self.view['img_container'].hide()
-            self.view['exifinfo'].hide()
-            self.view['thumb_box'].hide()
-            self.view['description'].set_buffer(buf)
+            self.__hide_details()
             return
         #self.view['description'].show()
         set = self.model.get_file_info(file_id)
@@ -1452,6 +1493,16 @@ class MainController(Controller):
                                           cloud['name'] + "(%d)" % cloud['count'],
                                           tag)
                 except:
-                    print "fuckup", cloud
+                    if __debug__:
+                        print "c_main.py: __tag_cloud: error on tag:", cloud
+
+    def __hide_details(self):
+        """hide details and "reset" tabs visibility"""
+        buf = self.view['description'].get_buffer()
+        buf.set_text('')
+        self.view['img_container'].hide()
+        self.view['exifinfo'].hide()
+        self.view['thumb_box'].hide()
+        self.view['description'].set_buffer(buf)
 
     pass # end of class
