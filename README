@@ -62,7 +62,7 @@ For version 1.0 following aims have to be done:
 - searching database
 - tagging files (90%)
 	- user definied group of tags (represented by color in cloud tag)
-	- remove nasty bug in redraw of tag cloud
+	x remove nasty bug in redraw of tag cloud
 x file details:
 	x files properties
 		x thumbnail

@@ -220,6 +220,42 @@ class PointDirectoryToAdd(object):
         else:
             return None,None
 
+class SelectDirectory(object):
+    """Sepcific dialog for quering user for selecting directory to add"""
+
+    URI="file://"+os.path.abspath(os.path.curdir)
+
+    def __init__(self, title=None):
+        if title:
+            self.title = title
+        else:
+            self.title = "Choose directory"
+            
+    def run(self):
+        """dialog for point the mountpoint"""
+        dialog = gtk.FileChooserDialog(
+            title = self.title,
+            action = gtk.FILE_CHOOSER_ACTION_OPEN,
+            buttons = (
+                gtk.STOCK_CANCEL,
+                gtk.RESPONSE_CANCEL,
+                gtk.STOCK_OPEN,
+                gtk.RESPONSE_OK))
+
+        dialog.set_action(gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER)
+        dialog.set_default_response(gtk.RESPONSE_OK)
+
+        retval = None
+        
+        if self.URI:
+            dialog.set_current_folder_uri(self.URI)
+        response = dialog.run()
+        if response == gtk.RESPONSE_OK:
+            retval = dialog.get_filename()
+            self.__class__.URI = dialog.get_current_folder_uri()
+        dialog.destroy()
+        return retval
+
 class ChooseDBFilename(object):
     """Sepcific dialog for quering user for selecting filename for database"""
 
