@@ -175,12 +175,12 @@ class MainModel(ModelMT):
         ORDER BY t.tag"""
         self.db_cursor.execute(sql)
         res = self.db_cursor.fetchall()
-        
+
         retval = {}
         for tag in res:
             retval[tag[0]] = tag[1]
         return retval
-        
+
     def get_tag_by_id(self, tag_id):
         """get tag (string) by its id"""
         # SQL: get tag by id
@@ -190,10 +190,10 @@ class MainModel(ModelMT):
         if not res:
             return None
         return res[0]
-        
+
     def get_file_tags(self, file_id):
         """get tags of file"""
-        
+
         # SQL: get tag by id
         sql = """SELECT t.id, t.tag FROM tags t
         LEFT JOIN tags_files f ON t.id=f.tag_id
@@ -201,16 +201,16 @@ class MainModel(ModelMT):
         ORDER BY t.tag"""
         self.db_cursor.execute(sql, (int(file_id), ))
         res = self.db_cursor.fetchall()
-        
+
         tmp = {}
         if len(res) == 0:
             return None
-            
+
         for row in res:
             tmp[row[0]] = row[1]
-            
+
         return tmp
-        
+
     def delete_tags(self, file_id_list, tag_id_list):
         """remove tags from selected files"""
         for file_id in file_id_list:
@@ -222,7 +222,17 @@ class MainModel(ModelMT):
             sql = """DELETE FROM tags_files WHERE file_id = ?
             AND tag_id IN """ + sql
             self.db_cursor.execute(sql, (int(file_id), ))
+        self.db_connection.commit()
         
+        for tag_id in tag_id_list:
+            sql = """SELECT count(*) FROM tags_files WHERE tag_id=?"""
+            self.db_cursor.execute(sql, (int(tag_id),))
+            res = self.db_cursor.fetchone()
+            if res[0] == 0:
+                sql = """DELETE FROM tags WHERE id=?"""
+                self.db_cursor.execute(sql, (int(tag_id),))
+        self.db_connection.commit()
+
     def get_tags(self):
         """fill tags dict with values from db"""
         if not self.selected_tags:
@@ -237,7 +247,7 @@ class MainModel(ModelMT):
             WHERE f.file_id in """ + str(tuple(id_filter)) + \
             """GROUP BY f.tag_id
             ORDER BY t.tag"""
-            
+
         self.db_cursor.execute(sql)
         res = self.db_cursor.fetchall()
 
@@ -267,17 +277,17 @@ class MainModel(ModelMT):
                 tmp = 1
             self.tag_cloud[count]['size'] = tmp + 8
             count += 1
-            
+
     def add_tag_to_path(self, tag_id):
         """add tag to filter"""
         temp = {}
         tag_name = self.get_tag_by_id(tag_id)
         for i in self.selected_tags:
             temp[i] = self.selected_tags[i]
-            
+
         temp[int(tag_id)] = tag_name
         self.selected_tags = temp
-        
+
     def add_image(self, image, file_id, only_thumbs=False):
         """add single image to file/directory"""
         sql = """INSERT INTO images(file_id, thumbnail, filename)
@@ -320,7 +330,7 @@ class MainModel(ModelMT):
         sql = """DELETE FROM images WHERE file_id = ?"""
         self.db_cursor.execute(sql, (file_id,))
         self.db_connection.commit()
-        
+
     def save_image(self, image_id, file_path):
         """save image with specified id into file path (directory)"""
         sql = """SELECT i.filename, f.filename FROM images i
@@ -333,18 +343,18 @@ class MainModel(ModelMT):
             count = 1
             dest = os.path.join(file_path, res[1] + "_%d." % count + \
                                 res[0].split('.')[-1])
-            
+
             while os.path.exists(dest):
                 count += 1
                 dest = os.path.join(file_path, res[1] + "_%d." % count + \
                                 res[0].split('.')[-1])
-                
+
             shutil.copy(source, dest)
             return True
                 #os.unlink()
         else:
             return False
-        
+
     def delete_images_wth_thumbs(self, image_id):
         """removes image (without thumbnail) on specified image id"""
         sql = """SELECT filename FROM images WHERE id=?"""
@@ -361,7 +371,7 @@ class MainModel(ModelMT):
         sql = """UPDATE images set filename=NULL WHERE id = ?"""
         self.db_cursor.execute(sql, (image_id,))
         self.db_connection.commit()
-        
+
     def delete_image(self, image_id):
         """removes image on specified image id"""
         sql = """SELECT filename, thumbnail FROM images WHERE id=?"""
@@ -531,18 +541,18 @@ class MainModel(ModelMT):
             self.db_cursor.execute("update files set filename=? \
                                    WHERE id=?", (new_name, file_id))
             self.db_connection.commit()
-            
+
             for row in self.files_list:
                 if row[0] == file_id:
                     row[1] = new_name
                     break
-            
+
             def foreach_discs_tree(model, path, iterator, data):
                 if model.get_value(iterator, 0) == data[0]:
                     model.set_value(iterator, 1, data[1])
-                
+
             self.discs_tree.foreach(foreach_discs_tree, (file_id, new_name))
-            
+
             #self.__fetch_db_into_treestore()
             self.unsaved_project = True
         else:
@@ -585,12 +595,12 @@ class MainModel(ModelMT):
                 else:
                     sql="""SELECT id, filename, size, date FROM files
                     WHERE 1=0"""
-        
+
         if not parent_id and self.selected_tags:
             self.db_cursor.execute(sql)
         else:
             self.db_cursor.execute(sql, (parent_id,))
-            
+
         data = self.db_cursor.fetchall()
         for row in data:
             myiter = self.files_list.insert_before(None, None)
@@ -633,7 +643,7 @@ class MainModel(ModelMT):
             self.db_cursor.execute(sql)
         else:
             self.db_cursor.execute(sql, (parent_id,))
-            
+
         data = self.db_cursor.fetchall()
         for row in data:
             myiter = self.files_list.insert_before(None, None)
@@ -754,7 +764,7 @@ class MainModel(ModelMT):
         """Remove subtree (item and its children) from main tree, remove tags
         from database remove all possible data, like thumbnails, images, gthumb
         info, exif etc"""
-
+        
         fids = []
 
         if not db_cursor:
@@ -793,7 +803,13 @@ class MainModel(ModelMT):
         sql = """DELETE FROM tags_files WHERE file_id = ?"""
         db_cursor.executemany(sql, generator())
 
-        arg = str(tuple(fids))
+        if __debug__:
+            print "m_main.py: delete(): deleting:", fids
+            
+        if len(fids) == 1:
+            arg = "(%d)" % fids[0]
+        else:
+            arg = str(tuple(fids))
 
         # remove thumbnails
         sql = """SELECT filename FROM thumbnails WHERE file_id IN %s""" % arg
@@ -946,6 +962,7 @@ class MainModel(ModelMT):
         """update note and description"""
         sql = """UPDATE files SET description=?, note=? WHERE id=?"""
         self.db_cursor.execute(sql, (desc, note, file_id))
+        self.db_connection.commit()
         return
 
     # private class functions
@@ -1101,11 +1118,11 @@ class MainModel(ModelMT):
         self.db_cursor.execute(sql)
         self.db_connection.commit()
 
-        
+
     def __filter(self):
         """return list of ids of files (AND their parent, even if they have no
         assigned tags) that corresponds to tags"""
-        
+
         filtered_ids = []
         count = 0
         for tid in self.selected_tags:
@@ -1117,13 +1134,13 @@ class MainModel(ModelMT):
             data = self.db_cursor.fetchall()
             for row in data:
                 temp1.append(row[0])
-                
+
             if count > 0:
                 filtered_ids = list(set(filtered_ids).intersection(temp1))
             else:
                 filtered_ids = temp1
             count += 1
-                
+
         parents = []
         for i in filtered_ids:
             sql = """SELECT parent_id
@@ -1143,13 +1160,13 @@ class MainModel(ModelMT):
                         break
                     else:
                         parents.append(data[0])
-                        
+
         return list(set(parents).union(filtered_ids))
-        
+
     def __filter2(self):
         """return list of ids of files (WITHOUT their parent) that
         corresponds to tags"""
-        
+
         filtered_ids = []
         count = 0
         for tid in self.selected_tags:
@@ -1161,7 +1178,7 @@ class MainModel(ModelMT):
             data = self.db_cursor.fetchall()
             for row in data:
                 temp1.append(row[0])
-                
+
             if count > 0:
                 filtered_ids = list(set(filtered_ids).intersection(temp1))
             else:
@@ -1169,7 +1186,7 @@ class MainModel(ModelMT):
             count += 1
 
         return filtered_ids
-        
+
     def __scan(self):
         """scan content of the given path"""
         self.busy = True

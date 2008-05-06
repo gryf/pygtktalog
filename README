@@ -1,4 +1,4 @@
-pyGTKtalog 0.8
+pyGTKtalog 0.9
 ==============
 
 pyGTKtalog Linux/FreeBSD program for indexing CD/DVD or directories on
@@ -24,6 +24,7 @@ REQUIREMENTS
 
 pyGTKtalog is written in python with following dependencies:
 
+- python 2.4 or higher
 - pygtk <http://www.pygtk.org>
 - pysqlite2 <http://pysqlite.org/> (unnecessary, if python 2.5 is used)
 
@@ -37,7 +38,7 @@ Additional pyGTKtalog uses EXIF module by Gene Cash which is included in
 sources.
 
 pyGTKtalog extensivly uses external programs in unix spirit, however there is
-small possibility of using it Windows (probably with liitations) and quite big
+small possibility of using it Windows (probably with limitations) and quite big
 possiblity to run it on other sofisticated unix-like systems (i.e.
 BeOS/ZETA/Haiku, QNX or MacOSX).
 
@@ -57,11 +58,14 @@ Then, just run pyGTKtalog script.
 TODO
 ====
 
-For version 1.0 following aims have to be done:
+PyGTKtalog is still under heavy development, however there is small chance to
+change structure of catalogs (and if it'll change, there will be transparent
+function to update DB schema).
+
+For version 1.0 following major aims have to be done:
 
 - searching database
-- tagging files (90%)
-	- user definied group of tags (represented by color in cloud tag)
+x tagging files
 	x remove nasty bug in redraw of tag cloud
 x file details:
 	x files properties
@@ -75,6 +79,10 @@ x generating/saving thumbnails
 x moving hardcoded files extensions into config
 x statistics
 
+There are still minor aims for versions 1.x to be done:
+- consolidate popup-menus with edit menu
+- add popup menu for directly removing tag from tag cloud
+
 Legend: [-] not done, [x] done.
 
 For version 2.0:
@@ -82,6 +90,9 @@ For version 2.0:
 - command line support: query, adding media to collection etc
 - internationalization support
 - export to XLS
+- user definied group of tags (represented by color in cloud tag)
+- hiding specified files - configurable, like dot prefixed, cfg and manualy
+  selected
 
 Removed:
 - filetypes handling (movies, images, archives, documents etc). Now it have
@@ -100,7 +111,7 @@ Removed:
   Maybe in future versions. Now text file descriptions/notes and tags have to
   be enough for good and fast information search.
 - file information (date, size, etc) (50%) (no need for?)
-  
+
 NOTES
 =====
 

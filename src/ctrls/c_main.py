@@ -47,9 +47,9 @@ import pango
 class MainController(Controller):
     """Controller for main application window"""
     scan_cd = False
-    widgets = ("discs", "files", 'save1', 'save_as1', 'cut1', 'copy1',
-               'paste1', 'delete1', 'add_cd', 'add_directory1', 'tb_save',
-               'tb_addcd', 'tb_find', 'nb_dirs', 'description', 'stat1')
+    widgets = ("discs", "files", 'save1', 'save_as1', 'delete1', 'add_cd',
+               'add_directory1', 'tb_save', 'tb_addcd', 'tb_find', 'nb_dirs',
+               'description', 'stat1')
     widgets_all = ("discs", "files", 'file1', 'edit1', 'add_cd',
                    'add_directory1', 'help1', 'tb_save', 'tb_addcd', 'tb_find',
                    'tb_new', 'tb_open', 'tb_quit', 'nb_dirs', 'description',
@@ -72,7 +72,7 @@ class MainController(Controller):
         for widget in self.widgets:
             self.view[widget].set_sensitive(False)
 
-        # Make not active "Cancel" button and menuitem
+        # Make not active "Cancel" button and menu_item
         for widget in self.widgets_cancel:
             self.view[widget].set_sensitive(False)
 
@@ -123,11 +123,14 @@ class MainController(Controller):
 
         # generate recent menu
         self.__generate_recent_menu()
+
         
+        self.view['tag_cloud_textview'].connect("populate-popup",
+                                           self.on_tag_cloud_textview_popup)
         # in case model has opened file, register tags
         if self.model.internal_dirname:
             self.__tag_cloud()
-        
+
         # Show main window
         self.view['main'].show();
         self.view['main'].drag_dest_set(0, [], 0)
@@ -144,13 +147,13 @@ class MainController(Controller):
         iter = filestv.get_iter_at_location(x, y)
         buff = filestv.get_buffer()
         tag_table = buff.get_tag_table()
-        
+
         # clear weight of tags
         def foreach_tag(texttag, user_data):
             """set every text tag's weight to normal"""
             texttag.set_property("underline", pango.UNDERLINE_NONE)
         tag_table.foreach(foreach_tag, None)
-        
+
         try:
             tag = iter.get_tags()[0]
             tag.set_property("underline", pango.UNDERLINE_LOW)
@@ -173,12 +176,16 @@ class MainController(Controller):
             string = str(tuple(ids)).replace(",)", ")")
             selection.set(selection.target, 8, string)
 
+    def on_tag_cloud_textview_popup(self, textview, menu):
+        menu = None
+        return True
+
     def on_tag_cloud_textview_event_after(self, textview, event):
         if event.type != gtk.gdk.BUTTON_RELEASE:
             return False
         if event.button != 1:
             return False
-            
+
         buff = textview.get_buffer()
         try:
             (start, end) = buff.get_selection_bounds()
@@ -192,20 +199,20 @@ class MainController(Controller):
         (x, y) = textview.window_to_buffer_coords(gtk.TEXT_WINDOW_WIDGET,
                                               int(event.x), int(event.y))
         iterator = textview.get_iter_at_location(x, y)
-        
+
         tags = iterator.get_tags()
-        
+
         if len(tags) == 1:
             tag = tags[0]
             self.model.add_tag_to_path(tag.get_property('name'))
             self.view['tag_path_box'].show()
-            
+
             # fill the path of tag
             self.view['tag_path'].set_text('')
             temp = self.model.selected_tags.values()
             self.model.refresh_discs_tree()
             #self.on_discs_cursor_changed(textview)
-            
+
             temp.sort()
             for tag1 in temp:
                 txt = self.view['tag_path'].get_text()
@@ -220,7 +227,7 @@ class MainController(Controller):
 
     def on_tag_cloud_textview_drag_data_received(self, widget, context, x, y,
                                                  selection, targetType, time):
-        """recive data from source TV"""
+        """recive data from source TreeView"""
         if targetType == self.DND_TARGETS[0][2]:
             iter = widget.get_iter_at_location(x, y)
             ids = selection.data.rstrip(")").lstrip("(").split(",")
@@ -402,7 +409,7 @@ class MainController(Controller):
         self.view['tag_path_box'].hide()
         self.model.selected_tags = []
         self.model.refresh_discs_tree()
-        
+
         # cleanup files and detiles
         try:
             self.model.files_list.clear()
@@ -411,18 +418,18 @@ class MainController(Controller):
         self.__hide_details()
         self.on_discs_cursor_changed(w)
         self.__tag_cloud()
-    
+
     def on_tag_cloud_textview_drag_leave(self, textview, dragcontext, time):
         """clean up tags properties"""
         buff = textview.get_buffer()
         tag_table = buff.get_tag_table()
-        
+
         # clear weight of tags
         def foreach_tag(texttag, user_data):
             """set every text tag's weight to normal"""
             texttag.set_property("underline", pango.UNDERLINE_NONE)
         tag_table.foreach(foreach_tag, None)
-    
+
     # NOTE: text view "links" functions
     def on_tag_cloud_textview_visibility_notify_event(self, textview, event):
         (wx, wy, mod) = textview.window.get_pointer()
@@ -438,7 +445,7 @@ class MainController(Controller):
         textview = self.view['tag_cloud_textview']
         # get the iter at the mouse position
         iter = textview.get_iter_at_location(x, y)
-        
+
         # set _hovering if the iter has the tag "url"
         tags = iter.get_tags()
         for tag in tags:
@@ -457,20 +464,20 @@ class MainController(Controller):
                 textview.get_window(gtk.TEXT_WINDOW_TEXT).\
                         set_cursor(gtk.gdk.Cursor(gtk.gdk.LEFT_PTR))
 
-                        
+
     def on_tag_cloud_click(self, tag, textview, event, b_iter, data):
         """react on click on connected tag items"""
         tag_cloud = self.view['tag_cloud_textview']
         if event.type == gtk.gdk.BUTTON_RELEASE:
             self.model.add_tag_to_path(tag.get_property('name'))
             self.view['tag_path_box'].show()
-            
+
             # fill the path of tag
             self.view['tag_path'].set_text('')
             temp = self.model.selected_tags.values()
             self.model.refresh_discs_tree()
             #self.on_discs_cursor_changed(textview)
-            
+
             temp.sort()
             for tag1 in temp:
                 txt = self.view['tag_path'].get_text()
@@ -479,8 +486,8 @@ class MainController(Controller):
                 else:
                     self.view['tag_path'].set_text(txt + ", " +tag1)
             self.__tag_cloud()
-            
-                    
+
+
         #elif event.type == gtk.gdk.MOTION_NOTIFY:
         #    window = tag_cloud.get_window(gtk.TEXT_WINDOW_TEXT)
         #    if window:
@@ -489,7 +496,7 @@ class MainController(Controller):
         #    window = tag_cloud.get_window(gtk.TEXT_WINDOW_TEXT)
         #    if window:
         #        window.set_cursor(None)
-            
+
     # NOTE: quit / close window
     def on_main_destroy_event(self, window, event):
         self.on_quit_activate(window)
@@ -556,7 +563,7 @@ class MainController(Controller):
                         "Last mount message:\n%s" % mount)
             return False
 
-    def on_add_directory1_activate(self, widget, path=None, label=None,
+    def on_add_directory_activate(self, widget, path=None, label=None,
                                    current_id=None):
         """Show dialog for choose drectory to add from filesystem."""
         if not label or not path:
@@ -651,7 +658,7 @@ class MainController(Controller):
 
         if not path:
             path = Dialogs.LoadDBFile().run()
-        
+
         # cleanup files and details
         try:
             self.model.files_list.clear()
@@ -662,7 +669,7 @@ class MainController(Controller):
         buf = self.view['tag_cloud_textview'].get_buffer()
         buf.set_text('')
         self.view['tag_cloud_textview'].set_buffer(buf)
-        
+
         if path:
             if not self.model.open(path):
                 Dialogs.Err("Error opening file - pyGTKtalog",
@@ -683,7 +690,7 @@ class MainController(Controller):
             id = self.model.discs_tree.get_value(iter, 0)
             self.model.get_root_entries(id)
             self.__get_item_info(id)
-            
+
         return
 
     def on_discs_row_activated(self, treeview, path, treecolumn):
@@ -693,37 +700,60 @@ class MainController(Controller):
         else:
             treeview.expand_row(path, False)
         return
-
+    
+    def on_discs_key_release_event(self, treeview, event):
+        if gtk.gdk.keyval_name(event.keyval) == 'Menu':
+            ids = self.__get_tv_selection_ids(treeview)
+            menu_items = ['update1','rename1','delete2', 'statistics1']
+            for menu_item in menu_items:
+                self.view[menu_item].set_sensitive(not not ids)
+            self.__popup_menu(event, 'discs_popup')
+            return True
+        return False
+    
+    def on_images_key_release_event(self, iconview, event):
+        if gtk.gdk.keyval_name(event.keyval) == 'Menu':
+            self.__popup_menu(event, 'img_popup')
+            return True
+        return False
+        
     def on_images_button_press_event(self, iconview, event):
-        try:
-            path_and_cell = iconview.get_item_at_pos(int(event.x),
-                                                     int(event.y))
-        except TypeError:
-            return False
+        #try:
+        #    path_and_cell = iconview.get_item_at_pos(int(event.x),
+        #                                             int(event.y))
+        #except TypeError:
+        #    return False
 
         if event.button == 3: # Right mouse button. Show context menu.
-            try:
-                iconview.select_path(path_and_cell[0])
-            except TypeError:
-                return False
+            #try:
+            #    iconview.select_path(path_and_cell[0])
+            #except TypeError:
+            #    return False
 
             self.__popup_menu(event, 'img_popup')
             return True
         return False
 
     def on_img_delete_activate(self, menu_item):
+        """delete selected images (with thumbnails)"""
+        list_of_paths = self.view['images'].get_selected_items()
+        if not list_of_paths:
+            Dialogs.Inf("Delete images", "No images selected",
+                        "You have to select at least one image to delete.")
+            return
+            
         if self.model.config.confd['delwarn']:
             obj = Dialogs.Qst('Delete images', 'Delete selected images?',
                   'Selected images will be permanently removed from catalog.')
             if not obj.run():
                 return
-        list_of_paths = self.view['images'].get_selected_items()
+            
         model = self.view['images'].get_model()
         for path in list_of_paths:
             iter = model.get_iter(path)
             id = model.get_value(iter, 0)
             self.model.delete_image(id)
-        
+
         # refresh files tree
         try:
             path, column = self.view['files'].get_cursor()
@@ -742,41 +772,55 @@ class MainController(Controller):
         """export images (not thumbnails) into desired direcotry"""
         dialog = Dialogs.SelectDirectory("Choose directory to save images")
         filepath = dialog.run()
-        
+
         if not filepath:
             return
-            
+
         list_of_paths = self.view['images'].get_selected_items()
         model = self.view['images'].get_model()
         
         count = 0
-        
-        for path in list_of_paths:
-            icon_iter = model.get_iter(path)
-            img_id = model.get_value(icon_iter, 0)
+
+        if len(list_of_paths) == 0:
+            # no picture was selected. default to save all of them
+            for image in model:
+                if self.model.save_image(image[0], filepath):
+                    count += 1
+        else:
+            # some pictures was selected, save them
+            for path in list_of_paths:
+                icon_iter = model.get_iter(path)
+                img_id = model.get_value(icon_iter, 0)
             if self.model.save_image(img_id, filepath):
                 count += 1
-        if len(list_of_paths) > 0:
-            if count > 0:
-                Dialogs.Inf("Save images",
-                            "%d images was succsefully saved." % count,
-                            "Images are placed in directory:\n%s." % filepath)
-            else:
-                Dialogs.Inf("Save images",
-                            "No images was saved.",
-                            "Images probably don't have real images - only" + \
-                            " thumbnails.")
-    
+
+        if count > 0:
+            Dialogs.Inf("Save images",
+                        "%d images was succsefully saved." % count,
+                        "Images are placed in directory:\n%s." % filepath)
+        else:
+            Dialogs.Inf("Save images",
+                        "No images was saved.",
+                        "Images probably don't have real images - only" + \
+                        " thumbnails.")
+        return
+
     def on_img_delete2_activate(self, menu_item):
         """remove images, but keep thumbnails"""
+        list_of_paths = self.view['images'].get_selected_items()
+        
+        if not list_of_paths:
+            Dialogs.Inf("Delete images", "No images selected",
+                        "You have to select at least one image to delete.")
+            return
+        
         if self.model.config.confd['delwarn']:
             obj = Dialogs.Qst('Delete images', 'Delete selected images?',
                   'Selected images will be permanently removed from ' + \
                   'catalog,\nthumbnails will be keeped.')
             if not obj.run():
                 return
-                
-        list_of_paths = self.view['images'].get_selected_items()
+
         model = self.view['images'].get_model()
         for path in list_of_paths:
             iter = model.get_iter(path)
@@ -795,7 +839,7 @@ class MainController(Controller):
         self.model.unsaved_project = True
         self.__set_title(filepath=self.model.filename, modified=True)
         return
-        
+
     def on_img_add_activate(self, menu_item):
         self.on_add_image1_activate(menu_item)
 
@@ -822,31 +866,29 @@ class MainController(Controller):
             if path not in list_of_paths:
                 treeview.get_selection().unselect_all()
                 treeview.get_selection().select_path(path)
-
-            iter = self.model.discs_tree.get_iter(path)
-            if self.model.discs_tree.get_value(iter, 3) == 1:
-                # if ancestor is 'root', then activate "update" menu item
-                self.view['update1'].set_sensitive(True)
-            else:
-                self.view['update1'].set_sensitive(False)
+            # setup menu
+            ids = self.__get_tv_selection_ids(treeview)
+            menu_items = ['update1','rename1','delete2', 'statistics1']
+            for menu_item in menu_items:
+                self.view[menu_item].set_sensitive(not not ids)
+                
+            # checkout, if we dealing with disc or directory
+            # if ancestor is 'root', then activate "update" menu item
+            treeiter = self.model.discs_tree.get_iter(path)
+            ancestor = self.model.discs_tree.get_value(treeiter, 3) == 1
+            self.view['update1'].set_sensitive(ancestor)
+                
             self.__popup_menu(event)
 
-    def on_expand_all1_activate(self, menuitem):
+    def on_expand_all1_activate(self, menu_item):
         self.view['discs'].expand_all()
         return
 
-    def on_collapse_all1_activate(self, menuitem):
+    def on_collapse_all1_activate(self, menu_item):
         self.view['discs'].collapse_all()
         return
 
     def on_files_button_press_event(self, tree, event):
-        try:
-            path, column, x, y = tree.get_path_at_pos(int(event.x),
-                                                      int(event.y))
-        except TypeError:
-            tree.get_selection().unselect_all()
-            return False
-
         if event.button == 3: # Right mouse button. Show context menu.
             try:
                 selection = tree.get_selection()
@@ -855,6 +897,14 @@ class MainController(Controller):
                 list_of_paths = []
 
             if len(list_of_paths) == 0:
+                # try to select item under cursor
+                try:
+                    path, column, x, y = tree.get_path_at_pos(int(event.x),
+                                                              int(event.y))
+                except TypeError:
+                    # failed, do not show any popup and return
+                    tree.get_selection().unselect_all()
+                    return False
                 selection.select_path(path[0])
 
             if len(list_of_paths) > 1:
@@ -867,8 +917,8 @@ class MainController(Controller):
                 self.view['edit2'].set_sensitive(True)
             self.__popup_menu(event, 'files_popup')
             return True
-        if event.button == 1:
-            return False
+        #if event.button == 1:
+        #    return False
 
     def on_files_cursor_changed(self, treeview):
         """Show details of selected file/directory"""
@@ -877,6 +927,17 @@ class MainController(Controller):
         return
 
     def on_files_key_release_event(self, treeview, event):
+        """do something with pressed keys"""
+        if gtk.gdk.keyval_name(event.keyval) == 'Menu':
+            try:
+                selection = treeview.get_selection()
+                model, list_of_paths = selection.get_selected_rows()
+                if not list_of_paths:
+                    return
+            except TypeError:
+                return
+            self.__popup_menu(event, 'files_popup')
+            
         if gtk.gdk.keyval_name(event.keyval) == 'BackSpace':
             d_path, d_column = self.view['discs'].get_cursor()
             if d_path and d_column:
@@ -903,9 +964,9 @@ class MainController(Controller):
                             iter = None
                         else:
                             iter = self.model.discs_tree.iter_next(iter)
-        if gtk.gdk.keyval_name(event.keyval) == 'Delete':
-            for file_id in  self.__get_tv_selection_ids(treeview):
-                self.main.delete(file_id)
+        #if gtk.gdk.keyval_name(event.keyval) == 'Delete':
+        #    for file_id in  self.__get_tv_selection_ids(treeview):
+        #        self.main.delete(file_id)
 
         ids = self.__get_tv_selection_ids(self.view['files'])
 
@@ -951,13 +1012,16 @@ class MainController(Controller):
         return
 
     # NOTE: add tags / images
+    def on_delete_tag2_activate(self, menu_item):
+        pass
+        
     def on_delete_tag_activate(self, menu_item):
         ids = self.__get_tv_selection_ids(self.view['files'])
         if not ids:
             Dialogs.Inf("Remove tags", "No files selected",
                         "You have to select some files first.")
             return
-        
+
         tags = self.model.get_tags_by_file_id(ids)
         if tags:
             d = Dialogs.TagsRemoveDialog(tags)
@@ -972,7 +1036,7 @@ class MainController(Controller):
                 self.view['files'].set_model(self.model.files_list)
                 self.__tag_cloud()
         return
-        
+
     def on_add_tag1_activate(self, menu_item):
         #try:
         tags = Dialogs.TagsDialog().run()
@@ -996,8 +1060,8 @@ class MainController(Controller):
 
     def on_add_image1_activate(self, menu_item):
         dialog = Dialogs.LoadImageFile(True)
-        toggle = gtk.CheckButton("Don't copy images. \
-                                 Generate only thumbnails.")
+        toggle = gtk.CheckButton("Don't copy images. " + \
+                                 "Generate only thumbnails.")
         toggle.show()
         dialog.dialog.set_extra_widget(toggle)
 
@@ -1039,17 +1103,32 @@ class MainController(Controller):
         if self.model.get_source(path) == self.model.CD:
             self.on_add_cd_activate(menu_item, label, fid)
         elif self.model.get_source(path) == self.model.DR:
-            self.on_add_directory1_activate(menu_item, filepath, label, fid)
+            self.on_add_directory_activate(menu_item, filepath, label, fid)
 
         return
 
+    def on_delete1_activate(self, menu_item):
+        """Main menu delete dispatcher"""
+        if self.view['files'].is_focus():
+            self.on_delete3_activate(menu_item)
+        if self.view['discs'].is_focus():
+            self.on_delete2_activate(menu_item)
+        if self.view['images'].is_focus():
+            self.on_img_delete_activate(menu_item)
+        
     def on_delete2_activate(self, menu_item):
         try:
             selection = self.view['discs'].get_selection()
             model, selected_iter = selection.get_selected()
         except:
             return
-
+        
+        if not selected_iter:
+            Dialogs.Inf("Delete disc", "No disc selected",
+                        "You have to select disc first before you " +\
+                        "can delete it")
+            return
+            
         if self.model.config.confd['delwarn']:
             name = model.get_value(selected_iter, 1)
             obj = Dialogs.Qst('Delete %s' % name, 'Delete %s?' % name,
@@ -1093,11 +1172,16 @@ class MainController(Controller):
             model, list_of_paths = selection.get_selected_rows()
         except TypeError:
             return
-
+            
+        if not list_of_paths:
+            Dialogs.Inf("Delete files", "No files selected",
+                        "You have to select at least one file to delete.")
+            return
+        
         if self.model.config.confd['delwarn']:
-            obj = Dialogs.Qst("Delete elements", "Delete items?",
-                              "Items will be permanently \
-                              removed from catalog.")
+            obj = Dialogs.Qst("Delete files", "Delete files?",
+                              "Selected files and directories will be" + \
+                              " permanently\nremoved from catalog.")
             if not obj.run():
                 return
 
@@ -1155,7 +1239,15 @@ class MainController(Controller):
             self.model.unsaved_project = True
             self.__set_title(filepath=self.model.filename, modified=True)
         return
-
+    
+    def on_edit1_activate(self, menu_item):
+        """Make sufficient menu items sensitive in right cases"""
+        # TODO: consolidate popup-menus with edit menu
+        if  self.view['tag_cloud_textview'].is_focus():
+            self.view['delete1'].set_sensitive(False)
+        else:
+            self.view['delete1'].set_sensitive(True)
+        
     def on_debugbtn_clicked(self, widget):
         """Debug. To remove in stable version, including button in GUI"""
         if __debug__:
@@ -1168,7 +1260,10 @@ class MainController(Controller):
             print "abort = %s" % self.model.abort
             print "self.model.config.recent = %s" % self.model.config.recent
             print "source: %s" % self.model.source
-            
+            print "files have focus", self.view['files'].is_focus()
+            print "discs have focus", self.view['discs'].is_focus()
+            print "images have focus", self.view['images'].is_focus()
+
 
     #####################
     # observed properetis
@@ -1229,7 +1324,7 @@ class MainController(Controller):
                 print "getting selected items"
             return
         return None
-        
+
     def __get_tv_id_under_cursor(self, treeview):
         """get id of item form tree view under cursor"""
         path, column = treeview.get_cursor()
@@ -1239,7 +1334,7 @@ class MainController(Controller):
             item_id = model.get_value(tm_iter, 0)
             return item_id
         return None
-            
+
     def __setup_disc_treeview(self):
         """Setup TreeView discs widget as tree."""
         self.view['discs'].set_model(self.model.discs_tree)
@@ -1360,8 +1455,9 @@ class MainController(Controller):
 
     def __popup_menu(self, event, menu='discs_popup'):
         """Popoup desired menu"""
-        self.view[menu].popup(None, None, None, event.button,
-                                       event.time)
+        self.view[menu].popup(None, None, None, 0, 0)
+        #self.view[menu].popup(None, None, None, event.button,
+        #                               event.time)
         self.view[menu].show_all()
         return
 
@@ -1377,7 +1473,7 @@ class MainController(Controller):
         return
 
     def __get_item_info(self, file_id):
-        
+
         buf = gtk.TextBuffer()
         if not file_id:
             self.__hide_details()
@@ -1423,7 +1519,7 @@ class MainController(Controller):
             tag.set_property('weight', pango.WEIGHT_BOLD)
             buf.insert_with_tags(buf.get_end_iter(), "Note:\n", tag)
             buf.insert(buf.get_end_iter(), set['note'])
-        
+
         tags = self.model.get_file_tags(file_id)
         if tags:
             buf.insert(buf.get_end_iter(), "\n")
@@ -1460,7 +1556,7 @@ class MainController(Controller):
         """generate tag cloud"""
         tag_cloud = self.view['tag_cloud_textview']
         self.model.get_tags()
-        
+
         def insert_blank(buff, b_iter):
             if b_iter.is_end() and b_iter.is_start():
                 return b_iter
@@ -1470,18 +1566,18 @@ class MainController(Controller):
             return b_iter
 
         buff = tag_cloud.get_buffer()
-        
+
         # NOTE: remove old tags
         def foreach_rem(texttag, data):
             """remove old tags"""
             tag_table.remove(texttag)
-            
+
         tag_table = buff.get_tag_table()
         while tag_table.get_size() > 0:
             tag_table.foreach(foreach_rem, None)
-        
+
         buff.set_text('')
-        
+
         if len(self.model.tag_cloud) > 0:
             for cloud in self.model.tag_cloud:
                 buff_iter = insert_blank(buff, buff.get_end_iter())
@@ -1490,7 +1586,8 @@ class MainController(Controller):
                     tag.set_property('size-points', cloud['size'])
                     #tag.connect('event', self.on_tag_cloud_click, tag)
                     buff.insert_with_tags(buff_iter,
-                                          cloud['name'] + "(%d)" % cloud['count'],
+                                          cloud['name'] + "(%d)" % \
+                                          cloud['count'],
                                           tag)
                 except:
                     if __debug__:
