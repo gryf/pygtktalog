@@ -231,7 +231,7 @@ class SelectDirectory(object):
             self.title = title
         else:
             self.title = "Choose directory"
-            
+
     def run(self):
         """dialog for point the mountpoint"""
         dialog = gtk.FileChooserDialog(
@@ -247,7 +247,7 @@ class SelectDirectory(object):
         dialog.set_default_response(gtk.RESPONSE_OK)
 
         retval = None
-        
+
         if self.URI:
             dialog.set_current_folder_uri(self.URI)
         response = dialog.run()
@@ -479,7 +479,7 @@ class StatsDialog(object):
         if result == gtk.RESPONSE_OK:
             return entry.get_text()
         return None
-        
+
 class TagsDialog(object):
     """Sepcific dialog for display stats"""
 
@@ -498,7 +498,7 @@ class TagsDialog(object):
         if result == gtk.RESPONSE_OK:
             return entry.get_text()
         return None
-        
+
 class TagsRemoveDialog(object):
     """Sepcific dialog for display stats"""
 
@@ -509,34 +509,44 @@ class TagsRemoveDialog(object):
     def run(self):
         if not self.tag_dict:
             return None
-            
+
         gladexml = gtk.glade.XML(self.gladefile, "tagRemove")
         dialog = gladexml.get_widget("tagRemove")
-        
-        # fill model with dict
+
+        # declare model
         model = gtk.ListStore(gobject.TYPE_INT,
                               gobject.TYPE_STRING, gobject.TYPE_BOOLEAN)
-        for tag in self.tag_dict:
+        # sort dict
+        values = self.tag_dict.values()
+        values.sort()
+        keys = []
+        for val in values:
+            for d_key, d_value in self.tag_dict.items():
+                if d_value == val:
+                    keys.append(d_key)
+
+        # fill model with dict
+        for count in range(len(keys)):
             myiter = model.insert_before(None, None)
-            model.set_value(myiter, 0, tag)
-            model.set_value(myiter, 1, self.tag_dict[tag])
+            model.set_value(myiter, 0, keys[count])
+            model.set_value(myiter, 1, values[count])
             model.set_value(myiter, 2, None)
-        
+
         def toggle(cell, path, model):
             model[path][2] = not model[path][2]
-            
+
         def toggle_all(column, model):
             for row in model:
                 row[2] = not row[2]
-            
+
         treeview = gladexml.get_widget("treeview1")
         treeview.set_model(model)
-        
+
         renderer = gtk.CellRendererText()
         column = gtk.TreeViewColumn("Tag", renderer, text=1)
         column.set_property('expand', True)
         treeview.append_column(column)
-        
+
         renderer = gtk.CellRendererToggle()
         renderer.set_property('activatable', True)
         renderer.connect('toggled', toggle, model)
@@ -546,7 +556,7 @@ class TagsRemoveDialog(object):
         column.set_property("clickable", True)
         column.connect("clicked", toggle_all, model)
         treeview.append_column(column)
-        
+
         result = dialog.run()
 
         dialog.destroy()

@@ -39,7 +39,6 @@ class MainView(View):
         self['separatormenuitem4'].hide()
         self['list1'].hide()
         self['thumbnails1'].hide()
-        #self['tag_cloud_textview'].drag_dest_set(0, [], 0)
         return
 
     pass # end of class
