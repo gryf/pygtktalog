@@ -152,7 +152,7 @@
                         <property name="label" translatable="yes">Add _CD/DVD</property>
                         <property name="use_underline">True</property>
                         <signal name="activate" handler="on_add_cd_activate"/>
-                        <accelerator key="c" modifiers="GDK_CONTROL_MASK" signal="activate"/>
+                        <accelerator key="e" modifiers="GDK_CONTROL_MASK" signal="activate"/>
                       </widget>
                     </child>
                     <child>
