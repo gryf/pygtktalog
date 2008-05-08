@@ -22,6 +22,7 @@
 
 #  -------------------------------------------------------------------------
 import sys
+import os
 try:
     import gtk
 except ImportError:
@@ -87,26 +88,25 @@ def check_requirements():
             print "want to make\nthumbnails!"
     return
 
+if __name__ == "__main__":
+    # Directory from where pygtkatalog was invoced. We need it for calculate
+    # path for argument (catalog file)
+    execution_dir = os.path.abspath(os.path.curdir)
+    # Directory, where this files lies. We need it to setup private source
+    # paths
+    libraries_dir = os.path.dirname(__file__)
+    os.chdir(libraries_dir)
 
-def get_parameters():
-    """Determine application command line options, return db full pathname"""
-    import os
-    # if we've got two arguments, shell script passed through command line
-    # options: current path and probably filename of compressed collection
-    if len(sys.argv) > 2:
-        return os.path.join(sys.argv[1], sys.argv[2])
-    return False
+    setup_path()
+    check_requirements()
 
-
-def main(*args):
-    """Main function of module pyGTKtalog"""
     from models.m_main import MainModel
     from ctrls.c_main import MainController
     from views.v_main import MainView
 
     model = MainModel()
-    if args and args[0]:
-        model.open(args[0])
+    if len(sys.argv) > 1:
+        model.open(os.path.join(execution_dir, sys.argv[1]))
     controler = MainController(model)
     view = MainView(controler)
 
@@ -116,11 +116,3 @@ def main(*args):
         model.config.save()
         model.cleanup()
         gtk.main_quit
-    pass
-    return
-
-if __name__ == "__main__":
-    setup_path()
-    check_requirements()
-    main(get_parameters())
-    pass
