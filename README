@@ -34,8 +34,9 @@ Optional modules:
 - pyExcelerator <http://sourceforge.net/projects/pyexcelerator> for export to
   excel capability
 
-Additional pyGTKtalog uses EXIF module by Gene Cash which is included in 
-sources and slightly updatetd to EXIF 2.2.
+Additional pyGTKtalog uses pygtkmvc <http://pygtkmvc.sourceforge.net> by Roberto
+Cavada and EXIF module by Gene Cash (slightly updatetd to EXIF 2.2 by me) which
+are included in sources.
 
 pyGTKtalog extensivly uses external programs in unix spirit, however there is
 small possibility of using it Windows (probably with limitations) and quite big
@@ -54,7 +55,7 @@ That's it. Alternatively, if you like to put it in more system wide place, all
 you have to do is:
 
 - put pyGTKtalog directory into your destination of choice (/usr/local/share,
-  /opt or ~/ is typical choice)
+  /opt or ~/ is typical bet)
 - copy pyGTKtalog shell script to /usr/bin, /usr/local/bin or in
   other place, where PATH variable is pointing or you feel like.
 - then modify pyGTKtalog line 6 to match right pygtktalog.py directory
