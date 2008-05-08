@@ -616,7 +616,11 @@ class MainController(Controller):
 
     def on_save_as_activate(self, widget):
         """Save database to file under different filename."""
-        path = Dialogs.ChooseDBFilename().run()
+        initial_path = None
+        if self.model.config.recent[0]:
+            initial_path = os.path.dirname(self.model.config.recent[0])
+
+        path = Dialogs.ChooseDBFilename(initial_path).run()
         if path:
             ret, err = self.model.save(path)
             if ret:
@@ -651,8 +655,12 @@ class MainController(Controller):
             if not obj.run():
                 return
 
+        initial_path = None
+        if self.model.config.recent[0]:
+            initial_path = os.path.dirname(self.model.config.recent[0])
+
         if not path:
-            path = Dialogs.LoadDBFile().run()
+            path = Dialogs.LoadDBFile(initial_path).run()
 
         # cleanup files and details
         try:
