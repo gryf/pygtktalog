@@ -150,7 +150,9 @@ class ConfigModel(Model):
     )
 
     recent = []
+    search_history = []
     RECENT_MAX = 10
+    HISTORY_MAX = 20
 
     dstring = ('cd','ejectapp','imgprog')
 
@@ -202,6 +204,17 @@ class ConfigModel(Model):
                 break
             count+=1
 
+        # search history section
+        newIni.add_section("search history")
+        count = 1
+        max_count = self.HISTORY_MAX + 1
+        for opt in self.search_history:
+            if count < max_count:
+                newIni.add_key(count, opt)
+            else:
+                break
+            count+=1
+
         # extensions sections
         newIni.add_section("extensions")
         count = 1
@@ -228,18 +241,20 @@ class ConfigModel(Model):
             parser = ConfigParser()
             parser.read("%s/.pygtktalog" % self.path)
             r = {}
+            h = {}
             self.recent = []
+            self.search_history = []
             for sec in parser.sections():
                 if sec == 'pyGTKtalog conf':
                     for opt in parser.options(sec):
                         i = self.dictconf[opt]
                         try:
                             if self.dictconf[opt] in self.dbool:
-                                self.confd[i] = parser.getboolean(sec,opt)
+                                self.confd[i] = parser.getboolean(sec, opt)
                             elif self.dictconf[opt] in self.dstring:
-                                self.confd[i] = parser.get(sec,opt)
+                                self.confd[i] = parser.get(sec, opt)
                             else:
-                                self.confd[i] = parser.getint(sec,opt)
+                                self.confd[i] = parser.getint(sec, opt)
                         except:
                             if __debug__:
                                 print "m_config.py: load() failed to parse",
@@ -248,7 +263,16 @@ class ConfigModel(Model):
                 elif sec == 'pyGTKtalog recent':
                     for opt in parser.options(sec):
                         try:
-                            r[int(opt)] = parser.get(sec,opt)
+                            r[int(opt)] = parser.get(sec, opt)
+                        except:
+                            if __debug__:
+                                print "m_config.py: load() failed to parse",
+                                print "option:", opt
+                            pass
+                elif sec == 'search history':
+                    for opt in parser.options(sec):
+                        try:
+                            h[int(opt)] = parser.get(sec, opt)
                         except:
                             if __debug__:
                                 print "m_config.py: load() failed to parse",
@@ -269,6 +293,9 @@ class ConfigModel(Model):
             for i in range(1, self.RECENT_MAX + 1):
                 if i in r:
                     self.recent.append(r[i])
+            for i in range(1, self.HISTORY_MAX + 1):
+                if i in h:
+                    self.search_history.append(h[i])
 
         except:
             if __debug__:
@@ -287,6 +314,20 @@ class ConfigModel(Model):
         self.recent.insert(0,path)
         if len(self.recent) > self.RECENT_MAX:
             self.recent = self.recent[:self.RECENT_MAX]
+        return
+
+    def add_search_history(self, text):
+        if not text:
+            return
+
+        if  text in self.search_history:
+            self.search_history.remove(text)
+            self.search_history.insert(0, text)
+            return
+
+        self.search_history.insert(0, text)
+        if len(self.search_history) > self.HISTORY_MAX:
+            self.search_history = self.search_history[:self.HISTORY_MAX]
         return
 
     def __str__(self):
