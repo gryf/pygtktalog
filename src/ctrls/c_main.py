@@ -1532,19 +1532,24 @@ class MainController(Controller):
         #self.view['description'].show()
         set = self.model.get_file_info(file_id)
 
-        if __debug__ and 'debug' in set:
-            tag = buf.create_tag()
-            tag.set_property('weight', pango.WEIGHT_BOLD)
+        tag = buf.create_tag()
+        tag.set_property('weight', pango.WEIGHT_BOLD)
+
+        if __debug__ and 'fileinfo' in set:
             buf.insert_with_tags(buf.get_end_iter(), "ID: ", tag)
-            buf.insert(buf.get_end_iter(), str(set['debug']['id']) + "\n")
-            buf.insert_with_tags(buf.get_end_iter(), "Filename: ", tag)
-            buf.insert(buf.get_end_iter(), set['filename'] + "\n")
-            buf.insert_with_tags(buf.get_end_iter(), "Date: ", tag)
-            buf.insert(buf.get_end_iter(), str(set['debug']['date']) + "\n")
-            buf.insert_with_tags(buf.get_end_iter(), "Size: ", tag)
-            buf.insert(buf.get_end_iter(), str(set['debug']['size']) + "\n")
+            buf.insert(buf.get_end_iter(), str(set['fileinfo']['id']) + "\n")
             buf.insert_with_tags(buf.get_end_iter(), "Type: ", tag)
-            buf.insert(buf.get_end_iter(), str(set['debug']['type']) + "\n\n")
+            buf.insert(buf.get_end_iter(), str(set['fileinfo']['type']) + "\n")
+
+        if set['fileinfo']['type'] == 1:
+            buf.insert_with_tags(buf.get_end_iter(), "Directory: ", tag)
+        else:
+            buf.insert_with_tags(buf.get_end_iter(), "Filename: ", tag)
+        buf.insert(buf.get_end_iter(), set['filename'] + "\n")
+        buf.insert_with_tags(buf.get_end_iter(), "Date: ", tag)
+        buf.insert(buf.get_end_iter(), str(set['fileinfo']['date']) + "\n")
+        buf.insert_with_tags(buf.get_end_iter(), "Size: ", tag)
+        buf.insert(buf.get_end_iter(), str(set['fileinfo']['size']) + "\n")
 
         if 'gthumb' in set:
             tag = buf.create_tag()

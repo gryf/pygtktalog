@@ -817,7 +817,7 @@ class MainModel(ModelMT):
         self.db_cursor.execute(sql, (file_id,))
         res = self.db_cursor.fetchone()
         if res:
-            retval['debug'] = {'id': file_id,
+            retval['fileinfo'] = {'id': file_id,
             'date': datetime.fromtimestamp(res[1]),
             'size': res[2], 'type': res[3]}
 
