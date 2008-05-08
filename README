@@ -1,7 +1,7 @@
-pyGTKtalog 0.9
+pyGTKtalog 1.0 RC1
 ==============
 
-pyGTKtalog Linux/FreeBSD program for indexing CD/DVD or directories on
+pyGTKtalog is Linux/FreeBSD program for indexing CD/DVD or directories on
 filesystem. It is similar to gtktalog <http://www.nongnu.org/gtktalog/> or
 gwhere <http://www.gwhere.org/home.php3>. There is no coincidence in name of
 application, because it's ment to be replacement (in some way) for gtktalog,
@@ -35,7 +35,7 @@ Optional modules:
   excel capability
 
 Additional pyGTKtalog uses EXIF module by Gene Cash which is included in 
-sources.
+sources and slightly updatetd to EXIF 2.2.
 
 pyGTKtalog extensivly uses external programs in unix spirit, however there is
 small possibility of using it Windows (probably with limitations) and quite big
@@ -64,7 +64,7 @@ function to update DB schema).
 
 For version 1.0 following major aims have to be done:
 
-- searching database
+x searching database
 x tagging files
 	x remove nasty bug in redraw of tag cloud
 x file details:
@@ -82,13 +82,14 @@ x statistics
 There are still minor aims for versions 1.x to be done:
 - consolidate popup-menus with edit menu
 - add popup menu for directly removing tag from tag cloud
+- implement advanced search
 
 Legend: [-] not done, [x] done.
 
 For version 2.0:
 - Icon grid in files view
 - command line support: query, adding media to collection etc
-- internationalization support
+- internationalization
 - export to XLS
 - user definied group of tags (represented by color in cloud tag)
 - hiding specified files - configurable, like dot prefixed, cfg and manualy
