@@ -22,7 +22,7 @@
 
 #  -------------------------------------------------------------------------
 
-__version__ = "0.8"
+__version__ = "1.0 RC1"
 LICENCE = \
 """
 GPL v2
@@ -36,6 +36,9 @@ from gtkmvc import Controller
 
 from c_config import ConfigController
 from views.v_config import ConfigView
+
+from c_search import SearchController
+from views.v_search import SearchView
 
 import views.v_dialogs as Dialogs
 
@@ -124,7 +127,6 @@ class MainController(Controller):
         # generate recent menu
         self.__generate_recent_menu()
 
-        
         self.view['tag_cloud_textview'].connect("populate-popup",
                                            self.on_tag_cloud_textview_popup)
         # in case model has opened file, register tags
@@ -181,6 +183,8 @@ class MainController(Controller):
         return True
 
     def on_tag_cloud_textview_event_after(self, textview, event):
+        """check, if and what tag user clicked. generate apropriate output
+        in files treview"""
         if event.type != gtk.gdk.BUTTON_RELEASE:
             return False
         if event.button != 1:
@@ -222,6 +226,7 @@ class MainController(Controller):
                     self.view['tag_path'].set_text(txt + ", " +tag1)
             self.__tag_cloud()
         self.model.get_root_entries()
+        self.__set_files_hiden_columns_visible(True)
         self.view['files'].set_model(self.model.files_list)
         self.__hide_details()
 
@@ -409,6 +414,7 @@ class MainController(Controller):
         self.view['tag_path_box'].hide()
         self.model.selected_tags = []
         self.model.refresh_discs_tree()
+        self.__set_files_hiden_columns_visible(False)
 
         # cleanup files and detiles
         try:
@@ -464,7 +470,6 @@ class MainController(Controller):
                 textview.get_window(gtk.TEXT_WINDOW_TEXT).\
                         set_cursor(gtk.gdk.Cursor(gtk.gdk.LEFT_PTR))
 
-
     def on_tag_cloud_click(self, tag, textview, event, b_iter, data):
         """react on click on connected tag items"""
         tag_cloud = self.view['tag_cloud_textview']
@@ -487,18 +492,8 @@ class MainController(Controller):
                     self.view['tag_path'].set_text(txt + ", " +tag1)
             self.__tag_cloud()
 
-
-        #elif event.type == gtk.gdk.MOTION_NOTIFY:
-        #    window = tag_cloud.get_window(gtk.TEXT_WINDOW_TEXT)
-        #    if window:
-        #        window.set_cursor(gtk.gdk.Cursor(gtk.gdk.HAND2))
-        #else:
-        #    window = tag_cloud.get_window(gtk.TEXT_WINDOW_TEXT)
-        #    if window:
-        #        window.set_cursor(None)
-
-    # NOTE: quit / close window
     def on_main_destroy_event(self, window, event):
+        """NOTE: quit / close window signal"""
         self.on_quit_activate(window)
         return True
 
@@ -688,6 +683,7 @@ class MainController(Controller):
         if path:
             iter = self.model.discs_tree.get_iter(path)
             id = self.model.discs_tree.get_value(iter, 0)
+            self.__set_files_hiden_columns_visible(False)
             self.model.get_root_entries(id)
             self.__get_item_info(id)
 
@@ -700,7 +696,7 @@ class MainController(Controller):
         else:
             treeview.expand_row(path, False)
         return
-    
+
     def on_discs_key_release_event(self, treeview, event):
         if gtk.gdk.keyval_name(event.keyval) == 'Menu':
             ids = self.__get_tv_selection_ids(treeview)
@@ -710,13 +706,13 @@ class MainController(Controller):
             self.__popup_menu(event, 'discs_popup')
             return True
         return False
-    
+
     def on_images_key_release_event(self, iconview, event):
         if gtk.gdk.keyval_name(event.keyval) == 'Menu':
             self.__popup_menu(event, 'img_popup')
             return True
         return False
-        
+
     def on_images_button_press_event(self, iconview, event):
         #try:
         #    path_and_cell = iconview.get_item_at_pos(int(event.x),
@@ -741,13 +737,13 @@ class MainController(Controller):
             Dialogs.Inf("Delete images", "No images selected",
                         "You have to select at least one image to delete.")
             return
-            
+
         if self.model.config.confd['delwarn']:
             obj = Dialogs.Qst('Delete images', 'Delete selected images?',
                   'Selected images will be permanently removed from catalog.')
             if not obj.run():
                 return
-            
+
         model = self.view['images'].get_model()
         for path in list_of_paths:
             iter = model.get_iter(path)
@@ -778,7 +774,7 @@ class MainController(Controller):
 
         list_of_paths = self.view['images'].get_selected_items()
         model = self.view['images'].get_model()
-        
+
         count = 0
 
         if len(list_of_paths) == 0:
@@ -808,12 +804,12 @@ class MainController(Controller):
     def on_img_delete2_activate(self, menu_item):
         """remove images, but keep thumbnails"""
         list_of_paths = self.view['images'].get_selected_items()
-        
+
         if not list_of_paths:
             Dialogs.Inf("Delete images", "No images selected",
                         "You have to select at least one image to delete.")
             return
-        
+
         if self.model.config.confd['delwarn']:
             obj = Dialogs.Qst('Delete images', 'Delete selected images?',
                   'Selected images will be permanently removed from ' + \
@@ -871,13 +867,13 @@ class MainController(Controller):
             menu_items = ['update1','rename1','delete2', 'statistics1']
             for menu_item in menu_items:
                 self.view[menu_item].set_sensitive(not not ids)
-                
+
             # checkout, if we dealing with disc or directory
             # if ancestor is 'root', then activate "update" menu item
             treeiter = self.model.discs_tree.get_iter(path)
             ancestor = self.model.discs_tree.get_value(treeiter, 3) == 1
             self.view['update1'].set_sensitive(ancestor)
-                
+
             self.__popup_menu(event)
 
     def on_expand_all1_activate(self, menu_item):
@@ -917,8 +913,6 @@ class MainController(Controller):
                 self.view['edit2'].set_sensitive(True)
             self.__popup_menu(event, 'files_popup')
             return True
-        #if event.button == 1:
-        #    return False
 
     def on_files_cursor_changed(self, treeview):
         """Show details of selected file/directory"""
@@ -937,7 +931,7 @@ class MainController(Controller):
             except TypeError:
                 return
             self.__popup_menu(event, 'files_popup')
-            
+
         if gtk.gdk.keyval_name(event.keyval) == 'BackSpace':
             d_path, d_column = self.view['discs'].get_cursor()
             if d_path and d_column:
@@ -953,11 +947,12 @@ class MainController(Controller):
                     first_iter = f_model.get_iter_first()
                     first_child_value = f_model.get_value(first_iter, 0)
                     # get two steps up
-                    val = self.model.get_parent_discs_value(first_child_value)
-                    parent_value = self.model.get_parent_discs_value(val)
+                    val = self.model.get_parent_id(first_child_value)
+                    parent_value = self.model.get_parent_id(val)
                     iter = self.model.discs_tree.get_iter_first()
                     while iter:
-                        current_value = self.model.discs_tree.get_value(iter, 0)
+                        current_value = self.model.discs_tree.get_value(iter,
+                                                                        0)
                         if current_value == parent_value:
                             path = self.model.discs_tree.get_path(iter)
                             self.view['discs'].set_cursor(path)
@@ -976,8 +971,9 @@ class MainController(Controller):
         f_iter = self.model.files_list.get_iter(row)
         current_id = self.model.files_list.get_value(f_iter, 0)
 
-        if self.model.files_list.get_value(f_iter,4) == 1:
+        if self.model.files_list.get_value(f_iter, 6) == 1:
             # ONLY directories. files are omitted.
+            self.__set_files_hiden_columns_visible(False)
             self.model.get_root_entries(current_id)
 
             d_path, d_column = self.view['discs'].get_cursor()
@@ -985,15 +981,16 @@ class MainController(Controller):
                 if not self.view['discs'].row_expanded(d_path):
                     self.view['discs'].expand_row(d_path, False)
 
-                iter = self.model.discs_tree.get_iter(d_path)
-                new_iter = self.model.discs_tree.iter_children(iter)
+                discs_model = self.model.discs_tree
+                iterator = discs_model.get_iter(d_path)
+                new_iter = discs_model.iter_children(iterator)
                 if new_iter:
                     while new_iter:
-                        current_value = self.model.discs_tree.get_value(new_iter, 0)
+                        current_value = discs_model.get_value(new_iter, 0)
                         if current_value == current_id:
-                            path = self.model.discs_tree.get_path(new_iter)
+                            path = discs_model.get_path(new_iter)
                             self.view['discs'].set_cursor(path)
-                        new_iter = self.model.discs_tree.iter_next(new_iter)
+                        new_iter = discs_model.iter_next(new_iter)
         return
 
     def on_cancel_clicked(self, widget):
@@ -1003,7 +1000,10 @@ class MainController(Controller):
         return
 
     def on_find_activate(self, widget):
-        # TODO: implement searcher
+        """search button/menu activated. Show search window"""
+        if not self.model.search_created:
+            c = SearchController(self.model)
+            v = SearchView(c)
         return
 
     # NOTE: recent signal
@@ -1014,7 +1014,7 @@ class MainController(Controller):
     # NOTE: add tags / images
     def on_delete_tag2_activate(self, menu_item):
         pass
-        
+
     def on_delete_tag_activate(self, menu_item):
         ids = self.__get_tv_selection_ids(self.view['files'])
         if not ids:
@@ -1115,20 +1115,20 @@ class MainController(Controller):
             self.on_delete2_activate(menu_item)
         if self.view['images'].is_focus():
             self.on_img_delete_activate(menu_item)
-        
+
     def on_delete2_activate(self, menu_item):
         try:
             selection = self.view['discs'].get_selection()
             model, selected_iter = selection.get_selected()
         except:
             return
-        
+
         if not selected_iter:
             Dialogs.Inf("Delete disc", "No disc selected",
                         "You have to select disc first before you " +\
                         "can delete it")
             return
-            
+
         if self.model.config.confd['delwarn']:
             name = model.get_value(selected_iter, 1)
             obj = Dialogs.Qst('Delete %s' % name, 'Delete %s?' % name,
@@ -1172,12 +1172,12 @@ class MainController(Controller):
             model, list_of_paths = selection.get_selected_rows()
         except TypeError:
             return
-            
+
         if not list_of_paths:
             Dialogs.Inf("Delete files", "No files selected",
                         "You have to select at least one file to delete.")
             return
-        
+
         if self.model.config.confd['delwarn']:
             obj = Dialogs.Qst("Delete files", "Delete files?",
                               "Selected files and directories will be" + \
@@ -1239,7 +1239,7 @@ class MainController(Controller):
             self.model.unsaved_project = True
             self.__set_title(filepath=self.model.filename, modified=True)
         return
-    
+
     def on_edit1_activate(self, menu_item):
         """Make sufficient menu items sensitive in right cases"""
         # TODO: consolidate popup-menus with edit menu
@@ -1247,7 +1247,7 @@ class MainController(Controller):
             self.view['delete1'].set_sensitive(False)
         else:
             self.view['delete1'].set_sensitive(True)
-        
+
     def on_debugbtn_clicked(self, widget):
         """Debug. To remove in stable version, including button in GUI"""
         if __debug__:
@@ -1263,10 +1263,45 @@ class MainController(Controller):
             print "files have focus", self.view['files'].is_focus()
             print "discs have focus", self.view['discs'].is_focus()
             print "images have focus", self.view['images'].is_focus()
-
+            c = self.view['files'].get_column(0)
+            c.set_visible(not c.get_visible())
+            c = self.view['files'].get_column(2)
+            c.set_visible(not c.get_visible())
 
     #####################
     # observed properetis
+    def property_point_value_change(self, model, old, new):
+        """File was activated in search window through the observable
+        property - select it on the discs and files treeview, and get
+        file description"""
+
+        if new:
+            discs_tree = self.view['discs']
+            discs_model = discs_tree.get_model()
+            parent_id = self.model.get_parent_id(new)
+
+            def foreach_disctree(model, path, iterator, data):
+                """find path in model to desired value"""
+                if model.get_value(iterator, 0) == data:
+                    discs_tree.expand_to_path(path)
+                    discs_tree.set_cursor(path)
+                return False
+
+            discs_model.foreach(foreach_disctree, parent_id)
+
+            files_list = self.view['files']
+            files_model = files_list.get_model()
+
+            def foreach_fileslist(model, path, iterator, data):
+                """find path in model to desired value"""
+                if model.get_value(iterator, 0) == data:
+                    files_list.set_cursor(path)
+                    self.__get_item_info(data)
+                return False
+
+            files_model.foreach(foreach_fileslist, new)
+        return
+
     def property_statusmsg_value_change(self, model, old, new):
         if self.statusbar_id:
             self.view['mainStatus'].remove(self.context_id, self.statusbar_id)
@@ -1307,6 +1342,11 @@ class MainController(Controller):
 
     #########################
     # private class functions
+    def __set_files_hiden_columns_visible(self, boolean):
+        """switch visibility of default hidden columns in files treeview"""
+        self.view['files'].get_column(0).set_visible(boolean)
+        self.view['files'].get_column(2).set_visible(boolean)
+
     def __get_tv_selection_ids(self, treeview):
         """get selection from treeview and return coresponding ids' from
         connected model or None"""
@@ -1369,28 +1409,39 @@ class MainController(Controller):
 
         v.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
 
+        c = gtk.TreeViewColumn('Disc', gtk.CellRendererText(), text=1)
+        c.set_sort_column_id(1)
+        c.set_resizable(True)
+        c.set_visible(False)
+        self.view['files'].append_column(c)
+
         c = gtk.TreeViewColumn('Filename')
         cellpb = gtk.CellRendererPixbuf()
         cell = gtk.CellRendererText()
         c.pack_start(cellpb, False)
         c.pack_start(cell, True)
-        c.set_attributes(cellpb, stock_id=6)
-        c.set_attributes(cell, text=1)
-
-        c.set_sort_column_id(1)
-        c.set_resizable(True)
-        self.view['files'].append_column(c)
-
-        c = gtk.TreeViewColumn('Size', gtk.CellRendererText(), text=2)
+        c.set_attributes(cellpb, stock_id=7)
+        c.set_attributes(cell, text=2)
         c.set_sort_column_id(2)
         c.set_resizable(True)
         self.view['files'].append_column(c)
 
-        c = gtk.TreeViewColumn('Date', gtk.CellRendererText(), text=3)
+        c = gtk.TreeViewColumn('Path', gtk.CellRendererText(), text=3)
         c.set_sort_column_id(3)
         c.set_resizable(True)
+        c.set_visible(False)
         self.view['files'].append_column(c)
-        self.view['files'].set_search_column(1)
+
+        c = gtk.TreeViewColumn('Size', gtk.CellRendererText(), text=4)
+        c.set_sort_column_id(4)
+        c.set_resizable(True)
+        self.view['files'].append_column(c)
+
+        c = gtk.TreeViewColumn('Date', gtk.CellRendererText(), text=5)
+        c.set_sort_column_id(5)
+        c.set_resizable(True)
+        self.view['files'].append_column(c)
+        self.view['files'].set_search_column(2)
 
         #v.enable_model_drag_source(gtk.gdk.BUTTON1_MASK,
         #                           self.DND_TARGETS,
