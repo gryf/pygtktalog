@@ -260,9 +260,10 @@ class SelectDirectory(object):
 class ChooseDBFilename(object):
     """Sepcific dialog for quering user for selecting filename for database"""
 
-    URI="file://"+os.path.abspath(os.path.curdir)
+    URI=None
 
-    def __init__(self):
+    def __init__(self, path=None):
+        self.path = path
         self.dialog = gtk.FileChooserDialog(
             title="Save catalog as...",
             action=gtk.FILE_CHOOSER_ACTION_SAVE,
@@ -289,6 +290,10 @@ class ChooseDBFilename(object):
     def run(self):
         if self.URI:
             self.dialog.set_current_folder_uri(self.URI)
+        elif self.path and os.path.exists(self.path):
+            self.path = "file://"+os.path.abspath(self.path)
+            self.dialog.set_current_folder_uri(self.path)
+
         response = self.dialog.run()
         if response == gtk.RESPONSE_OK:
             filename = self.dialog.get_filename()
@@ -311,9 +316,11 @@ class LoadDBFile(object):
     """Specific class for displaying openFile dialog. It has veryfication
     for file existence."""
 
-    URI="file://"+os.path.abspath(os.path.curdir)
+    URI=None
 
-    def __init__(self):
+    def __init__(self, path=None):
+        self.path = path
+        
         self.dialog = gtk.FileChooserDialog(
             title="Open catalog",
             action=gtk.FILE_CHOOSER_ACTION_OPEN,
@@ -324,7 +331,7 @@ class LoadDBFile(object):
                 gtk.RESPONSE_OK))
 
         self.dialog.set_default_response(gtk.RESPONSE_OK)
-
+        
         f = gtk.FileFilter()
         f.set_name("Catalog files")
         f.add_pattern("*.pgt")
@@ -350,6 +357,10 @@ class LoadDBFile(object):
     def run(self):
         if self.URI:
             self.dialog.set_current_folder_uri(self.URI)
+        elif self.path and os.path.exists(self.path):
+            self.path = "file://"+os.path.abspath(self.path)
+            self.dialog.set_current_folder_uri(self.path)
+
         res,filename = self.show_dialog()
         ch = True
         while ch:
