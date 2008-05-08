@@ -45,13 +45,19 @@ BeOS/ZETA/Haiku, QNX or MacOSX).
 INSTALATION
 ===========
 
-All you have to do is:
+You don't have to install it if you don't want to. You can just change current
+directory to pyGTKtalog and simply run:
+
+./pyGTKtalog
+
+That's it. Alternatively, if you like to put it in more system wide place, all
+you have to do is:
 
 - put pyGTKtalog directory into your destination of choice (/usr/local/share,
   /opt or ~/ is typical choice)
-- modify pyGTKtalog/pyGTKtalog line 4 to match right directory
-- copy/link pyGTKtalog/pyGTKtalog shell script to /usr/bin, /usr/local/bin or in
+- copy pyGTKtalog shell script to /usr/bin, /usr/local/bin or in
   other place, where PATH variable is pointing or you feel like.
+- then modify pyGTKtalog line 6 to match right pygtktalog.py directory
 
 Then, just run pyGTKtalog script.
   
@@ -116,9 +122,9 @@ Removed:
 NOTES
 =====
 
-Catalog file is tared and optionaly compressed sqlite database and directories
-with images and thumbnails. If there are more images, the size of catalog file
-will grow. So be carefull with adding big images in your catalog file!
+Catalog file is tared and optionaly gziped sqlite database and directories with
+images and thumbnails. If there are more images, the size of catalog file will
+grow. So be carefull with adding big images in your catalog file!
 
 BUGS
 ====
