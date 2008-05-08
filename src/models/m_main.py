@@ -50,7 +50,12 @@ from utils.gthumb import GthumbCommentParser
 class MainModel(ModelMT):
     """Create, load, save, manipulate db file which is container for data"""
 
-    __properties__ = {'busy': False, 'statusmsg': '', 'progress': 0}
+    __properties__ = {'busy': False,
+    'statusmsg': '',
+    'progress': 0,
+     # point from search controller - changes while user activate specified
+     # file on search
+    'point': None,}
 
     # constants instead of dictionary tables
     # type of files
@@ -99,22 +104,43 @@ class MainModel(ModelMT):
         self.busy = False
         self.statusmsg = "Idle"
         self.selected_tags = {}
+        self.search_created = False
 
         # Directory tree: id, name, icon, type
-        self.discs_tree = gtk.TreeStore(gobject.TYPE_INT, gobject.TYPE_STRING,
-                                        str, gobject.TYPE_INT)
-        # File list of selected directory: is, filename, size,
+        self.discs_tree = gtk.TreeStore(gobject.TYPE_INT,
+                                        gobject.TYPE_STRING,
+                                        str,
+                                        gobject.TYPE_INT)
+        # File list of selected directory: id, disc, filename, path, size,
         # date, type, icon
-        self.files_list = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING,
+        self.files_list = gtk.ListStore(gobject.TYPE_INT,
+                                        gobject.TYPE_STRING,
+                                        gobject.TYPE_STRING,
+                                        gobject.TYPE_STRING,
                                         gobject.TYPE_UINT64,
-                                        gobject.TYPE_STRING, gobject.TYPE_INT,
-                                        gobject.TYPE_STRING, str)
+                                        gobject.TYPE_STRING,
+                                        gobject.TYPE_INT,
+                                        str)
+        # Search list. Exactly the same as file list above.
+        self.search_list = gtk.ListStore(gobject.TYPE_INT,
+                                        gobject.TYPE_STRING,
+                                        gobject.TYPE_STRING,
+                                        gobject.TYPE_STRING,
+                                        gobject.TYPE_UINT64,
+                                        gobject.TYPE_STRING,
+                                        gobject.TYPE_INT,
+                                        str)
         # iconview store - id, pixbuffer
         self.images_store = gtk.ListStore(gobject.TYPE_INT, gtk.gdk.Pixbuf)
 
         # exif liststore - id, exif key, exif value
         self.exif_list = gtk.ListStore(gobject.TYPE_INT, gobject.TYPE_STRING,
                                        gobject.TYPE_STRING)
+        # search combobox liststore - entry
+        self.search_history = gtk.ListStore(str)
+
+        # fill it
+        self.__fill_history_model()
 
         # tag cloud array element is a dict with 5 keys:
         # elem = {'id': str(id), 'name': tagname, 'size': size,
@@ -124,6 +150,12 @@ class MainModel(ModelMT):
         # - #rgb
         # - #rrggbb
         self.tag_cloud = []
+        return
+
+    def add_search_history(self, txt):
+        """add txt into search history, update search_history model"""
+        self.config.add_search_history(txt)
+        self.__fill_history_model()
         return
 
     def add_tags(self, fid, tags):
@@ -223,7 +255,7 @@ class MainModel(ModelMT):
             AND tag_id IN """ + sql
             self.db_cursor.execute(sql, (int(file_id), ))
         self.db_connection.commit()
-        
+
         for tag_id in tag_id_list:
             sql = """SELECT count(*) FROM tags_files WHERE tag_id=?"""
             self.db_cursor.execute(sql, (int(tag_id),))
@@ -438,6 +470,7 @@ class MainModel(ModelMT):
         self.__connect_to_db()
         self.__create_database()
         self.__clear_trees()
+        self.clear_search_tree()
         self.tag_cloud = []
         self.selected_tags = {}
         return
@@ -463,6 +496,7 @@ class MainModel(ModelMT):
         self.filename = filename
         self.tag_cloud = []
         self.selected_tags = {}
+        self.clear_search_tree()
 
         try:
             tar = tarfile.open(filename, "r:gz")
@@ -533,6 +567,106 @@ class MainModel(ModelMT):
         self.thread = _threading.Thread(target=self.__scan)
         self.thread.start()
         return
+
+    def search(self, string):
+        """Get all children down from sepcified root"""
+        self.clear_search_tree()
+        id_filter = None
+        sql_con = ""
+        found = 0
+
+        if len(string) > 0:
+            args = self.__postgresize(string)
+            args = args.split()
+            for arg in args:
+                arg = "%" + arg + "%"
+                sql_con += "AND (LOWER(filename) LIKE LOWER('%s')" % arg
+                sql_con += " ESCAPE '\\' "
+                sql_con += "OR LOWER(description) LIKE LOWER('%s')" % arg
+                sql_con += " ESCAPE '\\' ) "
+
+        # directories
+        if self.selected_tags:
+            # we have tags selected, live with that
+            id_filter = self.__filter2()
+            if id_filter != None:
+                if len(id_filter) == 1:
+                    id_filter = "(%d)" % id_filter[0]
+                else:
+                    id_filter = str(tuple(id_filter))
+                sql = """SELECT id, filename, size, date FROM files
+                WHERE parent_id!=id
+                AND parent_id!=1
+                AND type=1
+                AND id in """ + id_filter + sql_con + """
+                ORDER BY filename"""
+
+        else:
+            # alright, search throught all records
+            sql = """SELECT id, filename, size, date FROM files
+            WHERE parent_id!=id
+            AND parent_id!=1
+            AND type=1 """ + sql_con + """
+            ORDER BY filename"""
+
+        if sql:
+            self.db_cursor.execute(sql)
+            data = self.db_cursor.fetchall()
+            for row in data:
+                found += 1
+                myiter = self.search_list.insert_before(None, None)
+                self.search_list.set_value(myiter, 0, row[0])
+                self.search_list.set_value(myiter, 1,
+                                           self.__get_file_root(row[0]))
+                self.search_list.set_value(myiter, 2, row[1])
+                self.search_list.set_value(myiter, 3,
+                                           self.__get_file_path(row[0]))
+                self.search_list.set_value(myiter, 4, row[2])
+                self.search_list.set_value(myiter, 5,
+                                           datetime.fromtimestamp(row[3]))
+                self.search_list.set_value(myiter, 6, 1)
+                self.search_list.set_value(myiter, 7, gtk.STOCK_DIRECTORY)
+
+        # files and links
+        if self.selected_tags:
+            if id_filter:
+                # we have tags selected, live with that
+                sql = """SELECT f.id, f.filename, f.size, f.date, f.type
+                FROM files f
+                WHERE f.type!=1
+                AND parent_id!=1 AND id IN """ + id_filter + sql_con + """
+                ORDER BY f.filename"""
+        else:
+            # alright, search throught all records
+            sql = """SELECT f.id, f.filename, f.size, f.date, f.type
+            FROM files f
+            WHERE f.type!=1
+            AND parent_id!=1 """ + sql_con + """
+            ORDER BY f.filename"""
+
+        if sql:
+            self.db_cursor.execute(sql)
+
+            data = self.db_cursor.fetchall()
+            for row in data:
+                found += 1
+                myiter = self.search_list.insert_before(None, None)
+                self.search_list.set_value(myiter, 0, row[0])
+                self.search_list.set_value(myiter, 1,
+                                           self.__get_file_root(row[0]))
+                self.search_list.set_value(myiter, 2, row[1])
+                self.search_list.set_value(myiter, 3,
+                                           self.__get_file_path(row[0]))
+                self.search_list.set_value(myiter, 4, row[2])
+                self.search_list.set_value(myiter, 5,
+                                           datetime.fromtimestamp(row[3]))
+                self.search_list.set_value(myiter, 6, row[4])
+                if row[4] == self.FIL:
+                    self.search_list.set_value(myiter, 7, gtk.STOCK_FILE)
+                elif row[4] == self.LIN:
+                    self.search_list.set_value(myiter, 7, gtk.STOCK_INDEX)
+
+        return found
 
     def rename(self, file_id, new_name=None):
         """change name of selected object id"""
@@ -605,13 +739,14 @@ class MainModel(ModelMT):
         for row in data:
             myiter = self.files_list.insert_before(None, None)
             self.files_list.set_value(myiter, 0, row[0])
-            self.files_list.set_value(myiter, 1, row[1])
-            self.files_list.set_value(myiter, 2, row[2])
-            self.files_list.set_value(myiter, 3,
+            self.files_list.set_value(myiter, 1, self.__get_file_root(row[0]))
+            self.files_list.set_value(myiter, 2, row[1])
+            self.files_list.set_value(myiter, 3, self.__get_file_path(row[0]))
+            self.files_list.set_value(myiter, 4, row[2])
+            self.files_list.set_value(myiter, 5,
                                       datetime.fromtimestamp(row[3]))
-            self.files_list.set_value(myiter, 4, 1)
-            self.files_list.set_value(myiter, 5, 'direktorja')
-            self.files_list.set_value(myiter, 6, gtk.STOCK_DIRECTORY)
+            self.files_list.set_value(myiter, 6, 1)
+            self.files_list.set_value(myiter, 7, gtk.STOCK_DIRECTORY)
 
         # all the rest
         if not parent_id and self.selected_tags:
@@ -648,19 +783,20 @@ class MainModel(ModelMT):
         for row in data:
             myiter = self.files_list.insert_before(None, None)
             self.files_list.set_value(myiter, 0, row[0])
-            self.files_list.set_value(myiter, 1, row[1])
-            self.files_list.set_value(myiter, 2, row[2])
-            self.files_list.set_value(myiter, 3,
+            self.files_list.set_value(myiter, 1, self.__get_file_root(row[0]))
+            self.files_list.set_value(myiter, 2, row[1])
+            self.files_list.set_value(myiter, 3, self.__get_file_path(row[0]))
+            self.files_list.set_value(myiter, 4, row[2])
+            self.files_list.set_value(myiter, 5,
                                       datetime.fromtimestamp(row[3]))
-            self.files_list.set_value(myiter, 4, row[4])
-            self.files_list.set_value(myiter, 5, 'kategoria srategoria')
+            self.files_list.set_value(myiter, 6, row[4])
             if row[4] == self.FIL:
-                self.files_list.set_value(myiter, 6, gtk.STOCK_FILE)
+                self.files_list.set_value(myiter, 7, gtk.STOCK_FILE)
             elif row[4] == self.LIN:
-                self.files_list.set_value(myiter, 6, gtk.STOCK_INDEX)
+                self.files_list.set_value(myiter, 7, gtk.STOCK_INDEX)
         return
 
-    def get_parent_discs_value(self, child_id):
+    def get_parent_id(self, child_id):
         """get root id from specified child"""
         if child_id:
             sql = """SELECT parent_id FROM files WHERE id=?"""
@@ -764,7 +900,7 @@ class MainModel(ModelMT):
         """Remove subtree (item and its children) from main tree, remove tags
         from database remove all possible data, like thumbnails, images, gthumb
         info, exif etc"""
-        
+
         fids = []
 
         if not db_cursor:
@@ -805,7 +941,7 @@ class MainModel(ModelMT):
 
         if __debug__:
             print "m_main.py: delete(): deleting:", fids
-            
+
         if len(fids) == 1:
             arg = "(%d)" % fids[0]
         else:
@@ -965,7 +1101,68 @@ class MainModel(ModelMT):
         self.db_connection.commit()
         return
 
+    def clear_search_tree(self):
+        """try to clear store for search"""
+        try:
+            self.search_list.clear()
+        except:
+            pass
+
     # private class functions
+    def __fill_history_model(self):
+        """fill search history model with config dict"""
+        try:
+            self.search_history.clear()
+        except:
+            pass
+
+        for entry in self.config.search_history:
+            myiter = self.search_history.insert_before(None, None)
+            self.search_history.set_value(myiter, 0, entry)
+        return
+
+    def __get_file_root(self, file_id):
+        """return string with root (disc name) of selected banch (file_id)"""
+        sql = """SELECT parent_id FROM files WHERE id=? and parent_id!=1"""
+        self.db_cursor.execute(sql, (file_id,))
+        res = self.db_cursor.fetchone()
+
+        root_id = None
+        while res:
+            root_id = res[0]
+            self.db_cursor.execute(sql, (res[0],))
+            res = self.db_cursor.fetchone()
+
+        sql = """SELECT filename FROM files WHERE id=?"""
+        self.db_cursor.execute(sql, (root_id,))
+        res = self.db_cursor.fetchone()
+
+        return res[0]
+
+    def __get_file_path(self, file_id):
+        """return string with path from the root of the disc"""
+        #SQL: get parent id and filename to concatenate path
+        path = ""
+        sql = """SELECT parent_id FROM files WHERE id=? AND parent_id!=1"""
+        self.db_cursor.execute(sql, (file_id,))
+        res = self.db_cursor.fetchone()
+        if not res:
+            return "/"
+
+        while res:
+            sql = """SELECT id, filename FROM files
+            WHERE id=? AND parent_id!=1"""
+            self.db_cursor.execute(sql, (res[0],))
+            res = self.db_cursor.fetchone()
+            if res:
+                path = res[1] + "/" + path
+                sql = """SELECT parent_id FROM files
+                WHERE id=? AND id!=parent_id"""
+                self.db_cursor.execute(sql, (res[0],))
+                res = self.db_cursor.fetchone()
+
+        return "/" + path
+
     def __bytes_to_human(self, integer):
         """return integer digit in human readable string representation"""
         if integer <= 0 or integer < 1024:
@@ -989,6 +1186,7 @@ class MainModel(ModelMT):
         """clears treemodel and treestore of files and discs tree"""
         self.__clear_files_tree()
         self.__clear_discs_tree()
+        self.clear_search_tree()
 
     def __clear_discs_tree(self):
         """try to clear model for discs"""
@@ -1117,7 +1315,6 @@ class MainModel(ModelMT):
         sql = """INSERT INTO groups VALUES(1, 'default', 'black')"""
         self.db_cursor.execute(sql)
         self.db_connection.commit()
-
 
     def __filter(self):
         """return list of ids of files (AND their parent, even if they have no
@@ -1485,7 +1682,6 @@ class MainModel(ModelMT):
         db_cursor = db_connection.cursor()
 
         # fetch all the directories
-        #try:
         if not self.selected_tags:
             sql = """SELECT id, parent_id, filename FROM files
             WHERE type=1 ORDER BY parent_id, filename"""
@@ -1500,13 +1696,6 @@ class MainModel(ModelMT):
                 WHERE 1=0"""
         db_cursor.execute(sql)
         data = db_cursor.fetchall()
-        #except:
-        #    # cleanup
-        #    self.cleanup()
-        #    self.filename = None
-        #    self.internal_dirname = None
-        #    print "%s: Wrong database format!" % self.filename
-        #    return
 
         def get_children(parent_id = 1, iterator = None):
             """fetch all children and place them in model"""
@@ -1585,4 +1774,17 @@ class MainModel(ModelMT):
             return txt.decode(self.fsenc)
         else:
             return txt
+
+    def __postgresize(self, string):
+        """escape sql characters, return escaped string"""
+        name = string.replace("\\","\\\\")
+        name = name.replace('%','\%')
+        name = name.replace('_','\_')
+        name = name.replace("'","''")
+
+        # special characters ? and * convert to sql sepcial characters _ and %
+        #name = name.replace('*','%')
+        #name = name.replace('?','_')
+
+        return name
 
