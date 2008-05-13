@@ -402,7 +402,9 @@ class LoadImageFile(object):
         f.set_name("All Images")
         for i in ['*.jpg', '*.jpeg', '*.gif', '*.png', '*.tif', '*.tiff',
                   '*.tga', '*.pcx', '*.bmp', '*.xbm', '*.xpm', '*.jp2',
-                  '*.jpx', '*.pnm']:
+                  '*.jpx', '*.pnm', '*.JPG', '*.JPEG', '*.GIF', '*.PNG',
+                  '*.TIF', '*.TIFF', '*.TGA', '*.PCX', '*.BMP', '*.XBM',
+                  '*.XPM', '*.JP2', '*.JPX', '*.PNM']:
             f.add_pattern(i)
         self.dialog.add_filter(f)
         f = gtk.FileFilter()
