@@ -150,6 +150,7 @@ class MainModel(ModelMT):
         # - #rgb
         # - #rrggbb
         self.tag_cloud = []
+        self.new()
         return
 
     def add_search_history(self, txt):
@@ -511,6 +512,7 @@ class MainModel(ModelMT):
     def new(self):
         """create new project"""
         self.unsaved_project = False
+        self.filename = None
         self.__create_internal_dirname()
         self.__connect_to_db()
         self.__create_database()
@@ -1050,6 +1052,27 @@ class MainModel(ModelMT):
                 parent_id = False
 
         db_connection.commit()
+        
+        # part two: remove items from treestore/liststores
+        def foreach_treestore(model, path, iterator, d):
+            if d[0] == model.get_value(iterator, 0):
+                d[1].append(path)
+            return False
+
+        paths = []
+        self.discs_tree.foreach(foreach_treestore, (root_id, paths))
+        for path in paths:
+            self.discs_tree.remove(self.discs_tree.get_iter(path))
+
+        paths = []
+        self.files_list.foreach(foreach_treestore, (root_id, paths))
+        for path in paths:
+            self.files_list.remove(self.files_list.get_iter(path))
+
+        paths = []
+        self.search_list.foreach(foreach_treestore, (root_id, paths))
+        for path in paths:
+            self.search_list.remove(self.search_list.get_iter(path))
         return
 
     def get_stats(self, selected_id):
