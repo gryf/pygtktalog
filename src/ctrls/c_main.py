@@ -277,7 +277,6 @@ class MainController(Controller):
         image, only_thumbs = Dialogs.LoadImageFile().run()
         if not image:
             return
-        #try:
         selection = self.view['files'].get_selection()
         model, list_of_paths = selection.get_selected_rows()
         for path in list_of_paths:
@@ -285,19 +284,16 @@ class MainController(Controller):
             self.model.add_thumbnail(image, id)
         self.model.unsaved_project = True
         self.__set_title(filepath=self.model.filename, modified=True)
-        #except:
-        #    if __debug__:
-        #        print "c_main.py: on_add_thumb1_activate(): error on getting",
-        #        print "selected items or creating thumbnails"
-        #    return
         self.__get_item_info(id)
         return
 
     def on_remove_thumb1_activate(self, menu_item):
         if self.model.config.confd['delwarn']:
-            obj = Dialogs.Qst('Delete thumbnails', 'Delete thumbnails?',
-                              "Thumbnails for selected items will be \
-                              permanently removed from catalog.")
+            title = 'Delete thumbnails'
+            question = 'Delete thumbnails?'
+            description = "Thumbnails for selected items will be permanently"
+            description += " removed from catalog."
+            obj = Dialogs.Qst(title, question, description)
             if not obj.run():
                 return
         try:
@@ -319,9 +315,11 @@ class MainController(Controller):
 
     def on_remove_image1_activate(self, menu_item):
         if self.model.config.confd['delwarn']:
-            obj = Dialogs.Qst('Delete images', 'Delete all images?',
-                              'All images for selected items will be \
-                              permanently removed from catalog.')
+            title = 'Delete images'
+            question = 'Delete all images?'
+            description = 'All images for selected items will be permanently'
+            description += ' removed from catalog.'
+            obj = Dialogs.Qst(title, question, description)
             if not obj.run():
                 return
         try:
@@ -502,10 +500,11 @@ class MainController(Controller):
         # check if any unsaved project is on go.
         if self.model.unsaved_project and \
         self.model.config.confd['confirmquit']:
-            if not Dialogs.Qst('Quit application - pyGTKtalog',
-                               'Do you really want to quit?',
-                               "Current database is not saved, any changes \
-                               will be lost.").run():
+            title = 'Quit application - pyGTKtalog'
+            question = 'Do you really want to quit?'
+            description = "Current database is not saved, any changes will "
+            description += "be lost."
+            if not Dialogs.Qst(title, question, description).run():
                 return
         self.__store_settings()
         self.model.cleanup()
@@ -515,10 +514,10 @@ class MainController(Controller):
     def on_new_activate(self, widget):
         """Create new database file"""
         if self.model.unsaved_project:
-            if not Dialogs.Qst('Unsaved data - pyGTKtalog',
-                               "Current database isn't saved",
-                               "All changes will be lost. Do you really \
-                               want to abandon it?").run():
+            title = 'Unsaved data - pyGTKtalog'
+            question = "Do you want to abandon changes?"
+            desc = "Current database is not saved, any changes will be lost."
+            if not Dialogs.Qst(title, question, desc).run():
                 return
         self.model.new()
 
@@ -803,10 +802,11 @@ class MainController(Controller):
                         "%d images was succsefully saved." % count,
                         "Images are placed in directory:\n%s." % filepath)
         else:
+            description = "Images probably don't have real images - only"
+            description += " thumbnails."
             Dialogs.Inf("Save images",
                         "No images was saved.",
-                        "Images probably don't have real images - only" + \
-                        " thumbnails.")
+                        description)
         return
 
     def on_img_delete2_activate(self, menu_item):
@@ -819,9 +819,10 @@ class MainController(Controller):
             return
 
         if self.model.config.confd['delwarn']:
+            description = 'Selected images will be permanently removed from '
+            description += 'catalog,\nthumbnails will be keeped.'
             obj = Dialogs.Qst('Delete images', 'Delete selected images?',
-                  'Selected images will be permanently removed from ' + \
-                  'catalog,\nthumbnails will be keeped.')
+                              description)
             if not obj.run():
                 return
 
@@ -1046,30 +1047,23 @@ class MainController(Controller):
         return
 
     def on_add_tag1_activate(self, menu_item):
-        #try:
         tags = Dialogs.TagsDialog().run()
         if not tags:
             return
         ids = self.__get_tv_selection_ids(self.view['files'])
         for id in ids:
             self.model.add_tags(id, tags)
-        #except:
-        #    # DEBUG: TV no selection / error rmoving thumbs
-        #    if __debug__:
-        #        print "c_main.py: on_remove_thumb1_activate(): error on",
-        #        print "getting selected items or removing thumbnails"
-        #    return
+        
         self.__tag_cloud()
         self.model.unsaved_project = True
         self.__set_title(filepath=self.model.filename, modified=True)
         self.__get_item_info(id)
-
         return
 
     def on_add_image1_activate(self, menu_item):
         dialog = Dialogs.LoadImageFile(True)
-        toggle = gtk.CheckButton("Don't copy images. " + \
-                                 "Generate only thumbnails.")
+        msg = "Don't copy images. Generate only thumbnails."
+        toggle = gtk.CheckButton(msg)
         toggle.show()
         dialog.dialog.set_extra_widget(toggle)
 
@@ -1187,9 +1181,9 @@ class MainController(Controller):
             return
 
         if self.model.config.confd['delwarn']:
-            obj = Dialogs.Qst("Delete files", "Delete files?",
-                              "Selected files and directories will be" + \
-                              " permanently\nremoved from catalog.")
+            description = "Selected files and directories will be "
+            description += "permanently\n removed from catalog."
+            obj = Dialogs.Qst("Delete files", "Delete files?", description)
             if not obj.run():
                 return
 
@@ -1232,9 +1226,10 @@ class MainController(Controller):
 
     def on_th_delete_activate(self, menu_item):
         if self.model.config.confd['delwarn']:
-            obj = Dialogs.Qst('Delete thumbnail', 'Delete thumbnail?',
-                              "Current thumbnail will be permanently removed\
-                              from catalog.")
+            title = 'Delete thumbnail'
+            question = 'Delete thumbnail?'
+            dsc = "Current thumbnail will be permanently removed from catalog."
+            obj = Dialogs.Qst(title, question, dsc)
             if not obj.run():
                 return
         path, column = self.view['files'].get_cursor()
@@ -1246,6 +1241,81 @@ class MainController(Controller):
             self.__get_item_info(id)
             self.model.unsaved_project = True
             self.__set_title(filepath=self.model.filename, modified=True)
+        return
+
+    def on_del_all_images_activate(self, menu_item):
+        if self.model.config.confd['delwarn']:
+            title = 'Delete images'
+            question = 'Delete all images?'
+            dsc = "All images and it's thumbnails will be permanently removed"
+            dsc += " from catalog."
+            obj = Dialogs.Qst(title, question, dsc)
+            if not obj.run():
+                return
+
+        self.model.delete_all_images()
+        self.model.unsaved_project = True
+        self.__set_title(filepath=self.model.filename, modified=True)
+
+        try:
+            path, column = self.view['files'].get_cursor()
+            model = self.view['files'].get_model()
+            fiter = model.get_iter(path)
+            fid = model.get_value(fiter, 0)
+            if fid:
+                self.__get_item_info(fid)
+        except:
+            pass
+        return
+
+    def on_del_all_images_thumb_activate(self, menu_item):
+        if self.model.config.confd['delwarn']:
+            title = 'Delete images'
+            question = 'Delete all images?'
+            dsc = "All images without thumbnails will be permanently removed"
+            dsc += " from catalog."
+            obj = Dialogs.Qst(title, question, dsc)
+            if not obj.run():
+                return
+
+        self.model.delete_all_images_wth_thumbs()
+        self.model.unsaved_project = True
+        self.__set_title(filepath=self.model.filename, modified=True)
+
+        try:
+            path, column = self.view['files'].get_cursor()
+            model = self.view['files'].get_model()
+            fiter = model.get_iter(path)
+            fid = model.get_value(fiter, 0)
+            if fid:
+                self.__get_item_info(fid)
+        except:
+            pass
+        return
+
+    def on_del_all_thumb_activate(self, menu_item):
+        if self.model.config.confd['delwarn']:
+            title = 'Delete images'
+            question = 'Delete all images?'
+            dsc = "All images without thumbnails will be permanently removed"
+            dsc += " from catalog."
+            obj = Dialogs.Qst(title, question, dsc)
+            if not obj.run():
+                return
+
+        self.model.del_all_thumbnail()
+        self.model.unsaved_project = True
+        self.__set_title(filepath=self.model.filename, modified=True)
+
+        try:
+            path, column = self.view['files'].get_cursor()
+            model = self.view['files'].get_model()
+            fiter = model.get_iter(path)
+            fid = model.get_value(fiter, 0)
+            if fid:
+                self.__get_item_info(fid)
+        except:
+            pass
         return
 
     def on_edit1_activate(self, menu_item):
@@ -1532,7 +1602,8 @@ class MainController(Controller):
         return
 
     def __get_item_info(self, file_id):
-
+        """Get item under cusor, fetch information from model and depending on
+        what kind of information file has display it"""
         buf = gtk.TextBuffer()
         if not file_id:
             self.__hide_details()
@@ -1549,8 +1620,13 @@ class MainController(Controller):
             buf.insert_with_tags(buf.get_end_iter(), "Type: ", tag)
             buf.insert(buf.get_end_iter(), str(set['fileinfo']['type']) + "\n")
 
-        if set['fileinfo']['type'] == 1:
+        if set['fileinfo']['disc']:
+            buf.insert_with_tags(buf.get_end_iter(), "Disc: ", tag)
+            buf.insert(buf.get_end_iter(), set['fileinfo']['disc'] + "\n")
+        if set['fileinfo']['disc'] and set['fileinfo']['type'] == 1:
             buf.insert_with_tags(buf.get_end_iter(), "Directory: ", tag)
+        elif not set['fileinfo']['disc'] and set['fileinfo']['type'] == 1:
+            buf.insert_with_tags(buf.get_end_iter(), "Disc: ", tag)
         else:
             buf.insert_with_tags(buf.get_end_iter(), "Filename: ", tag)
         buf.insert(buf.get_end_iter(), set['filename'] + "\n")
@@ -1562,38 +1638,40 @@ class MainController(Controller):
         if 'gthumb' in set:
             tag = buf.create_tag()
             tag.set_property('weight', pango.WEIGHT_BOLD)
-            buf.insert_with_tags(buf.get_end_iter(), "gThumb comment:\n", tag)
+            buf.insert_with_tags(buf.get_end_iter(), "\ngThumb comment:\n", tag)
             if set['gthumb']['note']:
                 buf.insert(buf.get_end_iter(), set['gthumb']['note'] + "\n")
             if set['gthumb']['place']:
                 buf.insert(buf.get_end_iter(), set['gthumb']['place'] + "\n")
             if set['gthumb']['date']:
                 buf.insert(buf.get_end_iter(), set['gthumb']['date'] + "\n")
-            buf.insert(buf.get_end_iter(), "\n")
 
         if 'description' in set:
             tag = buf.create_tag()
             tag.set_property('weight', pango.WEIGHT_BOLD)
-            buf.insert_with_tags(buf.get_end_iter(), "Details:\n", tag)
-            buf.insert(buf.get_end_iter(), set['description'])
-            buf.insert(buf.get_end_iter(), "\n")
+            buf.insert_with_tags(buf.get_end_iter(), "\nDetails:\n", tag)
+            buf.insert(buf.get_end_iter(), set['description'] + "\n")
 
         if 'note' in set:
             tag = buf.create_tag()
             tag.set_property('weight', pango.WEIGHT_BOLD)
-            buf.insert_with_tags(buf.get_end_iter(), "Note:\n", tag)
-            buf.insert(buf.get_end_iter(), set['note'])
+            buf.insert_with_tags(buf.get_end_iter(), "\nNote:\n", tag)
+            buf.insert(buf.get_end_iter(), set['note'] + "\n")
 
         tags = self.model.get_file_tags(file_id)
         if tags:
-            buf.insert(buf.get_end_iter(), "\n")
             tag = buf.create_tag()
             tag.set_property('weight', pango.WEIGHT_BOLD)
-            buf.insert_with_tags(buf.get_end_iter(), "File tags:\n", tag)
+            buf.insert_with_tags(buf.get_end_iter(), "\nFile tags:\n", tag)
             tags = tags.values()
             tags.sort()
+            first = True
             for tag in tags:
-                buf.insert(buf.get_end_iter(), tag + ", ")
+                if first:
+                    first = False
+                    buf.insert(buf.get_end_iter(), tag)
+                else:
+                    buf.insert(buf.get_end_iter(), ", " + tag)
 
         self.view['description'].set_buffer(buf)
 
@@ -1649,10 +1727,8 @@ class MainController(Controller):
                     tag = buff.create_tag(str(cloud['id']))
                     tag.set_property('size-points', cloud['size'])
                     #tag.connect('event', self.on_tag_cloud_click, tag)
-                    buff.insert_with_tags(buff_iter,
-                                          cloud['name'] + "(%d)" % \
-                                          cloud['count'],
-                                          tag)
+                    tag_repr = cloud['name'] + "(%d)" % cloud['count']
+                    buff.insert_with_tags(buff_iter, tag_repr, tag)
                 except:
                     if __debug__:
                         print "c_main.py: __tag_cloud: error on tag:", cloud
