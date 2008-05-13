@@ -344,6 +344,13 @@ class MainModel(ModelMT):
                                       (img,
                                        thp.split(self.internal_dirname)[1][1:],
                                        res[0]))
+                
+            # check if file have have thumbnail. if not, make it with image
+            sql = """SELECT id from thumbnails where file_id=?"""
+            self.db_cursor.execute(sql, (file_id,))
+            res = self.db_cursor.fetchone()
+            if not res:
+                 self.add_thumbnail(image, file_id)
         self.db_connection.commit()
 
     def del_images(self, file_id):
@@ -404,6 +411,22 @@ class MainModel(ModelMT):
         self.db_cursor.execute(sql, (image_id,))
         self.db_connection.commit()
 
+    def delete_all_images_wth_thumbs(self):
+        """removes all images (without thumbnails) from collection"""
+        sql = """SELECT filename FROM images"""
+        self.db_cursor.execute(sql)
+        res = self.db_cursor.fetchall()
+        for row in res:
+            if row[0]:
+                os.unlink(os.path.join(self.internal_dirname, row[0]))
+            if __debug__:
+                print "m_main.py: delete_all_images(): removed image:",
+                print row[0]
+        # remove images records
+        sql = """UPDATE images set filename=NULL"""
+        self.db_cursor.execute(sql)
+        self.db_connection.commit()
+
     def delete_image(self, image_id):
         """removes image on specified image id"""
         sql = """SELECT filename, thumbnail FROM images WHERE id=?"""
@@ -422,6 +445,17 @@ class MainModel(ModelMT):
         sql = """DELETE FROM images WHERE id = ?"""
         self.db_cursor.execute(sql, (image_id,))
         self.db_connection.commit()
+        
+    def delete_all_images(self):
+        """removes all images (with thumbnails) from collection"""
+        # remove images records
+        sql = """DELETE FROM images"""
+        self.db_cursor.execute(sql)
+        self.db_connection.commit()
+        try:
+            shutil.rmtree(os.path.join(self.internal_dirname, 'images'))
+        except:
+            pass
 
     def add_thumbnail(self, img_fn, file_id):
         """generate and add thumbnail to selected file/dir"""
@@ -452,6 +486,17 @@ class MainModel(ModelMT):
         sql = """DELETE FROM thumbnails WHERE file_id=?"""
         self.db_cursor.execute(sql, (file_id,))
         self.db_connection.commit()
+
+    def del_all_thumbnail(self):
+        """removes thumbnail from selected file/dir"""
+        # remove thumbs records
+        sql = """DELETE FROM thumbnails"""
+        self.db_cursor.execute(sql)
+        self.db_connection.commit()
+        try:
+            shutil.rmtree(os.path.join(self.internal_dirname, 'thumbnails'))
+        except:
+            pass
 
     def cleanup(self):
         """remove temporary directory tree from filesystem"""
@@ -820,6 +865,8 @@ class MainModel(ModelMT):
             retval['fileinfo'] = {'id': file_id,
             'date': datetime.fromtimestamp(res[1]),
             'size': res[2], 'type': res[3]}
+            
+            retval['fileinfo']['disc'] = self.__get_file_root(file_id)
 
             retval['filename'] = res[0]
 
@@ -1137,7 +1184,10 @@ class MainModel(ModelMT):
         self.db_cursor.execute(sql, (root_id,))
         res = self.db_cursor.fetchone()
 
-        return res[0]
+        if res:
+            return res[0]
+        else:
+            return None
 
     def __get_file_path(self, file_id):
         """return string with path from the root of the disc"""
