@@ -109,13 +109,13 @@ class Thumbnail(object):
         return filepath, exif, returncode
 
     # private class functions
-    def __get_and_make_path(self, img_id):
+    def __get_and_make_path(self, image_id):
         """Make directory structure regards of id
         and return filepath WITHOUT extension"""
         t = path.join(self.base, self.root)
         try: mkdir(t)
         except: pass
-        h = hex(img_id)
+        h = hex(image_id)
         if len(h[2:])>6:
             try: mkdir(path.join(t, h[2:4]))
             except: pass
