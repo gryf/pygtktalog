@@ -50,14 +50,12 @@ import pango
 class MainController(Controller):
     """Controller for main application window"""
     scan_cd = False
-    widgets = ("discs", "files", 'save1', 'save_as1', 'delete1', 'add_cd',
-               'add_directory1', 'tb_save', 'tb_addcd', 'tb_find', 'nb_dirs',
-               'description', 'stat1')
-    widgets_all = ("discs", "files", 'file1', 'edit1', 'add_cd',
-                   'add_directory1', 'help1', 'tb_save', 'tb_addcd', 'tb_find',
-                   'tb_new', 'tb_open', 'tb_quit', 'nb_dirs', 'description',
-                   'stat1')
-
+    widgets_all = ('tag_path_box', 'hpaned1',
+                       'file1', 'edit1', 'view1', 'help1',
+                           'add_cd', 'add_directory1', 'del_all_images',
+                           'del_all_images_thumb', 'del_all_thumb', 'stat1',
+                       'tb_new','tb_open', 'tb_save', 'tb_addcd', 'tb_adddir',
+                       'tb_find', 'tb_quit')
     widgets_cancel = ('cancel','cancel1')
 
     def __init__(self, model):
@@ -70,10 +68,6 @@ class MainController(Controller):
 
     def register_view(self, view):
         Controller.register_view(self, view)
-
-        # Make widget set non active
-        for widget in self.widgets:
-            self.view[widget].set_sensitive(False)
 
         # Make not active "Cancel" button and menu_item
         for widget in self.widgets_cancel:
@@ -132,6 +126,9 @@ class MainController(Controller):
         # in case model has opened file, register tags
         if self.model.internal_dirname:
             self.__tag_cloud()
+        else:
+            self.model.new()
+            #self.__activate_ui()
 
         # Show main window
         self.view['main'].show();
@@ -1168,6 +1165,7 @@ class MainController(Controller):
         return
 
     def on_delete3_activate(self, menu_item):
+        """delete files selected on files treeview"""
         dmodel = self.model.discs_tree
         try:
             selection = self.view['files'].get_selection()
@@ -1194,23 +1192,17 @@ class MainController(Controller):
 
         for p in list_of_paths:
             val = model.get_value(model.get_iter(p), 0)
-            if model.get_value(model.get_iter(p), 4) == self.model.DIR:
-                # remove from disctree model aswell
-                dpath = []
-                dmodel.foreach(foreach_disctree, (val, dpath))
-                for dp in dpath:
-                    dmodel.remove(dmodel.get_iter(dp))
-
             # delete from db
             self.model.delete(val)
 
         try:
+            # try to select something
             selection = self.view['discs'].get_selection()
             model, list_of_paths = selection.get_selected_rows()
             if not list_of_paths:
                 list_of_paths = [1]
-            iter = model.get_iter(list_of_paths[0])
-            self.model.get_root_entries(model.get_value(iter, 0))
+            fiter = model.get_iter(list_of_paths[0])
+            self.model.get_root_entries(model.get_value(fiter, 0))
         except TypeError:
             return
 
@@ -1546,14 +1538,6 @@ class MainController(Controller):
         """Make UI active, and set title"""
         self.model.unsaved_project = False
         self.__set_title(filepath=name)
-        for widget in self.widgets:
-            try:
-                self.view[widget].set_sensitive(True)
-            except:
-                pass
-        # PyGTK FAQ entry 23.20
-        while gtk.events_pending():
-            gtk.main_iteration()
         return
 
     def __set_title(self, filepath=None, modified=False):
