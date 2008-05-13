@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.4.0 on Thu May  8 10:22:24 2008 -->
+<!--Generated with glade3 3.4.0 on Tue May 13 10:23:51 2008 -->
 <glade-interface>
   <widget class="GtkWindow" id="search_window">
     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
@@ -107,6 +107,7 @@
                             <property name="headers_clickable">True</property>
                             <property name="rules_hint">True</property>
                             <signal name="row_activated" handler="on_result_row_activated"/>
+                            <signal name="button_release_event" handler="on_result_button_release_event"/>
                           </widget>
                         </child>
                       </widget>
@@ -167,6 +168,108 @@
             <property name="position">2</property>
           </packing>
         </child>
+      </widget>
+    </child>
+  </widget>
+  <widget class="GtkMenu" id="files_popup">
+    <property name="visible">True</property>
+    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+    <child>
+      <widget class="GtkMenuItem" id="add_tag">
+        <property name="visible">True</property>
+        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+        <property name="label" translatable="yes">_Add tag</property>
+        <property name="use_underline">True</property>
+        <signal name="activate" handler="on_add_tag_activate"/>
+      </widget>
+    </child>
+    <child>
+      <widget class="GtkMenuItem" id="delete_tag">
+        <property name="visible">True</property>
+        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+        <property name="label" translatable="yes">Remo_ve tag</property>
+        <property name="use_underline">True</property>
+        <signal name="activate" handler="on_delete_tag_activate"/>
+      </widget>
+    </child>
+    <child>
+      <widget class="GtkSeparatorMenuItem" id="separator16">
+        <property name="visible">True</property>
+      </widget>
+    </child>
+    <child>
+      <widget class="GtkMenuItem" id="add_thumb">
+        <property name="visible">True</property>
+        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+        <property name="label" translatable="yes">Add _Thumbnail</property>
+        <property name="use_underline">True</property>
+        <signal name="activate" handler="on_add_thumb_activate"/>
+      </widget>
+    </child>
+    <child>
+      <widget class="GtkMenuItem" id="remove_thumb">
+        <property name="visible">True</property>
+        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+        <property name="label" translatable="yes">Re_move Thumbnail</property>
+        <property name="use_underline">True</property>
+        <signal name="activate" handler="on_remove_thumb_activate"/>
+      </widget>
+    </child>
+    <child>
+      <widget class="GtkSeparatorMenuItem" id="separator17">
+        <property name="visible">True</property>
+      </widget>
+    </child>
+    <child>
+      <widget class="GtkMenuItem" id="add_image">
+        <property name="visible">True</property>
+        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+        <property name="tooltip" translatable="yes">Add images to file. If file have no thumbnail,
+thumbnail from first image will be generated.</property>
+        <property name="label" translatable="yes">Add _Images</property>
+        <property name="use_underline">True</property>
+        <signal name="activate" handler="on_add_image_activate"/>
+      </widget>
+    </child>
+    <child>
+      <widget class="GtkMenuItem" id="remove_image">
+        <property name="visible">True</property>
+        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+        <property name="label" translatable="yes">Rem_ove All Images</property>
+        <property name="use_underline">True</property>
+        <signal name="activate" handler="on_remove_image_activate"/>
+      </widget>
+    </child>
+    <child>
+      <widget class="GtkSeparatorMenuItem" id="separator18">
+        <property name="visible">True</property>
+      </widget>
+    </child>
+    <child>
+      <widget class="GtkMenuItem" id="edit">
+        <property name="visible">True</property>
+        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+        <property name="label" translatable="yes">_Edit</property>
+        <property name="use_underline">True</property>
+        <signal name="activate" handler="on_edit_activate"/>
+      </widget>
+    </child>
+    <child>
+      <widget class="GtkMenuItem" id="delete">
+        <property name="visible">True</property>
+        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+        <property name="label" translatable="yes">_Delete</property>
+        <property name="use_underline">True</property>
+        <signal name="activate" handler="on_delete_activate"/>
+      </widget>
+    </child>
+    <child>
+      <widget class="GtkMenuItem" id="rename">
+        <property name="visible">True</property>
+        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+        <property name="label" translatable="yes">_Rename</property>
+        <property name="use_underline">True</property>
+        <signal name="activate" handler="on_rename_activate"/>
       </widget>
     </child>
   </widget>
