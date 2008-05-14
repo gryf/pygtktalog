@@ -648,7 +648,7 @@ class MainController(Controller):
                 return
 
         initial_path = None
-        if self.model.config.recent[0]:
+        if self.model.config.recent and self.model.config.recent[0]:
             initial_path = os.path.dirname(self.model.config.recent[0])
 
         if not path:
