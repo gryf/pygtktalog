@@ -281,6 +281,7 @@ class ChooseDBFilename(object):
         f = gtk.FileFilter()
         f.set_name("Catalog files")
         f.add_pattern("*.pgt")
+        f.add_pattern("*.pgt.tgz")
         self.dialog.add_filter(f)
         f = gtk.FileFilter()
         f.set_name("All files")
@@ -297,13 +298,15 @@ class ChooseDBFilename(object):
         response = self.dialog.run()
         if response == gtk.RESPONSE_OK:
             filename = self.dialog.get_filename()
-            if filename[-4] == '.':
-                if filename[-3:].lower() != 'pgt':
-                    filename = filename + '.pgt'
-                else:
-                    filename = filename[:-3] + 'pgt'
+            print filename, ' do ',
+            if filename[-8:].lower() != '.pgt.tgz' and \
+            filename[-4:].lower() != '.pgt':
+                filename = filename + '.pgt.tgz'
+            elif filename[-4:].lower() == '.pgt':
+                filename = filename[:-4] + '.pgt.tgz'
             else:
-                filename = filename + '.pgt'
+                filename = filename[:-8] + '.pgt.tgz'
+            print filename
             self.__class__.URI = self.dialog.get_current_folder_uri()
             self.dialog.destroy()
             return filename
@@ -316,7 +319,7 @@ class LoadDBFile(object):
     """Specific class for displaying openFile dialog. It has veryfication
     for file existence."""
 
-    URI=None
+    URI = None
 
     def __init__(self, path=None):
         self.path = path
@@ -335,6 +338,7 @@ class LoadDBFile(object):
         f = gtk.FileFilter()
         f.set_name("Catalog files")
         f.add_pattern("*.pgt")
+        f.add_pattern("*.pgt.tgz")
         self.dialog.add_filter(f)
         f = gtk.FileFilter()
         f.set_name("All files")
