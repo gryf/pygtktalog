@@ -25,14 +25,12 @@ REQUIREMENTS
 pyGTKtalog is written in python with following dependencies:
 
 - python 2.4 or higher
-- pygtk <http://www.pygtk.org>
+- pygtk 2.10 or higher <http://www.pygtk.org>
 - pysqlite2 <http://pysqlite.org/> (unnecessary, if python 2.5 is used)
 
 Optional modules:
 
 - PIL <http://www.pythonware.com/products/pil/index.htm> for image manipulation
-- pyExcelerator <http://sourceforge.net/projects/pyexcelerator> for export to
-  excel capability
 
 Additional pyGTKtalog uses pygtkmvc <http://pygtkmvc.sourceforge.net> by Roberto
 Cavada and EXIF module by Gene Cash (slightly updatetd to EXIF 2.2 by me) which
@@ -118,14 +116,13 @@ Removed:
 		- anidb link/imdb link
   Maybe in future versions. Now text file descriptions/notes and tags have to
   be enough for good and fast information search.
-- file information (date, size, etc) (50%) (no need for?)
 
 NOTES
 =====
 
-Catalog file is tared and optionaly gziped sqlite database and directories with
-images and thumbnails. If there are more images, the size of catalog file will
-grow. So be carefull with adding big images in your catalog file!
+Catalog file is tared and gziped sqlite database and directories with images and
+thumbnails. If there are more images, the size of catalog file will grow. So be
+carefull with adding big images in your catalog file!
 
 BUGS
 ====
