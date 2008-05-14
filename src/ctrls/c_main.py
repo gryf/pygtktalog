@@ -22,7 +22,7 @@
 
 #  -------------------------------------------------------------------------
 
-__version__ = "1.0 RC1"
+__version__ = "1.0 RC2"
 LICENCE = \
 """
 GPL v2
@@ -749,18 +749,21 @@ class MainController(Controller):
                 return
 
         model = self.view['images'].get_model()
+        ids = []
         for path in list_of_paths:
-            iter = model.get_iter(path)
-            id = model.get_value(iter, 0)
-            self.model.delete_image(id)
+            iterator = model.get_iter(path)
+            ids.append(model.get_value(iterator, 0))
+            
+        for fid in ids:
+            self.model.delete_image(fid)
 
         # refresh files tree
         try:
             path, column = self.view['files'].get_cursor()
             model = self.view['files'].get_model()
-            iter = model.get_iter(path)
-            id = model.get_value(iter, 0)
-            self.__get_item_info(id)
+            iterator = model.get_iter(path)
+            fid = model.get_value(iterator, 0)
+            self.__get_item_info(fid)
         except:
             pass
 
@@ -1137,7 +1140,7 @@ class MainController(Controller):
 
         # remove from model
         path = model.get_path(selected_iter)
-        id = self.model.discs_tree.get_value(selected_iter, 0)
+        fid = self.model.discs_tree.get_value(selected_iter, 0)
         model.remove(selected_iter)
         selection.select_path(path)
 
@@ -1148,7 +1151,7 @@ class MainController(Controller):
                 path = (row, )
 
         # delete from db
-        self.model.delete(id)
+        self.model.delete(fid)
 
         # refresh files treeview
         try:
@@ -1190,10 +1193,14 @@ class MainController(Controller):
                 d[1].append(zpath)
             return False
 
+        ids = []
         for p in list_of_paths:
             val = model.get_value(model.get_iter(p), 0)
+            ids.append(val)
+            
+        for fid in ids:
             # delete from db
-            self.model.delete(val)
+            self.model.delete(fid)
 
         try:
             # try to select something
