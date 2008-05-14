@@ -307,17 +307,13 @@ class SearchController(Controller):
                 d[1].append(zpath)
             return False
 
+        ids = []
         for p in list_of_paths:
-            val = model.get_value(model.get_iter(p), 0)
-            if model.get_value(model.get_iter(p), 4) == self.model.DIR:
-                # remove from disctree model aswell
-                dpath = []
-                dmodel.foreach(foreach_searchtree, (val, dpath))
-                for dp in dpath:
-                    dmodel.remove(dmodel.get_iter(dp))
-
+            ids.append(model.get_value(model.get_iter(p), 0))
+            
+        for fid in ids:
             # delete from db
-            self.model.delete(val)
+            self.model.delete(fid)
 
         self.model.unsaved_project = True
         found = self.model.search(self.search_string)
