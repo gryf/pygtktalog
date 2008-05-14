@@ -23,11 +23,7 @@
 #  -------------------------------------------------------------------------
 
 __version__ = "1.0 RC2"
-LICENCE = \
-"""
-GPL v2
-http://www.gnu.org/licenses/gpl.txt
-"""
+LICENCE = open('LICENCE').read()
 
 import os.path
 from os import popen
