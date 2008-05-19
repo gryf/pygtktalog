@@ -67,29 +67,12 @@ PyGTKtalog is still under heavy development, however there is small chance to
 change structure of catalogs (and if it'll change, there will be transparent
 function to update DB schema).
 
-For version 1.0 following major aims have to be done:
-
-x searching database
-x tagging files
-	x remove nasty bug in redraw of tag cloud
-x file details:
-	x files properties
-		x thumbnail
-		x description
-		x edit note and description
-	x exif information
-	x gthumb integration
-x adding images
-x generating/saving thumbnails
-x moving hardcoded files extensions into config
-x statistics
+For version 1.0 there are no features to be done, just bug fixes.
 
 There are still minor aims for versions 1.x to be done:
 - consolidate popup-menus with edit menu
 - add popup menu for directly removing tag from tag cloud
 - implement advanced search
-
-Legend: [-] not done, [x] done.
 
 For version 2.0:
 - Icon grid in files view
