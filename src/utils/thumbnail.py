@@ -142,13 +142,15 @@ class Thumbnail(object):
             img = "%s.%s" %(h[2:], 'jpg')
         return(path.join(t, fpath, img))
 
-    def __scale_image(self, factor=True):
+    def __scale_image(self):
         """create thumbnail. returns image object or None"""
         try:
             im = Image.open(self.filename).convert('RGB')
         except:
             return None
-        im.thumbnail((self.x, self.y), Image.ANTIALIAS)
+        x, y = im.size
+        if x > self.x or y > self.y:
+            im.thumbnail((self.x, self.y), Image.ANTIALIAS)
         return im
 
     def __scale_image_deprecated(self, factor=True):
