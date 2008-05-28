@@ -1581,7 +1581,7 @@ class MainController(Controller):
         self.recent_menu = gtk.Menu()
         for i in self.model.config.recent:
             name = os.path.basename(i)
-            item = gtk.MenuItem("%s" % name)
+            item = gtk.MenuItem("%s" % name.replace('_', '__'))
             item.connect_object("activate", self.recent_item_response, i)
             self.recent_menu.append(item)
             item.show()
