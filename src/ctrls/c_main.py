@@ -790,8 +790,8 @@ class MainController(Controller):
             for path in list_of_paths:
                 icon_iter = model.get_iter(path)
                 img_id = model.get_value(icon_iter, 0)
-            if self.model.save_image(img_id, filepath):
-                count += 1
+                if self.model.save_image(img_id, filepath):
+                    count += 1
 
         if count > 0:
             Dialogs.Inf("Save images",
