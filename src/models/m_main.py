@@ -338,6 +338,7 @@ class MainModel(ModelMT):
                 sql = """UPDATE images SET filename=?,
                 thumbnail=? WHERE id=?"""
                 if only_thumbs:
+                    os.unlink(imp)
                     img = None
                 else:
                     img = imp.split(self.internal_dirname)[1][1:]
