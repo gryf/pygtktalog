@@ -280,8 +280,8 @@ class ChooseDBFilename(object):
 
         f = gtk.FileFilter()
         f.set_name("Catalog files")
-        f.add_pattern("*.pgt")
-        f.add_pattern("*.pgt.tgz")
+        f.add_pattern("*.sqlite")
+        f.add_pattern("*.sqlite.bz2")
         self.dialog.add_filter(f)
         f = gtk.FileFilter()
         f.set_name("All files")
@@ -299,13 +299,9 @@ class ChooseDBFilename(object):
         if response == gtk.RESPONSE_OK:
             filename = self.dialog.get_filename()
             print filename, ' do ',
-            if filename[-8:].lower() != '.pgt.tgz' and \
-            filename[-4:].lower() != '.pgt':
-                filename = filename + '.pgt.tgz'
-            elif filename[-4:].lower() == '.pgt':
-                filename = filename[:-4] + '.pgt.tgz'
-            else:
-                filename = filename[:-8] + '.pgt.tgz'
+            if filename[-11:].lower() != '.sqlite.bz2' and \
+            filename[-7:].lower() != '.sqlite':
+                filename = filename + '.sqlite.bz2'
             print filename
             self.__class__.URI = self.dialog.get_current_folder_uri()
             self.dialog.destroy()
@@ -323,7 +319,7 @@ class LoadDBFile(object):
 
     def __init__(self, path=None):
         self.path = path
-        
+
         self.dialog = gtk.FileChooserDialog(
             title="Open catalog",
             action=gtk.FILE_CHOOSER_ACTION_OPEN,
@@ -334,11 +330,11 @@ class LoadDBFile(object):
                 gtk.RESPONSE_OK))
 
         self.dialog.set_default_response(gtk.RESPONSE_OK)
-        
+
         f = gtk.FileFilter()
         f.set_name("Catalog files")
-        f.add_pattern("*.pgt")
-        f.add_pattern("*.pgt.tgz")
+        f.add_pattern("*.sqlite")
+        f.add_pattern("*.sqlite.bz2")
         self.dialog.add_filter(f)
         f = gtk.FileFilter()
         f.set_name("All files")

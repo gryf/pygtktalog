@@ -1,4 +1,4 @@
-pyGTKtalog 1.0 RC3
+pyGTKtalog 1.0
 ==================
 
 pyGTKtalog is Linux/FreeBSD program for indexing CD/DVD or directories on
@@ -106,6 +106,14 @@ NOTES
 Catalog file is tared and gziped sqlite database and directories with images and
 thumbnails. If there are more images, the size of catalog file will grow. So be
 carefull with adding big images in your catalog file!
+
+There is also converter form old database to new. In fact no image are stored in
+archive with katalog. All thumnails will be lost. All images without big image
+will be lost. There ar serious changes with application design, and I decided,
+that is better to keep media unpacked on disk, instead of pack it every time
+with save and unpack with open methods. New design prevent from deleting eny
+file from media directory (placed in ~/.pygtktalog/images). Functionality for
+exporting images and corresponding db file is planned.
 
 BUGS
 ====

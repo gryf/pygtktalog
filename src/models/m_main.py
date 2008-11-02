@@ -25,8 +25,9 @@
 import os
 import sys
 import shutil
-import tarfile
+import bz2
 import math
+from tempfile import mkstemp
 
 import gtk
 import gobject
@@ -46,6 +47,8 @@ except:
     pass
 from utils.parse_exif import ParseExif
 from utils.gthumb import GthumbCommentParser
+
+from utils.no_thumb import no_thumb as no_thumb_img
 
 class MainModel(ModelMT):
     """Create, load, save, manipulate db file which is container for data"""
@@ -91,6 +94,7 @@ class MainModel(ModelMT):
         self.unsaved_project = False
         self.filename = None # catalog saved/opened filename
         self.internal_dirname = None
+        self.image_path = None
         self.db_connection = None
         self.db_cursor = None
         self.abort = False
@@ -105,6 +109,7 @@ class MainModel(ModelMT):
         self.statusmsg = "Idle"
         self.selected_tags = {}
         self.search_created = False
+        self.db_tmp_path = False
 
         # Directory tree: id, name, icon, type
         self.discs_tree = gtk.TreeStore(gobject.TYPE_INT,
@@ -150,6 +155,30 @@ class MainModel(ModelMT):
         # - #rgb
         # - #rrggbb
         self.tag_cloud = []
+
+        try:
+            path = os.path.join(os.environ['HOME'], ".pygtktalog")
+            imgpath = os.path.join(path, "images")
+        except KeyError:
+            raise KeyError, "Cannot stat path for current user home!"
+
+        if os.path.exists(path):
+            if not os.path.isdir(path):
+                raise RuntimeError, "There is regular file \"%s\" on the way. Please remove it." % \
+                path
+        else:
+            os.mkdir(path)
+
+
+        if os.path.exists(imgpath):
+            if not os.path.isdir(imgpath):
+                print "Warning:",
+                "There is regular file \"%s\" on the way. Please remove it, otherwise images cannot be used" % imgpath
+        else:
+            os.mkdir(imgpath)
+
+        self.image_path = imgpath
+
         self.new()
         return
 
@@ -323,49 +352,57 @@ class MainModel(ModelMT):
 
     def add_image(self, image, file_id, only_thumbs=False):
         """add single image to file/directory"""
-        sql = """INSERT INTO images(file_id, thumbnail, filename)
-        VALUES(?, null, null)"""
-        self.db_cursor.execute(sql, (file_id,))
-        self.db_connection.commit()
+        imp = Img(image, self.image_path).save()
+        if imp:
+            # check if there is that image already
+            sql = """SELECT filename FROM images WHERE file_id=? and filename=?"""
+            self.db_cursor.execute(sql, (file_id, imp))
+            res = self.db_cursor.fetchone()
+            if res and res[0]:
+                # there is such an image. going back.
+                if __debug__:
+                    print res[0]
+                return
 
-        sql = """SELECT id FROM images WHERE thumbnail is null
-        AND filename IS null AND file_id=?"""
-        self.db_cursor.execute(sql, (file_id,))
-        res = self.db_cursor.fetchone()
-        if res:
-            thp, imp, rec = Img(image, self.internal_dirname).save(res[0])
-            if rec != -1:
-                sql = """UPDATE images SET filename=?,
-                thumbnail=? WHERE id=?"""
-                if only_thumbs:
-                    os.unlink(imp)
-                    img = None
-                else:
-                    img = imp.split(self.internal_dirname)[1][1:]
-                self.db_cursor.execute(sql,
-                                      (img,
-                                       thp.split(self.internal_dirname)[1][1:],
-                                       res[0]))
-                
-            # check if file have have thumbnail. if not, make it with image
-            sql = """SELECT id from thumbnails where file_id=?"""
+            # check if file have have thumbnail. if not, make it with first
+            # image
+            sql = """SELECT id FROM thumbnails WHERE file_id=?"""
             self.db_cursor.execute(sql, (file_id,))
             res = self.db_cursor.fetchone()
-            if not res:
-                 self.add_thumbnail(image, file_id)
-        self.db_connection.commit()
+            thumb = 1
+            if not(res and res[0]):
+                sql = """INSERT INTO thumbnails(filename, file_id) VALUES(?, ?)"""
+                self.db_cursor.execute(sql, (imp, file_id))
+
+            # insert picture into db
+            sql = """INSERT INTO images(file_id, filename)
+            VALUES(?, ?)"""
+            self.db_cursor.execute(sql, (file_id, imp))
+            self.db_connection.commit()
+
+            ## check if file have have thumbnail. if not, make it with image
+            #sql = """SELECT id from thumbnails where file_id=?"""
+            #self.db_cursor.execute(sql, (file_id,))
+            #res = self.db_cursor.fetchone()
+            #if not res:
+            #    sql = """insert into thumbnails(file_id, filename)
+            #    values (?, ?)"""
+            #    self.db_cursor.execute(sql, (file_id, thp))
+            #    self.db_connection.commit()
+            #
+            self.db_connection.commit()
 
     def del_images(self, file_id):
         """removes images and their thumbnails from selected file/dir"""
-        # remove images
-        sql = """SELECT filename, thumbnail FROM images WHERE file_id =?"""
-        self.db_cursor.execute(sql, (file_id,))
-        res = self.db_cursor.fetchall()
-        if len(res) > 0:
-            for filen in res:
-                if filen[0]:
-                    os.unlink(os.path.join(self.internal_dirname, filen[0]))
-                os.unlink(os.path.join(self.internal_dirname, filen[1]))
+        ## remove images
+        #sql = """SELECT filename, thumbnail FROM images WHERE file_id =?"""
+        #self.db_cursor.execute(sql, (file_id,))
+        #res = self.db_cursor.fetchall()
+        #if len(res) > 0:
+        #    for filen in res:
+        #        if filen[0]:
+        #            os.unlink(os.path.join(self.internal_dirname, filen[0]))
+        #        os.unlink(os.path.join(self.internal_dirname, filen[1]))
 
         # remove images records
         sql = """DELETE FROM images WHERE file_id = ?"""
@@ -380,109 +417,122 @@ class MainModel(ModelMT):
         self.db_cursor.execute(sql, (image_id,))
         res = self.db_cursor.fetchone()
         if res and res[0]:
-            source = os.path.join(self.internal_dirname, res[0])
+            source = os.path.join(self.image_path, res[0])
             count = 1
-            dest = os.path.join(file_path, res[1] + "_%d." % count + \
-                                res[0].split('.')[-1])
+            dest = os.path.join(file_path, res[1] + "_%04d." % count + 'jpg')
 
             while os.path.exists(dest):
                 count += 1
-                dest = os.path.join(file_path, res[1] + "_%d." % count + \
-                                res[0].split('.')[-1])
-
+                dest = os.path.join(file_path, res[1] + "_%04d." %\
+                                    count + 'jpg')
+            if not os.path.exists(source):
+                return False
             shutil.copy(source, dest)
             return True
-                #os.unlink()
         else:
             return False
 
     def delete_images_wth_thumbs(self, image_id):
         """removes image (without thumbnail) on specified image id"""
-        sql = """SELECT filename FROM images WHERE id=?"""
-        self.db_cursor.execute(sql, (image_id,))
-        res = self.db_cursor.fetchone()
-        if res:
-            if res[0]:
-                os.unlink(os.path.join(self.internal_dirname, res[0]))
+        print "method removed"
+        #sql = """SELECT filename FROM images WHERE id=?"""
+        #self.db_cursor.execute(sql, (image_id,))
+        #res = self.db_cursor.fetchone()
+        #if res:
+        #    if res[0]:
+        #        os.unlink(os.path.join(self.internal_dirname, res[0]))
+        #
+        #    if __debug__:
+        #        print "m_main.py: delete_image(): removed images:"
+        #        print res[0]
 
-            if __debug__:
-                print "m_main.py: delete_image(): removed images:"
-                print res[0]
         # remove images records
-        sql = """UPDATE images set filename=NULL WHERE id = ?"""
-        self.db_cursor.execute(sql, (image_id,))
-        self.db_connection.commit()
+        #sql = """UPDATE images set filename=NULL WHERE id = ?"""
+        #self.db_cursor.execute(sql, (image_id,))
+        #self.db_connection.commit()
 
     def delete_all_images_wth_thumbs(self):
         """removes all images (without thumbnails) from collection"""
-        sql = """SELECT filename FROM images"""
-        self.db_cursor.execute(sql)
-        res = self.db_cursor.fetchall()
-        for row in res:
-            if row[0]:
-                os.unlink(os.path.join(self.internal_dirname, row[0]))
-            if __debug__:
-                print "m_main.py: delete_all_images(): removed image:",
-                print row[0]
+        print "method removed"
+        #sql = """SELECT filename FROM images"""
+        #self.db_cursor.execute(sql)
+        #res = self.db_cursor.fetchall()
+        #for row in res:
+        #    if row[0]:
+        #        os.unlink(os.path.join(self.internal_dirname, row[0]))
+        #    if __debug__:
+        #        print "m_main.py: delete_all_images(): removed image:",
+        #        print row[0]
+
         # remove images records
-        sql = """UPDATE images set filename=NULL"""
-        self.db_cursor.execute(sql)
-        self.db_connection.commit()
+        #sql = """UPDATE images set filename=NULL"""
+        #self.db_cursor.execute(sql)
+        #self.db_connection.commit()
 
     def delete_image(self, image_id):
         """removes image on specified image id"""
-        sql = """SELECT filename, thumbnail FROM images WHERE id=?"""
-        self.db_cursor.execute(sql, (image_id,))
-        res = self.db_cursor.fetchone()
-        if res:
-            if res[0]:
-                os.unlink(os.path.join(self.internal_dirname, res[0]))
-            os.unlink(os.path.join(self.internal_dirname, res[1]))
+        #sql = """SELECT filename, thumbnail FROM images WHERE id=?"""
+        #self.db_cursor.execute(sql, (image_id,))
+        #res = self.db_cursor.fetchone()
+        #if res:
+        #    if res[0]:
+        #        os.unlink(os.path.join(self.internal_dirname, res[0]))
+        #    os.unlink(os.path.join(self.internal_dirname, res[1]))
+        #
+        #    if __debug__:
+        #        print "m_main.py: delete_image(): removed images:"
+        #        print res[0]
+        #        print res[1]
 
-            if __debug__:
-                print "m_main.py: delete_image(): removed images:"
-                print res[0]
-                print res[1]
         # remove images records
         sql = """DELETE FROM images WHERE id = ?"""
         self.db_cursor.execute(sql, (image_id,))
         self.db_connection.commit()
-        
+
+    def set_image_as_thumbnail(self, image_id):
+        """set image as file thumbnail"""
+        sql = """SELECT file_id, filename FROM images WHERE id=?"""
+        self.db_cursor.execute(sql, (image_id,))
+        res = self.db_cursor.fetchone()
+        if res and res[0]:
+            sql = """DELETE FROM thumbnails WHERE file_id=?"""
+            self.db_cursor.execute(sql, (res[0],))
+            sql = """INSERT INTO thumbnails(file_id, filename) VALUES(?, ?)"""
+            self.db_cursor.execute(sql, (res[0], res[1]))
+            return True
+        return False
+
     def delete_all_images(self):
-        """removes all images (with thumbnails) from collection"""
+        """removes all images from collection"""
         # remove images records
         sql = """DELETE FROM images"""
         self.db_cursor.execute(sql)
         self.db_connection.commit()
-        try:
-            shutil.rmtree(os.path.join(self.internal_dirname, 'images'))
-        except:
-            pass
+        #try:
+        #    shutil.rmtree(os.path.join(self.internal_dirname, 'images'))
+        #except:
+        #    pass
 
     def add_thumbnail(self, img_fn, file_id):
         """generate and add thumbnail to selected file/dir"""
         if self.config.confd['thumbs']:
             self.del_thumbnail(file_id)
-            thumb = Thumbnail(img_fn, base=self.internal_dirname)
-            retval = thumb.save(file_id)
-            if retval[2] != -1:
-                path = retval[0].split(self.internal_dirname)[1][1:]
-                sql = """insert into thumbnails(file_id, filename)
-                values (?, ?)"""
-                self.db_cursor.execute(sql, (file_id, path))
-                self.db_connection.commit()
-                return True
+            im, exif = Thumbnail(img_fn, self.image_path).save()
+
+            sql = """INSERT INTO thumbnails(file_id, filename) values (?, ?)"""
+            self.db_cursor.execute(sql, (file_id, im))
+            self.db_connection.commit()
+            return True
         return False
 
     def del_thumbnail(self, file_id):
         """removes thumbnail from selected file/dir"""
-
         # remove thumbnail files
-        sql = """SELECT filename FROM thumbnails WHERE file_id=?"""
-        self.db_cursor.execute(sql, (file_id,))
-        res = self.db_cursor.fetchone()
-        if res:
-            os.unlink(os.path.join(self.internal_dirname, res[0]))
+        #sql = """SELECT filename FROM thumbnails WHERE file_id=?"""
+        #self.db_cursor.execute(sql, (file_id,))
+        #res = self.db_cursor.fetchone()
+        #if res:
+        #    os.unlink(os.path.join(self.internal_dirname, res[0]))
 
         # remove thumbs records
         sql = """DELETE FROM thumbnails WHERE file_id=?"""
@@ -495,26 +545,33 @@ class MainModel(ModelMT):
         sql = """DELETE FROM thumbnails"""
         self.db_cursor.execute(sql)
         self.db_connection.commit()
-        try:
-            shutil.rmtree(os.path.join(self.internal_dirname, 'thumbnails'))
-        except:
-            pass
+        #try:
+        #    shutil.rmtree(os.path.join(self.internal_dirname, 'thumbnails'))
+        #except:
+        #    pass
 
     def cleanup(self):
         """remove temporary directory tree from filesystem"""
         self.__close_db_connection()
-        if self.internal_dirname != None:
-            try:
-                shutil.rmtree(self.internal_dirname)
-            except OSError:
-                pass
+        try:
+            os.unlink(self.db_tmp_path)
+        except:
+            if __debug__:
+                print "Exception in removing temporary db file!"
+            pass
+
+        #if self.internal_dirname != None:
+        #    try:
+        #        shutil.rmtree(self.internal_dirname)
+        #    except OSError:
+        #        pass
         return
 
     def new(self):
         """create new project"""
         self.unsaved_project = False
         self.filename = None
-        self.__create_internal_dirname()
+        self.__create_temporary_db_file()
         self.__connect_to_db()
         self.__create_database()
         self.__clear_trees()
@@ -525,6 +582,10 @@ class MainModel(ModelMT):
 
     def save(self, filename=None):
         """save tared directory at given catalog fielname"""
+
+        # flush all changes
+        self.db_connection.commit()
+
         if not filename and not self.filename:
             if __debug__:
                 return False, "no filename detected!"
@@ -540,59 +601,86 @@ class MainModel(ModelMT):
     def open(self, filename=None):
         """try to open db file"""
         self.unsaved_project = False
-        self.__create_internal_dirname()
+        self.__create_temporary_db_file()
         self.filename = filename
         self.tag_cloud = []
         self.selected_tags = {}
         self.clear_search_tree()
 
         try:
-            tar = tarfile.open(filename, "r:gz")
-        except:
+            test_file = open(filename).read(15)
+        except IOError:
+            self.filename = None
+            self.internal_dirname = None
+            return False
+
+        if test_file == "SQLite format 3":
+            db_tmp = open(self.db_tmp_path, "wb")
+            db_tmp.write(open(filename).read())
+            db_tmp.close()
+        elif test_file[0:10] == "BZh91AY&SY":
+            open_file = bz2.BZ2File(filename)
             try:
-                tar = tarfile.open(filename, "r")
-            except:
+                curdb = open(self.db_tmp_path, "w")
+                curdb.write(open_file.read())
+                curdb.close()
+                open_file.close()
+            except IOError:
+                # file is not bz2
                 self.filename = None
                 self.internal_dirname = None
-                return
-
-        os.chdir(self.internal_dirname)
-        try:
-            tar.extractall()
-            if __debug__:
-                print "m_main.py: extracted tarfile into",
-                print self.internal_dirname
-        except AttributeError:
-            # python 2.4 tarfile module lacks of method extractall()
-            directories = []
-            for tarinfo in tar:
-                if tarinfo.isdir():
-                    # Extract directory with a safe mode, so that
-                    # all files below can be extracted as well.
-                    try:
-                        os.makedirs(os.path.join('.', tarinfo.name), 0700)
-                    except EnvironmentError:
-                        pass
-                    directories.append(tarinfo)
-                else:
-                    tar.extract(tarinfo, '.')
-
-            # Reverse sort directories.
-            directories.sort(lambda a, b: cmp(a.name, b.name))
-            directories.reverse()
-
-            # Set correct owner, mtime and filemode on directories.
-            for tarinfo in directories:
-                try:
-                    os.chown(os.path.join('.', tarinfo.name),
-                             tarinfo.uid, tarinfo.gid)
-                    os.utime(os.path.join('.', tarinfo.name),
-                             (0, tarinfo.mtime))
-                except OSError:
-                    if __debug__:
-                        print "m_main.py: open(): setting corrext owner,",
-                        print "mtime etc"
-        tar.close()
+                return False
+        else:
+            self.filename = None
+            self.internal_dirname = None
+            return False
+        #try:
+        #    tar = tarfile.open(filename, "r:gz")
+        #except:
+        #    try:
+        #        tar = tarfile.open(filename, "r")
+        #    except:
+        #        self.filename = None
+        #        self.internal_dirname = None
+        #        return
+        #
+        #os.chdir(self.internal_dirname)
+        #try:
+        #    tar.extractall()
+        #    if __debug__:
+        #        print "m_main.py: extracted tarfile into",
+        #        print self.internal_dirname
+        #except AttributeError:
+        #    # python 2.4 tarfile module lacks of method extractall()
+        #    directories = []
+        #    for tarinfo in tar:
+        #        if tarinfo.isdir():
+        #            # Extract directory with a safe mode, so that
+        #            # all files below can be extracted as well.
+        #            try:
+        #                os.makedirs(os.path.join('.', tarinfo.name), 0700)
+        #            except EnvironmentError:
+        #                pass
+        #            directories.append(tarinfo)
+        #        else:
+        #            tar.extract(tarinfo, '.')
+        #
+        #    # Reverse sort directories.
+        #    directories.sort(lambda a, b: cmp(a.name, b.name))
+        #    directories.reverse()
+        #
+        #    # Set correct owner, mtime and filemode on directories.
+        #    for tarinfo in directories:
+        #        try:
+        #            os.chown(os.path.join('.', tarinfo.name),
+        #                     tarinfo.uid, tarinfo.gid)
+        #            os.utime(os.path.join('.', tarinfo.name),
+        #                     (0, tarinfo.mtime))
+        #        except OSError:
+        #            if __debug__:
+        #                print "m_main.py: open(): setting corrext owner,",
+        #                print "mtime etc"
+        #tar.close()
 
         self.__connect_to_db()
         self.__fetch_db_into_treestore()
@@ -858,9 +946,9 @@ class MainModel(ModelMT):
         """get file info from database"""
         retval = {}
         sql = """SELECT f.filename, f.date, f.size, f.type,
-                        t.filename, f.description, f.note
+                        f.description, f.note, t.filename
                 FROM files f
-                LEFT JOIN thumbnails t ON t.file_id = f.id
+                LEFT JOIN thumbnails t on f.id = t.file_id
                 WHERE f.id = ?"""
         self.db_cursor.execute(sql, (file_id,))
         res = self.db_cursor.fetchone()
@@ -868,31 +956,37 @@ class MainModel(ModelMT):
             retval['fileinfo'] = {'id': file_id,
             'date': datetime.fromtimestamp(res[1]),
             'size': res[2], 'type': res[3]}
-            
+
             retval['fileinfo']['disc'] = self.__get_file_root(file_id)
 
             retval['filename'] = res[0]
 
+            if res[4]:
+                retval['description'] = res[4]
+
             if res[5]:
-                retval['description'] = res[5]
+                retval['note'] = res[5]
 
             if res[6]:
-                retval['note'] = res[6]
+                thumbfile = os.path.join(self.image_path, res[6] + "_t")
+                if os.path.exists(thumbfile):
+                    pix = gtk.gdk.pixbuf_new_from_file(thumbfile)
+                    retval['thumbnail'] = thumbfile
 
-            if res[4]:
-                path = os.path.join(self.internal_dirname, res[4])
-                retval['thumbnail'] = path
-
-        sql = """SELECT id, thumbnail FROM images
+        sql = """SELECT id, filename FROM images
                 WHERE file_id = ?"""
         self.db_cursor.execute(sql, (file_id,))
         res = self.db_cursor.fetchall()
         if res:
             self.images_store = gtk.ListStore(gobject.TYPE_INT, gtk.gdk.Pixbuf)
-            for idi, thb in res:
-                img = os.path.join(self.internal_dirname, thb)
-                pix = gtk.gdk.pixbuf_new_from_file(img)
-                self.images_store.append([idi, pix])
+            for im_id, filename in res:
+                thumbfile = os.path.join(self.image_path, filename + "_t")
+                if os.path.exists(thumbfile):
+                    pix = gtk.gdk.pixbuf_new_from_file(thumbfile)
+                else:
+                    pix = gtk.gdk.pixbuf_new_from_inline(len(no_thumb_img),
+                                                         no_thumb_img, False)
+                self.images_store.append([im_id, pix])
             retval['images'] = True
 
         sql = """SELECT camera, date, aperture, exposure_program,
@@ -998,23 +1092,23 @@ class MainModel(ModelMT):
             arg = str(tuple(fids))
 
         # remove thumbnails
-        sql = """SELECT filename FROM thumbnails WHERE file_id IN %s""" % arg
-        db_cursor.execute(sql)
-        res = db_cursor.fetchall()
-        if len(res) > 0:
-            for row in res:
-                os.unlink(os.path.join(self.internal_dirname, row[0]))
+        #sql = """SELECT filename FROM thumbnails WHERE file_id IN %s""" % arg
+        #db_cursor.execute(sql)
+        #res = db_cursor.fetchall()
+        #if len(res) > 0:
+        #    for row in res:
+        #        os.unlink(os.path.join(self.image_path, row[0]))
 
         # remove images
-        sql = """SELECT filename, thumbnail FROM images
-                WHERE file_id IN %s""" % arg
-        db_cursor.execute(sql)
-        res = db_cursor.fetchall()
-        if len(res) > 0:
-            for row in res:
-                if row[0]:
-                    os.unlink(os.path.join(self.internal_dirname, row[0]))
-                os.unlink(os.path.join(self.internal_dirname, row[1]))
+        #sql = """SELECT filename, thumbnail FROM images
+        #        WHERE file_id IN %s""" % arg
+        #db_cursor.execute(sql)
+        #res = db_cursor.fetchall()
+        #if len(res) > 0:
+        #    for row in res:
+        #        if row[0]:
+        #            os.unlink(os.path.join(self.internal_dirname, row[0]))
+        #        os.unlink(os.path.join(self.internal_dirname, row[1]))
 
         # remove thumbs records
         sql = """DELETE FROM thumbnails WHERE file_id = ?"""
@@ -1053,7 +1147,7 @@ class MainModel(ModelMT):
                 parent_id = False
 
         db_connection.commit()
-        
+
         # part two: remove items from treestore/liststores
         def foreach_treestore(model, path, iterator, d):
             if d[0] == model.get_value(iterator, 0):
@@ -1160,9 +1254,10 @@ class MainModel(ModelMT):
         sql = """SELECT filename FROM images WHERE id=?"""
         self.db_cursor.execute(sql, (img_id,))
         res = self.db_cursor.fetchone()
-        if res:
-            if res[0]:
-                return os.path.join(self.internal_dirname, res[0])
+        if res and res[0]:
+            path = os.path.join(self.image_path, res[0])
+            if os.path.exists(path):
+                return path
         return None
 
     def update_desc_and_note(self, file_id, desc='', note=''):
@@ -1278,14 +1373,14 @@ class MainModel(ModelMT):
 
     def __connect_to_db(self):
         """initialize db connection and store it in class attributes"""
-        self.db_connection = sqlite.connect("%s" % \
-                    (self.internal_dirname + '/db.sqlite'),
+        self.db_connection = sqlite.connect(self.db_tmp_path,
                     detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
         self.db_cursor = self.db_connection.cursor()
         return
 
     def __close_db_connection(self):
         """close db conection"""
+
         if self.db_cursor != None:
             self.db_cursor.close()
             self.db_cursor = None
@@ -1294,42 +1389,66 @@ class MainModel(ModelMT):
             self.db_connection = None
         return
 
-    def __create_internal_dirname(self):
-        """create temporary directory for working thumb/image files and
-        database"""
-        # TODO: change this stupid rutine into tempfile mkdtemp method
+    def __create_temporary_db_file(self):
+        """create temporary db file"""
         self.cleanup()
-        self.internal_dirname = "/tmp/pygtktalog%d" % \
-            datetime.now().microsecond
-        try:
-            os.mkdir(self.internal_dirname)
-        except IOError, (errno, strerror):
-            print "m_main.py: __create_internal_dirname(): ", strerror
+        self.db_tmp_path = mkstemp()[1]
         return
 
     def __compress_and_save(self):
         """create (and optionaly compress) tar archive from working directory
         and write it to specified file"""
+
+        # flush all changes
+        self.db_connection.commit()
+
         try:
             if self.config.confd['compress']:
-                tar = tarfile.open(self.filename, "w:gz")
+                output_file = bz2.BZ2File(self.filename, "w")
             else:
-                tar = tarfile.open(self.filename, "w")
+                output_file = open(self.filename, "w")
             if __debug__:
                 print "m_main.py: __compress_and_save(): tar open successed"
 
         except IOError, (errno, strerror):
             return False, strerror
 
-        os.chdir(self.internal_dirname)
-        tar.add('.')
-        tar.close()
+        dbpath = open(self.db_tmp_path)
+        output_file.write(dbpath.read())
+        dbpath.close()
+        output_file.close()
 
         self.unsaved_project = False
         return True, None
 
     def __create_database(self):
-        """make all necessary tables in db file"""
+        """make all necessary tables in db file
+
+
+        ,------------.        ,------------.
+        |files       |        |tags        |
+        +------------+        +------------+
+      |→|pk id       |        |pk id       |
+      |_|fk parent_id|        |fk group_id |
+        |filename    |        |tag         |
+        |filepath    |        +------------+
+        |date        |
+        |size        |        ,------------
+        |source      |        |tags_files
+        |note        |        |
+        |description |        |
+        +------------+        |
+
+
+
+
+
+
+
+
+
+
+        """
         self.db_cursor.execute("""create table
                                files(id INTEGER PRIMARY KEY AUTOINCREMENT,
                                      parent_id INTEGER,
@@ -1359,7 +1478,6 @@ class MainModel(ModelMT):
         self.db_cursor.execute("""create table
                                images(id INTEGER PRIMARY KEY AUTOINCREMENT,
                                       file_id INTEGER,
-                                      thumbnail TEXT,
                                       filename TEXT);""")
         self.db_cursor.execute("""create table
                                exif(id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1463,8 +1581,7 @@ class MainModel(ModelMT):
         self.busy = True
 
         # new conection for this task, because it's running in separate thread
-        db_connection = sqlite.connect("%s" % \
-                   (self.internal_dirname + '/db.sqlite'),
+        db_connection = sqlite.connect(self.db_tmp_path,
                    detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES,
                    isolation_level="EXCLUSIVE")
         db_cursor = db_connection.cursor()
@@ -1627,15 +1744,13 @@ class MainModel(ModelMT):
 
                         # Images - thumbnails and exif data
                         if self.config.confd['thumbs'] and ext in self.IMG:
-                            t = Thumbnail(current_file,
-                                          base=self.internal_dirname)
-                            tpath, exif, ret_code = t.save(fileid)
-                            if ret_code != -1:
+                            thumb = Thumbnail(current_file, self.image_path)
+                            th, exif = thumb.save()
+                            if th:
                                 sql = """INSERT INTO
                                 thumbnails(file_id, filename)
                                 VALUES(?, ?)"""
-                                t = tpath.split(self.internal_dirname)[1][1:]
-                                db_cursor.execute(sql, (fileid, t))
+                                db_cursor.execute(sql, (fileid, th))
 
                         # exif - store data in exif table
                         jpg = ['jpg', 'jpeg']
@@ -1750,8 +1865,7 @@ class MainModel(ModelMT):
 
         #connect
         detect_types = sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES
-        db_connection = sqlite.connect("%s" % \
-                                       (self.internal_dirname + '/db.sqlite'),
+        db_connection = sqlite.connect(self.db_tmp_path,
                                        detect_types = detect_types)
         db_cursor = db_connection.cursor()
 
@@ -1803,8 +1917,7 @@ class MainModel(ModelMT):
         """append branch from DB to existing tree model"""
         #connect
         detect_types = sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES
-        db_connection = sqlite.connect("%s" %
-                                       (self.internal_dirname + '/db.sqlite'),
+        db_connection = sqlite.connect(self.db_tmp_path,
                                        detect_types = detect_types)
         db_cursor = db_connection.cursor()
 

@@ -157,9 +157,11 @@ class ConfigModel(Model):
     dstring = ('cd','ejectapp','imgprog')
 
     try:
-        path = os.environ['HOME']
-    except:
-        path = "/tmp"
+        path = os.path.join(os.environ['HOME'], ".pygtktalog")
+    except KeyError:
+        raise KeyError, "Cannot stat path for current user home!"
+
+    path = os.path.join(path, "config.ini")
 
     def __init__(self):
         Model.__init__(self)
@@ -179,12 +181,12 @@ class ConfigModel(Model):
 
     def save(self):
         try:
-            os.lstat("%s/.pygtktalog" % self.path)
+            os.lstat(self.path)
         except:
-            print "Saving preferences to %s/.pygtktalog" % self.path
+            print "Saving preferences to %s." % self.path
             if __debug__:
                 print "m_config.py: save() Saving preferences to",
-                print "%s/.pygtktalog" % self.path
+                print "%s" % self.path
         newIni = Ini()
 
         # main section
@@ -224,12 +226,12 @@ class ConfigModel(Model):
 
         # write config
         try:
-            f = open("%s/.pygtktalog" % self.path,"w")
+            f = open(self.path, "w")
             success = True
         except:
             if __debug__:
                 print "m_config.py: save() Cannot open config file",
-                print "%s for writing." % (self.path, "/.pygtktalog")
+                print "%s for writing." % self.path
             success = False
         f.write(newIni.show())
         f.close()
@@ -239,7 +241,7 @@ class ConfigModel(Model):
         try:
         # try to read config file
             parser = ConfigParser()
-            parser.read("%s/.pygtktalog" % self.path)
+            parser.read(self.path)
             r = {}
             h = {}
             self.recent = []
