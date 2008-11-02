@@ -49,7 +49,7 @@ class MainController(Controller):
     widgets_all = ('tag_path_box', 'hpaned1',
                        'file1', 'edit1', 'view1', 'help1',
                            'add_cd', 'add_directory1', 'del_all_images',
-                           'del_all_images_thumb', 'del_all_thumb', 'stat1',
+                           'del_all_thumb', 'stat1',
                        'tb_new','tb_open', 'tb_save', 'tb_addcd', 'tb_adddir',
                        'tb_find', 'tb_quit')
     widgets_cancel = ('cancel','cancel1')
@@ -120,7 +120,7 @@ class MainController(Controller):
         self.view['tag_cloud_textview'].connect("populate-popup",
                                            self.on_tag_cloud_textview_popup)
         # in case model has opened file, register tags
-        if self.model.internal_dirname:
+        if self.model.db_tmp_path:
             self.__tag_cloud()
         else:
             self.model.new()
@@ -345,7 +345,7 @@ class MainController(Controller):
                 ImageView(img)
         else:
             Dialogs.Inf("Image view", "No Image",
-                        "This item have no real image, only thumbnail.")
+                        "Image file does not exist.")
 
     def on_rename1_activate(self, widget):
         model, iter = self.view['discs'].get_selection().get_selected()
@@ -749,7 +749,7 @@ class MainController(Controller):
         for path in list_of_paths:
             iterator = model.get_iter(path)
             ids.append(model.get_value(iterator, 0))
-            
+
         for fid in ids:
             self.model.delete_image(fid)
 
@@ -805,37 +805,23 @@ class MainController(Controller):
                         description)
         return
 
-    def on_img_delete2_activate(self, menu_item):
-        """remove images, but keep thumbnails"""
+    def on_img_thumbset_activate(self, menu_item):
+        """set selected image as thumbnail"""
         list_of_paths = self.view['images'].get_selected_items()
 
         if not list_of_paths:
-            Dialogs.Inf("Delete images", "No images selected",
-                        "You have to select at least one image to delete.")
+            Dialogs.Inf("Set thumbnail", "No image selected",
+                        "You have to select one image to set as thumbnail.")
+            return
+        if len(list_of_paths) >1:
+            Dialogs.Inf("Set thumbnail", "To many images selected",
+                        "You have to select one image to set as thumbnail.")
             return
 
-        if self.model.config.confd['delwarn']:
-            description = 'Selected images will be permanently removed from '
-            description += 'catalog,\nthumbnails will be keeped.'
-            obj = Dialogs.Qst('Delete images', 'Delete selected images?',
-                              description)
-            if not obj.run():
-                return
-
         model = self.view['images'].get_model()
-        for path in list_of_paths:
-            iter = model.get_iter(path)
-            id = model.get_value(iter, 0)
-            self.model.delete_images_wth_thumbs(id)
-
-        try:
-            path, column = self.view['files'].get_cursor()
-            model = self.view['files'].get_model()
-            iter = model.get_iter(path)
-            id = model.get_value(iter, 0)
-            self.__get_item_info(id)
-        except:
-            pass
+        iter = model.get_iter(list_of_paths[0])
+        id = model.get_value(iter, 0)
+        self.model.set_image_as_thumbnail(id)
 
         self.model.unsaved_project = True
         self.__set_title(filepath=self.model.filename, modified=True)
@@ -1049,7 +1035,7 @@ class MainController(Controller):
         ids = self.__get_tv_selection_ids(self.view['files'])
         for id in ids:
             self.model.add_tags(id, tags)
-        
+
         self.__tag_cloud()
         self.model.unsaved_project = True
         self.__set_title(filepath=self.model.filename, modified=True)
@@ -1193,7 +1179,7 @@ class MainController(Controller):
         for p in list_of_paths:
             val = model.get_value(model.get_iter(p), 0)
             ids.append(val)
-            
+
         for fid in ids:
             # delete from db
             self.model.delete(fid)
@@ -1249,31 +1235,6 @@ class MainController(Controller):
                 return
 
         self.model.delete_all_images()
-        self.model.unsaved_project = True
-        self.__set_title(filepath=self.model.filename, modified=True)
-
-        try:
-            path, column = self.view['files'].get_cursor()
-            model = self.view['files'].get_model()
-            fiter = model.get_iter(path)
-            fid = model.get_value(fiter, 0)
-            if fid:
-                self.__get_item_info(fid)
-        except:
-            pass
-        return
-
-    def on_del_all_images_thumb_activate(self, menu_item):
-        if self.model.config.confd['delwarn']:
-            title = 'Delete images'
-            question = 'Delete all images?'
-            dsc = "All images without thumbnails will be permanently removed"
-            dsc += " from catalog."
-            obj = Dialogs.Qst(title, question, dsc)
-            if not obj.run():
-                return
-
-        self.model.delete_all_images_wth_thumbs()
         self.model.unsaved_project = True
         self.__set_title(filepath=self.model.filename, modified=True)
 
