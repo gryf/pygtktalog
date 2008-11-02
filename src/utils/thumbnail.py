@@ -22,189 +22,95 @@
 
 #  -------------------------------------------------------------------------
 
-from tempfile import gettempdir
+from tempfile import mkstemp
+from hashlib import sha512
 from shutil import move
-from os import path, mkdir
-from datetime import datetime
+from os import path
+import sys
 
 from utils import EXIF
 import Image
 
 class Thumbnail(object):
+    """Class for generate/extract thumbnail from image file"""
 
-    def __init__(self, filename=None, x=160, y=160,
-                 root='thumbnails', base=''):
-        self.root = root
-        self.x = x
-        self.y = y
+    def __init__(self, filename=None, base=''):
+        self.thumb_x = 160
+        self.thumb_y = 160
         self.filename = filename
         self.base = base
+        self.sha512 = sha512(open(filename).read()).hexdigest()
+        self.thumbnail_path = path.join(self.base, self.sha512 + "_t")
 
-    def save(self, image_id):
+    def save(self):
         """Save thumbnail into specific directory structure
-        return full path to the file and exif object or None"""
-        filepath = path.join(self.base, self.__get_and_make_path(image_id))
-        f = open(self.filename, 'rb')
-        exif = None
-        returncode = -1
+        return filename base and exif object or None"""
+        exif = {}
+        orientations = {2: Image.FLIP_LEFT_RIGHT,  # Mirrored horizontal
+                        3: Image.ROTATE_180,       # Rotated 180
+                        4: Image.FLIP_TOP_BOTTOM,  # Mirrored vertical
+                        5: Image.ROTATE_90,        # Mirrored horizontal then
+                                                   # rotated 90 CCW
+                        6: Image.ROTATE_270,       # Rotated 90 CW
+                        7: Image.ROTATE_270,       # Mirrored horizontal then
+                                                   # rotated 90 CW
+                        8: Image.ROTATE_90}        # Rotated 90 CCW
+        flips = {7: Image.FLIP_LEFT_RIGHT, 5: Image.FLIP_LEFT_RIGHT}
+        
+        image_file = open(self.filename, 'rb')
         try:
-            exif = EXIF.process_file(f)
-            f.close()
-            if 'JPEGThumbnail' in exif:
-                thumbnail = exif['JPEGThumbnail']
-                f = open(filepath,'wb')
-                f.write(thumbnail)
-                f.close()
-                if 'Image Orientation' in exif:
-                    orientation = exif['Image Orientation'].values[0]
-                    if orientation > 1:
-                        # TODO: replace silly datetime function with tempfile
-                        ms = datetime.now().microsecond
-                        t = path.join(gettempdir(), "thumb%d.jpg" % ms)
-                        im_in = Image.open(filepath)
-                        im_out = None
-                        if orientation == 8:
-                            # Rotated 90 CCW
-                            im_out = im_in.transpose(Image.ROTATE_90)
-                        elif orientation == 6:
-                            # Rotated 90 CW
-                            im_out = im_in.transpose(Image.ROTATE_270)
-                        elif orientation == 3:
-                            # Rotated 180
-                            im_out = im_in.transpose(Image.ROTATE_180)
-                        elif orientation == 2:
-                            # Mirrored horizontal
-                            im_out = im_in.transpose(Image.FLIP_LEFT_RIGHT)
-                        elif orientation == 4:
-                            # Mirrored vertical
-                            im_out = im_in.transpose(Image.FLIP_TOP_BOTTOM)
-                        elif orientation == 5:
-                            # Mirrored horizontal then rotated 90 CCW
-                            op = Image.FLIP_LEFT_RIGHT
-                            rot = Image.ROTATE_90
-                            im_out = im_in.transpose(op).transpose(rot)
-                        elif orientation == 7:
-                            # Mirrored horizontal then rotated 90 CW
-                            op = Image.FLIP_LEFT_RIGHT
-                            rot = Image.ROTATE_270
-                            im_out = im_in.transpose(op).transpose(rot)
-
-                        if im_out:
-                            im_out.save(t, 'JPEG')
-                            move(t, filepath)
-                        else:
-                            f.close()
-                returncode = 0
-            else:
-                im = self.__scale_image()
-                if im:
-                    im.save(filepath, "JPEG")
-                    returncode = 1
+            exif = EXIF.process_file(image_file)
         except:
-            f.close()
-            im = self.__scale_image()
-            if im:
-                im.save(filepath, "JPEG")
-                returncode = 2
-        return filepath, exif, returncode
+            if __debug__:
+                print "exception", sys.exc_info()[0], "raised with file:"
+                print self.filename
+        finally:
+            image_file.close()
 
-    # private class functions
-    def __get_and_make_path(self, image_id):
-        """Make directory structure regards of id
-        and return filepath WITHOUT extension"""
-        t = path.join(self.base, self.root)
-        try: mkdir(t)
-        except: pass
-        h = hex(image_id)
-        if len(h[2:])>6:
-            try: mkdir(path.join(t, h[2:4]))
-            except: pass
-            try: mkdir(path.join(t, h[2:4], h[4:6]))
-            except: pass
-            fpath = path.join(t, h[2:4], h[4:6], h[6:8])
-            try: mkdir(fpath)
-            except: pass
-            img = "%s.%s" % (h[8:], 'jpg')
-        elif len(h[2:])>4:
-            try: mkdir(path.join(t, h[2:4]))
-            except: pass
-            fpath = path.join(t, h[2:4], h[4:6])
-            try: mkdir(fpath)
-            except: pass
-            img = "%s.%s" % (h[6:], 'jpg')
-        elif len(h[2:])>2:
-            fpath = path.join(t, h[2:4])
-            try: mkdir(fpath)
-            except: pass
-            img = "%s.%s" %(h[4:], 'jpg')
+        if path.exists(self.thumbnail_path):
+            if __debug__:
+                print "file", self.filename, "with hash", self.sha512, "exists"
+            return self.sha512, exif
+            
+        if 'JPEGThumbnail' in exif:
+            if __debug__:
+                print self.filename, "exif thumb"
+            exif_thumbnail = exif['JPEGThumbnail']
+            thumb_file = open(self.thumbnail_path, 'wb')
+            thumb_file.write(exif_thumbnail)
+            thumb_file.close()
+            
+            if 'Image Orientation' in exif:
+                orient = exif['Image Orientation'].values[0]
+                if orient > 1 and orient in orientations:
+                    temp_image_path = mkstemp()[1]
+                    
+                    thumb_image = Image.open(self.thumbnail_path)
+                    tmp_thumb_img = thumb_image.transpose(orientations[orient])
+                    
+                    if orient in flips:
+                        tmp_thumb_img = tmp_thumb_img.transpose(flips[orient])
+
+                    if tmp_thumb_img:
+                        tmp_thumb_img.save(temp_image_path, 'JPEG')
+                        move(temp_image_path, self.thumbnail_path)
+            return self.sha512, exif
         else:
-            fpath = ''
-            img = "%s.%s" %(h[2:], 'jpg')
-        return(path.join(t, fpath, img))
+            if __debug__:
+                print self.filename, "no exif thumb"
+            thumb = self.__scale_image()
+            if thumb:
+                thumb.save(self.thumbnail_path, "JPEG")
+                return self.sha512, exif
+        return None, exif
 
     def __scale_image(self):
         """create thumbnail. returns image object or None"""
         try:
-            im = Image.open(self.filename).convert('RGB')
+            image_thumb = Image.open(self.filename).convert('RGB')
         except:
             return None
-        x, y = im.size
-        if x > self.x or y > self.y:
-            im.thumbnail((self.x, self.y), Image.ANTIALIAS)
-        return im
-
-    def __scale_image_deprecated(self, factor=True):
-        """generate scaled Image object for given file
-        args:
-            factor - if False, adjust height into self.y
-                     if True, use self.x for scale portrait pictures height.
-            returns Image object, or None
-        """
-        try:
-            im = Image.open(self.filename).convert('RGB')
-        except:
-            return None
-
-        x, y = im.size
-
-        if x > self.x or y > self.y:
-            if x==y:
-                # square
-                imt = im.resize((self.y, self.y), Image.ANTIALIAS)
-            elif x > y:
-                # landscape
-                if int(y/(x/float(self.x))) > self.y:
-                    # landscape image: height is non standard
-                    self.x1 = int(float(self.y) * self.y / self.x)
-                    if float(self.y) * self.y / self.x - self.x1 > 0.49:
-                        self.x1 += 1
-                    imt = im.resize(((int(x/(y/float(self.y))), self.y)),
-                                    Image.ANTIALIAS)
-                elif x/self.x==y/self.y:
-                    # aspect ratio ok
-                    imt = im.resize((self.x, self.y), Image.ANTIALIAS)
-                else:
-                    imt = im.resize((self.x, int(y/(x/float(self.x)))), 1)
-            else:
-                # portrait
-                if factor:
-                    if y>self.x:
-                        imt = im.resize(((int(x/(y/float(self.x))),self.x)),
-                                        Image.ANTIALIAS)
-                    else:
-                        imt = im
-                else:
-                    self.x1 = int(float(self.y) * self.y / self.x)
-                    if float(self.y) * self.y / self.x - self.x1 > 0.49:
-                        self.x1 += 1
-
-                    if x/self.x1==y/self.y:
-                        # aspect ratio ok
-                        imt = im.resize((self.x1,self.y),Image.ANTIALIAS)
-                    else:
-                        imt = im.resize(((int(x/(y/float(self.y))), self.y)),
-                                        Image.ANTIALIAS)
-            return imt
-        else:
-            return im
-
+        it_x, it_y = image_thumb.size
+        if it_x > self.thumb_x or it_y > self.thumb_y:
+            image_thumb.thumbnail((self.thumb_x, self.thumb_y), Image.ANTIALIAS)
+        return image_thumb
