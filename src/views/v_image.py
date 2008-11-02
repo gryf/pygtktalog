@@ -30,11 +30,39 @@ class ImageView(object):
 
     def __init__(self, image_filename):
         window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+
         image = gtk.Image()
         image.set_from_file(image_filename)
-        window.add(image)
-        image.show()
-        window.show()
+
+        pixbuf = image.get_pixbuf()
+        pic_width = pixbuf.get_width() + 23
+        pic_height = pixbuf.get_height() + 23
+
+        screen_width = gtk.gdk.screen_width()
+        screen_height = gtk.gdk.screen_height()
+
+        need_vieport = False
+        if pic_height > (screen_height - 128):
+            height = screen_height - 128
+            need_vieport = True
+        else:
+            height = screen_height - 128
+
+        if pic_width > (screen_width - 128):
+            width = screen_width - 128
+            need_vieport = True
+        else:
+            width = pic_width
+
+        if need_vieport:
+            window.resize(width, height)
+            viewport = gtk.ScrolledWindow()
+            viewport.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+            viewport.add_with_viewport(image)
+            window.add(viewport)
+        else:
+            window.add(image)
+        window.show_all()
         return
 
     pass # end of class
