@@ -23,11 +23,9 @@
 #  -------------------------------------------------------------------------
 
 from shutil import copy
-from os import path, mkdir
+from os import path
 from hashlib import sha512
-from tempfile import mkstemp
 
-from utils import EXIF
 import Image
 
 class Img(object):
@@ -53,7 +51,8 @@ class Img(object):
         # check wheter image already exists
         if path.exists(image_filename) and path.exists(thumbnail):
             if __debug__:
-                print "image", self.filename, "with hash", self.sha512, "already exist"
+                print "image", self.filename, "with hash",
+                print self.sha512, "already exist"
             return self.sha512
 
         if not path.exists(thumbnail):

@@ -34,21 +34,25 @@ import gobject
 
 from gtkmvc.model_mt import ModelMT
 
-from pysqlite2 import dbapi2 as sqlite
+try:
+    import sqlite3 as sqlite
+except ImportError:
+    from pysqlite2 import dbapi2 as sqlite
+    
 from datetime import datetime
 
 import threading as _threading
 
 from m_config import ConfigModel
 try:
-    from utils.thumbnail import Thumbnail
-    from utils.img import Img
+    from lib.thumbnail import Thumbnail
+    from lib.img import Img
 except:
     pass
-from utils.parse_exif import ParseExif
-from utils.gthumb import GthumbCommentParser
+from lib.parse_exif import ParseExif
+from lib.gthumb import GthumbCommentParser
 
-from utils.no_thumb import no_thumb as no_thumb_img
+from lib.no_thumb import no_thumb as no_thumb_img
 
 class MainModel(ModelMT):
     """Create, load, save, manipulate db file which is container for data"""
@@ -592,6 +596,14 @@ class MainModel(ModelMT):
             return
 
         if filename:
+            if not '.sqlite' in filename:
+                filename += '.sqlite'
+            else:
+                filename = filename[:filename.rindex('.sqlite')] + '.sqlite'
+            
+            if self.config.confd['compress']:
+                filename += '.bz2'
+                
             self.filename = filename
         val, err = self.__compress_and_save()
         if not val:

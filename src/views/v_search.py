@@ -24,12 +24,12 @@
 
 from gtkmvc import View
 import os.path
-import utils.globals
+import lib.globs
 
 class SearchView(View):
     """Search window from glade file """
 
-    GLADE = os.path.join(utils.globals.GLADE_DIR, "search.glade")
+    GLADE = os.path.join(lib.globs.GLADE_DIR, "search.glade")
 
     def __init__(self, ctrl):
         View.__init__(self, ctrl, self.GLADE)

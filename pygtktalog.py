@@ -27,17 +27,15 @@ try:
     import gtk
 except ImportError:
     print "You need to install pyGTK v2.10.x or newer."
-    sys.exit(1)
-
+    raise
 
 def setup_path():
     """Sets up the python include paths to include needed directories"""
     import os.path
 
-    from src.utils.globals import TOPDIR
+    from src.lib.globs import TOPDIR
     sys.path = [os.path.join(TOPDIR, "src")] + sys.path
     return
-
 
 def check_requirements():
     """Checks versions and other requirements"""
@@ -50,7 +48,7 @@ def check_requirements():
     except ImportError:
         print "Some fundamental files are missing.",
         print "Try runnig pyGTKtalog in his root directory"
-        sys.exit(1)
+        raise
 
     conf = ConfigModel()
     conf.load()
@@ -64,13 +62,17 @@ def check_requirements():
         pass
 
     try:
-        from pysqlite2 import dbapi2 as sqlite
+        import sqlite3 as sqlite
     except ImportError:
-        print "pyGTKtalog uses SQLite DB.\nYou'll need to get it and the",
-        print "python bindings as well.",
-        print "http://www.sqlite.org"
-        print "http://initd.org/tracker/pysqlite"
-        sys.exit(1)
+        try:
+            from pysqlite2 import dbapi2 as sqlite
+        except ImportError:
+            print "pyGTKtalog uses SQLite DB.\nYou'll need to get it and the",
+            print "python bindings as well.",
+            print "http://www.sqlite.org"
+            print "http://initd.org/tracker/pysqlite"
+            print "Alternatively install python 2.5 or higher"
+            raise
 
     if conf.confd['exportxls']:
         try:
@@ -98,7 +100,7 @@ if __name__ == "__main__":
     os.chdir(libraries_dir)
 
     setup_path()
-    check_requirements()
+    #check_requirements()
 
     from models.m_main import MainModel
     from ctrls.c_main import MainController
@@ -113,6 +115,6 @@ if __name__ == "__main__":
     try:
         gtk.main()
     except KeyboardInterrupt:
-        model.config.save()
-        model.cleanup()
+        #model.config.save()
+        #model.cleanup()
         gtk.main_quit

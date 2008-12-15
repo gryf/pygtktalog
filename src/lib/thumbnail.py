@@ -28,7 +28,7 @@ from shutil import move
 from os import path
 import sys
 
-from utils import EXIF
+from lib import EXIF
 import Image
 
 class Thumbnail(object):

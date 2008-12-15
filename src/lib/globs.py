@@ -25,15 +25,17 @@
 import os.path
 import sys
 
-if sys.argv[0]: top_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-else: top_dir = "."
+if sys.argv[0]:
+    top_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+else:
+    top_dir = "."
 
 # ----------------------------------------------------------------------
 TOPDIR = top_dir
 RESOURCES_DIR = os.path.join(TOPDIR, "resources")
 GLADE_DIR = os.path.join(RESOURCES_DIR, "glade")
 STYLES_DIR = os.path.join(RESOURCES_DIR, "styles")
-APPL_SHORT_NAME = "pycolector"
-APPL_VERSION = (1, 0, 0)
+APPL_SHORT_NAME = "pygtktalog2"
+APPL_VERSION = (1, 0, 1)
 # ----------------------------------------------------------------------
 

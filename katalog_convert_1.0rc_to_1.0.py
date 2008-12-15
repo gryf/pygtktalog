@@ -142,7 +142,7 @@ def setup_path():
     """Sets up the python include paths to include needed directories"""
     import os.path
 
-    from src.utils.globals import TOPDIR
+    from src.lib.globs import TOPDIR
     sys.path = [os.path.join(TOPDIR, "src")] + sys.path
     return
 
@@ -169,7 +169,7 @@ if __name__ == "__main__":
 
     from shutil import copy
 
-    from utils.img import Img
+    from lib.img import Img
     from models.m_main import MainModel as NewModel
 
     model = OldModel()

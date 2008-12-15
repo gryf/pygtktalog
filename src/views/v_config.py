@@ -24,11 +24,11 @@
 
 from gtkmvc import View
 import os.path
-import utils.globals
+import lib.globs
 
 class ConfigView(View):
     """Preferences window from glade file """
-    GLADE = os.path.join(utils.globals.GLADE_DIR, "config.glade")
+    GLADE = os.path.join(lib.globs.GLADE_DIR, "config.glade")
 
     def __init__(self, ctrl):
         View.__init__(self, ctrl, self.GLADE)

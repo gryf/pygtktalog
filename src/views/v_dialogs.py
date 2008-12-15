@@ -25,7 +25,7 @@
 import gtk
 import gobject
 import os
-import utils.globals
+import lib.globs
 
 class Qst(object):
     """Show simple dialog for questions
@@ -128,7 +128,7 @@ class InputDiskLabel(object):
     """Sepcific dialog for quering user for a disc label"""
 
     def __init__(self, label=""):
-        self.gladefile = os.path.join(utils.globals.GLADE_DIR, "dialogs.glade")
+        self.gladefile = os.path.join(lib.globs.GLADE_DIR, "dialogs.glade")
         self.label = ""
         if label!= None:
             self.label = label
@@ -148,7 +148,7 @@ class InputNewName(object):
     """Sepcific dialog for quering user for a disc label"""
 
     def __init__(self, name=""):
-        self.gladefile = os.path.join(utils.globals.GLADE_DIR, "dialogs.glade")
+        self.gladefile = os.path.join(lib.globs.GLADE_DIR, "dialogs.glade")
         self.label = ""
         self.name = name
 
@@ -169,7 +169,7 @@ class PointDirectoryToAdd(object):
     URI="file://"+os.path.abspath(os.path.curdir)
 
     def __init__(self,volname='',dirname=''):
-        self.gladefile = os.path.join(utils.globals.GLADE_DIR, "dialogs.glade")
+        self.gladefile = os.path.join(lib.globs.GLADE_DIR, "dialogs.glade")
         self.gladexml = gtk.glade.XML(self.gladefile, "addDirDialog")
         self.volname = self.gladexml.get_widget("dirvolname")
         self.volname.set_text(volname)
@@ -257,15 +257,15 @@ class SelectDirectory(object):
         dialog.destroy()
         return retval
 
-class ChooseDBFilename(object):
-    """Sepcific dialog for quering user for selecting filename for database"""
+class ChooseFilename(object):
+    """Dialog for quering user for selecting filename"""
 
     URI=None
 
-    def __init__(self, path=None):
+    def __init__(self, path=None, title=''):
         self.path = path
         self.dialog = gtk.FileChooserDialog(
-            title="Save catalog as...",
+            title="",
             action=gtk.FILE_CHOOSER_ACTION_SAVE,
             buttons=(
                 gtk.STOCK_CANCEL,
@@ -276,7 +276,7 @@ class ChooseDBFilename(object):
         self.dialog.set_action(gtk.FILE_CHOOSER_ACTION_SAVE)
         self.dialog.set_default_response(gtk.RESPONSE_OK)
         self.dialog.set_do_overwrite_confirmation(True)
-        self.dialog.set_title('Save catalog to file...')
+        self.dialog.set_title(title)
 
         f = gtk.FileFilter()
         f.set_name("Catalog files")
@@ -298,11 +298,43 @@ class ChooseDBFilename(object):
         response = self.dialog.run()
         if response == gtk.RESPONSE_OK:
             filename = self.dialog.get_filename()
-            print filename, ' do ',
-            if filename[-11:].lower() != '.sqlite.bz2' and \
-            filename[-7:].lower() != '.sqlite':
-                filename = filename + '.sqlite.bz2'
-            print filename
+            self.__class__.URI = self.dialog.get_current_folder_uri()
+            self.dialog.destroy()
+            return filename
+        else:
+            self.dialog.destroy()
+            return None
+    pass
+
+class ChooseDBFilename(ChooseFilename):
+    """Sepcific dialog for quering user for selecting filename for database"""
+
+    URI=None
+
+    def __init__(self, path=None):
+        ChooseFilename.__init__(self)
+        self.dialog.set_title('Save catalog as...')
+
+        f = gtk.FileFilter()
+        f.set_name("Catalog files")
+        f.add_pattern("*.sqlite")
+        f.add_pattern("*.sqlite.bz2")
+        self.dialog.add_filter(f)
+        f = gtk.FileFilter()
+        f.set_name("All files")
+        f.add_pattern("*.*")
+        self.dialog.add_filter(f)
+
+    def run(self):
+        if self.URI:
+            self.dialog.set_current_folder_uri(self.URI)
+        elif self.path and os.path.exists(self.path):
+            self.path = "file://"+os.path.abspath(self.path)
+            self.dialog.set_current_folder_uri(self.path)
+
+        response = self.dialog.run()
+        if response == gtk.RESPONSE_OK:
+            filename = self.dialog.get_filename()
             self.__class__.URI = self.dialog.get_current_folder_uri()
             self.dialog.destroy()
             return filename
@@ -454,7 +486,7 @@ class StatsDialog(object):
     """Sepcific dialog for display stats"""
 
     def __init__(self, values={}):
-        self.gladefile = os.path.join(utils.globals.GLADE_DIR, "dialogs.glade")
+        self.gladefile = os.path.join(lib.globs.GLADE_DIR, "dialogs.glade")
         self.values = values
 
     def run(self):
@@ -497,7 +529,7 @@ class TagsDialog(object):
     """Sepcific dialog for display stats"""
 
     def __init__(self):
-        self.gladefile = os.path.join(utils.globals.GLADE_DIR, "dialogs.glade")
+        self.gladefile = os.path.join(lib.globs.GLADE_DIR, "dialogs.glade")
 
     def run(self):
         gladexml = gtk.glade.XML(self.gladefile, "tagsDialog")
@@ -516,7 +548,7 @@ class TagsRemoveDialog(object):
     """Sepcific dialog for display stats"""
 
     def __init__(self, tag_dict=None):
-        self.gladefile = os.path.join(utils.globals.GLADE_DIR, "dialogs.glade")
+        self.gladefile = os.path.join(lib.globs.GLADE_DIR, "dialogs.glade")
         self.tag_dict = tag_dict
 
     def run(self):
@@ -585,7 +617,7 @@ class EditDialog(object):
     """Sepcific dialog for display stats"""
 
     def __init__(self, values={}):
-        self.gladefile = os.path.join(utils.globals.GLADE_DIR, "dialogs.glade")
+        self.gladefile = os.path.join(lib.globs.GLADE_DIR, "dialogs.glade")
         self.values = values
 
     def run(self):
