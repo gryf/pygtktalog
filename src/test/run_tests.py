@@ -60,17 +60,13 @@ def build_suite():
 
         modules.append(fname[:-3])
         classes.append(class_name)
-        
+
     modules = map(__import__, modules)
-    #my_import(fname[:-3], class_name)
     load = unittest.defaultTestLoader.loadTestsFromModule
     return unittest.TestSuite(map(load, modules))
-
-    #exec('suite.addTest(TL().loadTestsFromTestCase('+class_name+'))')
-    #return suite
 
 if __name__ == "__main__":
     chdir(path.abspath(path.curdir))
     setup_path()
     unittest.main(defaultTest="build_suite")
-    #unittest.TextTestRunner().run(build_suite())
+
