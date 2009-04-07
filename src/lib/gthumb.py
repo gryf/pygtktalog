@@ -27,7 +27,7 @@ import os
 from datetime import date
 
 class GthumbCommentParser(object):
-
+    """Read and return comments created eith gThumb program"""
     def __init__(self, image_path, image_filename):
         self.path = image_path
         self.filename = image_filename
@@ -36,16 +36,16 @@ class GthumbCommentParser(object):
         """Return dictionary with apropriate fields, or None if no comment
         available"""
         try:
-            gf = gzip.open(os.path.join(self.path,
-                                        '.comments', self.filename + '.xml'))
+            gzf = gzip.open(os.path.join(self.path, '.comments',
+                                         self.filename + '.xml'))
         except:
             return None
 
         try:
-            xml = gf.read()
-            gf.close()
+            xml = gzf.read()
+            gzf.close()
         except:
-            gf.close()
+            gzf.close()
             return None
 
         if not xml:

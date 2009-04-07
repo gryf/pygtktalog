@@ -1,32 +1,23 @@
-# This Python file uses the following encoding: utf-8
-#
-#  Author: Roman 'gryf' Dobosz  gryf@elysium.pl
-#
-#  Copyright (C) 2007 by Roman 'gryf' Dobosz
-#
-#  This file is part of pyGTKtalog.
-#
-#  This program is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 2 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
-
-#  -------------------------------------------------------------------------
-
+"""
+    Project: pyGTKtalog
+    Description: Simple functions for device management.
+    Type: lib
+    Author: Roman 'gryf' Dobosz, gryf73@gmail.com
+    Created: 2008-12-15
+"""
 import os
+import locale
+import gettext
+
+from src.lib.globs import APPL_SHORT_NAME
+
+locale.setlocale(locale.LC_ALL, '')
+gettext.install(APPL_SHORT_NAME, 'locale', unicode=True)
 
 def volname(mntp):
     """read volume name from cd/dvd"""
     dev = mountpoint_to_dev(mntp)
+    label = None
     if dev != None:
         try:
             disk = open(dev, "rb")
@@ -35,17 +26,20 @@ def volname(mntp):
             disk.close()
         except IOError:
             return None
-        return label
-    return None
+    return label
 
 def volmount(mntp):
-    """mount device, return 'ok' or error message"""
+    """
+    Mount device.
+    @param mountpoint
+    @returns tuple with bool status of mount, and string with error message
+    """
     _in, _out, _err = os.popen3("mount %s" % mntp)
     inf = _err.readlines()
     if len(inf) > 0:
-        return inf[0].strip()
+        return False, inf[0].strip()
     else:
-        return 'ok'
+        return True, ''
 
 def volumount(mntp):
     """mount device, return 'ok' or error message"""
@@ -88,5 +82,5 @@ def eject_cd(eject_app, cdrom):
             return inf[0].strip()
 
         return 'ok'
-    return "Eject program not specified"
+    return _("Eject program not specified")
 

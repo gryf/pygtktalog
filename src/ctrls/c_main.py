@@ -252,7 +252,7 @@ class MainController(Controller):
         except TypeError:
             if __debug__:
                 print "c_main.py: on_edit2_activate(): 0",
-                print "zaznaczonych wierszy"
+                print "selected rows"
             return
 
         val = self.model.get_file_info(id)
@@ -281,11 +281,9 @@ class MainController(Controller):
 
     def on_remove_thumb1_activate(self, menu_item):
         if self.model.config.confd['delwarn']:
-            title = 'Delete thumbnails'
-            question = 'Delete thumbnails?'
-            description = "Thumbnails for selected items will be permanently"
-            description += " removed from catalog."
-            obj = Dialogs.Qst(title, question, description)
+            obj = Dialogs.Qst(_("Delete thumbnails"), _("Delete thumbnails?"),
+                              _("Thumbnails for selected items will be "
+                                "permanently removed from catalog."))
             if not obj.run():
                 return
         try:
@@ -307,11 +305,9 @@ class MainController(Controller):
 
     def on_remove_image1_activate(self, menu_item):
         if self.model.config.confd['delwarn']:
-            title = 'Delete images'
-            question = 'Delete all images?'
-            description = 'All images for selected items will be permanently'
-            description += ' removed from catalog.'
-            obj = Dialogs.Qst(title, question, description)
+            obj = Dialogs.Qst(_("Delete images"), _("Delete all images?"),
+                              _("All images for selected items will be "
+                                "permanently removed from catalog."))
             if not obj.run():
                 return
         try:
@@ -343,8 +339,8 @@ class MainController(Controller):
             else:
                 ImageView(img)
         else:
-            Dialogs.Inf("Image view", "No Image",
-                        "Image file does not exist.")
+            Dialogs.Inf(_("Image view"), _("No Image"),
+                        _("Image file does not exist."))
 
     def on_rename1_activate(self, widget):
         model, iter = self.view['discs'].get_selection().get_selected()
@@ -492,11 +488,10 @@ class MainController(Controller):
         # check if any unsaved project is on go.
         if self.model.unsaved_project and \
         self.model.config.confd['confirmquit']:
-            title = 'Quit application - pyGTKtalog'
-            question = 'Do you really want to quit?'
-            description = "Current database is not saved, any changes will "
-            description += "be lost."
-            if not Dialogs.Qst(title, question, description).run():
+            if not Dialogs.Qst(_("Quit application") + " - pyGTKtalog",
+                               _("Do you really want to quit?"),
+                               _("Current database is not saved, any changes "
+                                 "will be lost.")).run():
                 return
         self.__store_settings()
         self.model.cleanup()
@@ -506,10 +501,10 @@ class MainController(Controller):
     def on_new_activate(self, widget):
         """Create new database file"""
         if self.model.unsaved_project:
-            title = 'Unsaved data - pyGTKtalog'
-            question = "Do you want to abandon changes?"
-            desc = "Current database is not saved, any changes will be lost."
-            if not Dialogs.Qst(title, question, desc).run():
+            if not Dialogs.Qst(_("Unsaved data") + " - pyGTKtalog",
+                               _("Do you want to abandon changes?"),
+                               _("Current database is not saved, any changes "
+                                 "will be lost.")).run():
                 return
         self.model.new()
 
@@ -525,8 +520,8 @@ class MainController(Controller):
 
     def on_add_cd_activate(self, widget, label=None, current_id=None):
         """Add directory structure from cd/dvd disc"""
-        mount = device_helper.volmount(self.model.config.confd['cd'])
-        if mount == 'ok':
+        mount, msg = device_helper.volmount(self.model.config.confd['cd'])
+        if mount:
             guessed_label = device_helper.volname(self.model.config.confd['cd'])
             if not label:
                 label = Dialogs.InputDiskLabel(guessed_label).run()
@@ -543,10 +538,10 @@ class MainController(Controller):
                 device_helper.volumount(self.model.config.confd['cd'])
             return True
         else:
-            Dialogs.Wrn("Error mounting device - pyGTKtalog",
-                        "Cannot mount device pointed to %s" %
+            Dialogs.Wrn(_("Error mounting device") + " - pyGTKtalog",
+                        _("Cannot mount device pointed to %s") %
                         self.model.config.confd['cd'],
-                        "Last mount message:\n%s" % mount)
+                        _("Last mount message:\n%s") % msg)
             return False
 
     def on_add_directory_activate(self, widget, path=None, label=None,
@@ -599,6 +594,7 @@ class MainController(Controller):
 
     def on_save_activate(self, widget):
         """Save catalog to file"""
+        # FIXME: Traceback when recent is null
         if self.model.filename:
             self.model.save()
             self.__set_title(filepath=self.model.filename)
@@ -618,8 +614,8 @@ class MainController(Controller):
                 self.model.config.add_recent(path)
                 self.__set_title(filepath=path)
             else:
-                Dialogs.Err("Error writing file - pyGTKtalog",
-                            "Cannot write file %s." % path, "%s" % err)
+                Dialogs.Err(_("Error writing file") + " - pyGTKtalog",
+                            _("Cannot write file %s.") % path, "%s" % err)
 
     def on_stat1_activate(self, menu_item, selected_id=None):
         data = self.model.get_stats(selected_id)
@@ -640,9 +636,9 @@ class MainController(Controller):
         """Open catalog file"""
         confirm = self.model.config.confd['confirmabandon']
         if self.model.unsaved_project and confirm:
-            obj = Dialogs.Qst('Unsaved data - pyGTKtalog',
-                              'There is not saved database',
-                              'Pressing "Ok" will abandon catalog.')
+            obj = Dialogs.Qst(_("Unsaved data") + " - pyGTKtalog",
+                              _("There is not saved database"),
+                              _("Pressing <b>Ok</b> will abandon catalog."))
             if not obj.run():
                 return
 
@@ -666,8 +662,8 @@ class MainController(Controller):
 
         if path:
             if not self.model.open(path):
-                Dialogs.Err("Error opening file - pyGTKtalog",
-                            "Cannot open file %s." % path)
+                Dialogs.Err(_("Error opening file") + " - pyGTKtalog",
+                            _("Cannot open file %s.") % path)
             else:
                 self.__generate_recent_menu()
                 self.__activate_ui(path)
@@ -733,13 +729,14 @@ class MainController(Controller):
         """delete selected images (with thumbnails)"""
         list_of_paths = self.view['images'].get_selected_items()
         if not list_of_paths:
-            Dialogs.Inf("Delete images", "No images selected",
-                        "You have to select at least one image to delete.")
+            Dialogs.Inf(_("Delete images"), _("No images selected"),
+                        _("You have to select at least one image to delete."))
             return
 
         if self.model.config.confd['delwarn']:
-            obj = Dialogs.Qst('Delete images', 'Delete selected images?',
-                  'Selected images will be permanently removed from catalog.')
+            obj = Dialogs.Qst(_("Delete images"), _("Delete selected images?"),
+                              _("Selected images will be permanently removed"
+                                " from catalog."))
             if not obj.run():
                 return
 
@@ -768,7 +765,7 @@ class MainController(Controller):
 
     def on_img_save_activate(self, menu_item):
         """export images (not thumbnails) into desired direcotry"""
-        dialog = Dialogs.SelectDirectory("Choose directory to save images")
+        dialog = Dialogs.SelectDirectory(_("Choose directory to save images"))
         filepath = dialog.run()
 
         if not filepath:
@@ -793,14 +790,13 @@ class MainController(Controller):
                     count += 1
 
         if count > 0:
-            Dialogs.Inf("Save images",
-                        "%d images was succsefully saved." % count,
-                        "Images are placed in directory:\n%s." % filepath)
+            Dialogs.Inf(_("Save images"),
+                        _("%d images was succsefully saved.") % count,
+                        _("Images are placed in directory:\n%s.") % filepath)
         else:
-            description = "Images probably don't have real images - only"
-            description += " thumbnails."
-            Dialogs.Inf("Save images",
-                        "No images was saved.",
+            description = _("Images probably don't have real images - only"
+                            " thumbnails.")
+            Dialogs.Inf(_("Save images"), _("No images was saved."),
                         description)
         return
 
@@ -809,12 +805,12 @@ class MainController(Controller):
         list_of_paths = self.view['images'].get_selected_items()
 
         if not list_of_paths:
-            Dialogs.Inf("Set thumbnail", "No image selected",
-                        "You have to select one image to set as thumbnail.")
+            Dialogs.Inf(_("Set thumbnail"), _("No image selected"),
+                        _("You have to select one image to set as thumbnail."))
             return
         if len(list_of_paths) >1:
-            Dialogs.Inf("Set thumbnail", "To many images selected",
-                        "You have to select one image to set as thumbnail.")
+            Dialogs.Inf(_("Set thumbnail"), _("To many images selected"),
+                        _("You have to select one image to set as thumbnail."))
             return
 
         model = self.view['images'].get_model()
@@ -872,7 +868,7 @@ class MainController(Controller):
         
     def on_export_activate(self, menu_item):
         """export db file and coressponding images to tar.bz2 archive"""
-        dialog = Dialogs.ChooseFilename(None, "Choose export file")
+        dialog = Dialogs.ChooseFilename(None, _("Choose export file"))
         filepath = dialog.run()
 
         if not filepath:
@@ -1018,8 +1014,8 @@ class MainController(Controller):
     def on_delete_tag_activate(self, menu_item):
         ids = self.__get_tv_selection_ids(self.view['files'])
         if not ids:
-            Dialogs.Inf("Remove tags", "No files selected",
-                        "You have to select some files first.")
+            Dialogs.Inf(_("Remove tags"), _("No files selected"),
+                        _("You have to select some files first."))
             return
 
         tags = self.model.get_tags_by_file_id(ids)
@@ -1027,8 +1023,9 @@ class MainController(Controller):
             d = Dialogs.TagsRemoveDialog(tags)
             retcode, retval = d.run()
             if retcode=="ok" and not retval:
-                Dialogs.Inf("Remove tags", "No tags selected",
-                            "You have to select any tag to remove from files.")
+                Dialogs.Inf(_("Remove tags"), _("No tags selected"),
+                            _("You have to select any tag to remove from"
+                              " files."))
                 return
             elif retcode == "ok" and retval:
                 self.model.delete_tags(ids, retval)
@@ -1053,7 +1050,7 @@ class MainController(Controller):
 
     def on_add_image1_activate(self, menu_item):
         dialog = Dialogs.LoadImageFile(True)
-        msg = "Don't copy images. Generate only thumbnails."
+        msg = _("Don't copy images. Generate only thumbnails.")
         toggle = gtk.CheckButton(msg)
         toggle.show()
         dialog.dialog.set_extra_widget(toggle)
@@ -1117,15 +1114,15 @@ class MainController(Controller):
             return
 
         if not selected_iter:
-            Dialogs.Inf("Delete disc", "No disc selected",
-                        "You have to select disc first before you " +\
-                        "can delete it")
+            Dialogs.Inf(_("Delete disc"), _("No disc selected"),
+                        _("You have to select disc first before you "
+                          "can delete it"))
             return
 
         if self.model.config.confd['delwarn']:
             name = model.get_value(selected_iter, 1)
-            obj = Dialogs.Qst('Delete %s' % name, 'Delete %s?' % name,
-                              'Object will be permanently removed.')
+            obj = Dialogs.Qst(_("Delete %s") % name, _("Delete %s?") % name,
+                              _("Object will be permanently removed."))
             if not obj.run():
                 return
 
@@ -1168,14 +1165,14 @@ class MainController(Controller):
             return
 
         if not list_of_paths:
-            Dialogs.Inf("Delete files", "No files selected",
-                        "You have to select at least one file to delete.")
+            Dialogs.Inf(_("Delete files"), _("No files selected"),
+                        _("You have to select at least one file to delete."))
             return
 
         if self.model.config.confd['delwarn']:
-            description = "Selected files and directories will be "
-            description += "permanently\n removed from catalog."
-            obj = Dialogs.Qst("Delete files", "Delete files?", description)
+            obj = Dialogs.Qst(_("Delete files"), _("Delete files?"),
+                              _("Selected files and directories will be "
+                                "permanently\n removed from catalog."))
             if not obj.run():
                 return
 
@@ -1216,10 +1213,9 @@ class MainController(Controller):
 
     def on_th_delete_activate(self, menu_item):
         if self.model.config.confd['delwarn']:
-            title = 'Delete thumbnail'
-            question = 'Delete thumbnail?'
-            dsc = "Current thumbnail will be permanently removed from catalog."
-            obj = Dialogs.Qst(title, question, dsc)
+            obj = Dialogs.Qst(_("Delete thumbnail"), _("Delete thumbnail?"),
+                              _("Current thumbnail will be permanently removed"
+                                " from catalog."))
             if not obj.run():
                 return
         path, column = self.view['files'].get_cursor()
@@ -1366,17 +1362,19 @@ class MainController(Controller):
                     msg = device_helper.eject_cd(ejectapp,
                                                 self.model.config.confd['cd'])
                     if msg != 'ok':
-                        Dialogs.Wrn("error ejecting device - pyGTKtalog",
-                                    "Cannot eject device pointed to %s" %
+                        title = _("Error ejecting device")
+                        Dialogs.Wrn(title + " - pyGTKtalog",
+                                    _("Cannot eject device pointed to %s") %
                                     self.model.config.confd['cd'],
-                                    "Last eject message:\n%s" % msg)
+                                    _("Last eject message:\n%s") % msg)
                 else:
                     msg = device_helper.volumount(self.model.config.confd['cd'])
                     if msg != 'ok':
-                        Dialogs.Wrn("error unmounting device - pyGTKtalog",
-                                    "Cannot unmount device pointed to %s" %
+                        title = _("Error unmounting device")
+                        Dialogs.Wrn(title + " - pyGTKtalog",
+                                    _("Cannot unmount device pointed to %s") %
                                     self.model.config.confd['cd'],
-                                    "Last umount message:\n%s" % msg)
+                                    _("Last umount message:\n%s") % msg)
         return
 
     def property_progress_value_change(self, model, old, new):

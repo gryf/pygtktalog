@@ -35,7 +35,7 @@ TOPDIR = top_dir
 RESOURCES_DIR = os.path.join(TOPDIR, "resources")
 GLADE_DIR = os.path.join(RESOURCES_DIR, "glade")
 STYLES_DIR = os.path.join(RESOURCES_DIR, "styles")
-APPL_SHORT_NAME = "pygtktalog2"
+APPL_SHORT_NAME = "pygtktalog"
 APPL_VERSION = (1, 0, 2)
 # ----------------------------------------------------------------------
 

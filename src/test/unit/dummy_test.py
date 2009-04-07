@@ -1,9 +1,15 @@
-# This Python file uses the following encoding: utf-8
+"""
+    Project: pyGTKtalog
+    Description: This is simple dummy test for... testing purposes :)
+    Type: test
+    Author: Roman 'gryf' Dobosz, gryf73@gmail.com
+    Created: 2008-12-15
+"""
 import unittest
 
 class TestDummy(unittest.TestCase):
     """Fake test class"""
-    def test_dummyMethod(self):
+    def test_dummy_method(self):
         """Test simple assertion"""
         self.assertTrue(True)
     

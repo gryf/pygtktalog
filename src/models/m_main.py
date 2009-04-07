@@ -27,23 +27,17 @@ import sys
 import shutil
 import bz2
 import math
+import sqlite3 as sqlite
 from tempfile import mkstemp
+from datetime import datetime
+import threading as _threading
 
 import gtk
 import gobject
 
 from gtkmvc.model_mt import ModelMT
-
-try:
-    import sqlite3 as sqlite
-except ImportError:
-    from pysqlite2 import dbapi2 as sqlite
-    
-from datetime import datetime
-
-import threading as _threading
-
 from m_config import ConfigModel
+
 try:
     from lib.thumbnail import Thumbnail
     from lib.img import Img
@@ -53,6 +47,7 @@ from lib.parse_exif import ParseExif
 from lib.gthumb import GthumbCommentParser
 
 from lib.no_thumb import no_thumb as no_thumb_img
+from lib.video import Video
 
 class MainModel(ModelMT):
     """Create, load, save, manipulate db file which is container for data"""
@@ -91,6 +86,7 @@ class MainModel(ModelMT):
     # images extensions - only for PIL and EXIF
     IMG = ['jpg', 'jpeg', 'gif', 'png', 'tif', 'tiff', 'tga', 'pcx', 'bmp',
            'xbm', 'xpm', 'jp2', 'jpx', 'pnm']
+    MOV = ['avi', 'mpg', 'mpeg', 'mkv', 'wmv', 'ogm', 'mov']
 
     def __init__(self):
         """initialize"""
@@ -1753,7 +1749,24 @@ class MainModel(ModelMT):
                         fileid = db_cursor.fetchone()[0]
 
                         ext = i.split('.')[-1].lower()
-
+                        
+                        # Video
+                        if ext in self.MOV:
+                            #import rpdb2; rpdb2.start_embedded_debugger('pass')
+                            v = Video(current_file)
+                            cfn = v.capture()
+                            img = Img(cfn, self.image_path)
+                            th = img.save()
+                            if th:
+                                sql = """INSERT INTO
+                                thumbnails(file_id, filename)
+                                VALUES(?, ?)"""
+                                db_cursor.execute(sql, (fileid, th+"_t"))
+                                sql = """INSERT INTO images(file_id, filename)
+                                VALUES(?, ?)"""
+                                db_cursor.execute(sql, (fileid, th))
+                            os.unlink(cfn)
+                        
                         # Images - thumbnails and exif data
                         if self.config.confd['thumbs'] and ext in self.IMG:
                             thumb = Thumbnail(current_file, self.image_path)
