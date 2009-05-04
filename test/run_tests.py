@@ -14,13 +14,13 @@ import glob
 def setup_path():
     """Sets up the python include paths to include needed directories"""
     this_path = path.abspath(path.dirname(__file__))
-    sys.path = [path.join(this_path, "../../src")] + sys.path
-    sys.path = [path.join(this_path, "../../src/test/unit")] + sys.path
+    sys.path = [path.join(this_path, "unit")] + sys.path
     return
 
 def build_suite():
     """Build suite test from files in unit directory. Filenames with test
-    suites should always end with "_test.py"."""
+    suites should always end with "_test.py".
+    """
     modules = []
     for fname in glob.glob1('unit', '*_test.py'):
         class_name = fname[:-8]
@@ -39,7 +39,7 @@ def build_suite():
     return unittest.TestSuite(map(load, modules))
 
 if __name__ == "__main__":
-    chdir(path.abspath(path.curdir))
+    chdir(path.abspath(path.dirname(__file__)))
     setup_path()
     unittest.main(defaultTest="build_suite")
 

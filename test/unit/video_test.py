@@ -7,7 +7,7 @@
 """
 import unittest
 import os
-from lib.video import Video
+from pygtktalog.video import Video
 
 class TestVideo(unittest.TestCase):
     """Class for retrive midentify script output and put it in dict.
@@ -102,4 +102,6 @@ class TestVideo(unittest.TestCase):
         os.unlink(filename)
 
 if __name__ == "__main__":
+    os.chdir(os.path.join(os.path.abspath(os.path.dirname(__file__)), "../"))
+    print os.path.abspath(os.path.curdir)
     unittest.main()
