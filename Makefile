@@ -1,6 +1,8 @@
 PYTHON_EXEC = PYTHONPATH=/home/gryf/Devel/Python/pyGTKtalog:/home/gryf/.python_lib python
 LOCALE = LC_ALL=pl_PL.utf8
 FILE = pygtktalog.py
+DIST = bin/prepare_dist_package.sh
+POT_GEN = bin/generate_pot.py
 
 .PHONY: run
 run:
@@ -25,7 +27,7 @@ distclean: clean
 .PHONY: pot
 pot:
 	@if [ ! -d locale ]; then mkdir locale; fi
-	@python generate_pot.py pygtktalog pygtktalog > locale/pygtktalog.pot
+	@python $(POT_GEN) pygtktalog pygtktalog > locale/pygtktalog.pot
 	@echo "locale/pygtktalog.pot (re)generated."
 
 .PHONY: pltrans
@@ -43,13 +45,19 @@ pltrans: pot
 	@msgfmt locale/pl.po -o locale/pl/LC_MESSAGES/pygtktalog.mo
 	@echo "Message catalog for pl_PL.utf8 saved in locale/pl/LC_MESSAGES/pygtktalog.mo"
 
+.PHONY: plgen
+plgen: pot
+	@echo "Compile message catalog for pl_PL.utf8"
+	@msgfmt locale/pl.po -o locale/pl/LC_MESSAGES/pygtktalog.mo
+	@echo "Message catalog for pl_PL.utf8 saved in locale/pl/LC_MESSAGES/pygtktalog.mo"
+
 .PHONY: test
 test:
 	cd test && $(PYTHON_EXEC) run_tests.py
 
 .PHONY: dist
 dist:
-	echo "implement me"
+	@$(DIST)
 
 .PHONY: help
 help:
@@ -62,6 +70,8 @@ help:
 	@echo " pot:        Generate .pot file from sources and .glade files."
 	@echo " pltrans:    Generate/merge polish translation file and then invoke editor."
 	@echo "             Environment variable EDITOR is expected"
+	@echo " plgen:      Just generate polish translation file without merging and"
+	@echo "             editing."
 	@echo " test:       Launch unit tests for application."
-	@echo " dist:       Make distribution egg."
+	@echo " dist:       Make distribution package."
 	@echo
