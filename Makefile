@@ -1,14 +1,14 @@
-RUN = PYTHONPATH=/home/gryf/Devel/Python/pyGTKtalog:/home/gryf/.python_lib python
+PYTHON_EXEC = PYTHONPATH=/home/gryf/Devel/Python/pyGTKtalog:/home/gryf/.python_lib python
 LOCALE = LC_ALL=pl_PL.utf8
 FILE = pygtktalog.py
 
 .PHONY: run
 run:
-	@$(RUN) $(FILE)
+	@$(PYTHON_EXEC) $(FILE)
 
 .PHONY: runpl
 runpl:
-	@export $(LOCALE) && $(RUN) $(FILE)
+	@export $(LOCALE) && $(PYTHON_EXEC) $(FILE)
 
 .PHONY: clean
 clean:
@@ -45,7 +45,7 @@ pltrans: pot
 
 .PHONY: test
 test:
-	cd test && python run_tests.py
+	cd test && $(PYTHON_EXEC) run_tests.py
 
 .PHONY: dist
 dist:
