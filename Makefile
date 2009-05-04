@@ -46,7 +46,8 @@ pltrans: pot
 	@echo "Message catalog for pl_PL.utf8 saved in locale/pl/LC_MESSAGES/pygtktalog.mo"
 
 .PHONY: plgen
-plgen: pot
+plgen:
+	@if [ ! -d locale/pl/LC_MESSAGES ]; then mkdir -p locale/pl/LC_MESSAGES; fi
 	@echo "Compile message catalog for pl_PL.utf8"
 	@msgfmt locale/pl.po -o locale/pl/LC_MESSAGES/pygtktalog.mo
 	@echo "Message catalog for pl_PL.utf8 saved in locale/pl/LC_MESSAGES/pygtktalog.mo"
