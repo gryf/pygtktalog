@@ -10,65 +10,49 @@ import os
 import locale
 import gettext
 
+import __builtin__
+
 import gtk
 import pygtk
 pygtk.require("2.0")
 
 import gtkmvc
-gtkmvc.require("1.2.2")
+gtkmvc.require("1.99.0")
 
-from src.lib.globs import TOPDIR
-from src.lib.globs import APPL_SHORT_NAME
-sys.path = [os.path.join(TOPDIR, "src")] + sys.path
-from models.m_config import ConfigModel
-from models.m_main import MainModel
-from ctrls.c_main import MainController
-from views.v_main import MainView
 
-def check_requirements():
-    """Checks versions and other requirements"""
+# Setup i18n
+# adapted from example by Armin Ronacher:
+# http://lucumr.pocoo.org/2007/6/10/internationalized-pygtk-applications2
+GETTEXT_DOMAIN = 'pygtktalog'
+LOCALE_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                           'locale')
 
-    conf = ConfigModel()
-    conf.load()
+locale.setlocale(locale.LC_ALL, '')
+for module in gtk.glade, gettext:
+    module.bindtextdomain(GETTEXT_DOMAIN, LOCALE_PATH)
+    module.textdomain(GETTEXT_DOMAIN)
 
-    if conf.confd['thumbs'] and conf.confd['retrive']:
-        try:
-            import Image
-        except ImportError:
-            print _("WARNING: You'll need Python Imaging Library (PIL), if "
-                    "you want to make thumbnails!")
-            raise
-    return
+# register the gettext function for the whole interpreter as "_"
+__builtin__._ = gettext.gettext
+
+
+from pygtktalog.models.main import MainModel
+from pygtktalog.controllers.main import MainController
+from pygtktalog.views.main import MainView
 
 def run():
     """Create model, controller and view and launch it."""
-    # Directory from where pygtkatalog was invoced. We need it for calculate
-    # path for argument (catalog file)
-    execution_dir = os.path.abspath(os.path.curdir)
-    
-    # Directory, where this files lies. We need it to setup private source
-    # paths
-    libraries_dir = os.path.dirname(__file__)
-    if libraries_dir:
-        os.chdir(libraries_dir)
-
-    # Setup i18n
-    locale.setlocale(locale.LC_ALL, '')
-    gettext.install(APPL_SHORT_NAME, 'locale', unicode=True)
-
-    check_requirements()
-
     model = MainModel()
     if len(sys.argv) > 1:
         model.open(os.path.join(execution_dir, sys.argv[1]))
-    controler = MainController(model)
-    view = MainView(controler)
+    view = MainView()
+    controler = MainController(model, view)
 
     try:
         gtk.main()
     except KeyboardInterrupt:
-        model.config.save()
-        model.cleanup()
+        #model.config.save()
+        #model.cleanup()
         gtk.main_quit
 
 if __name__ == "__main__":
