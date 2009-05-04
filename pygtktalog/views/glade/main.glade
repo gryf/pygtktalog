@@ -278,33 +278,6 @@
                         <signal name="activate" handler="on_status_bar1_activate"/>
                       </widget>
                     </child>
-                    <child>
-                      <widget class="GtkSeparatorMenuItem" id="separatormenuitem4">
-                        <property name="visible">True</property>
-                      </widget>
-                    </child>
-                    <child>
-                      <widget class="GtkRadioMenuItem" id="list1">
-                        <property name="visible">True</property>
-                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                        <property name="tooltip" translatable="yes">Show as a list</property>
-                        <property name="label" translatable="yes">List</property>
-                        <property name="use_underline">True</property>
-                        <property name="active">True</property>
-                        <property name="draw_as_radio">True</property>
-                      </widget>
-                    </child>
-                    <child>
-                      <widget class="GtkRadioMenuItem" id="thumbnails1">
-                        <property name="visible">True</property>
-                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                        <property name="tooltip" translatable="yes">Show as thumbnails</property>
-                        <property name="label" translatable="yes">Thumbnails</property>
-                        <property name="use_underline">True</property>
-                        <property name="draw_as_radio">True</property>
-                        <property name="group">list1</property>
-                      </widget>
-                    </child>
                   </widget>
                 </child>
               </widget>
@@ -347,7 +320,7 @@
                 <signal name="clicked" handler="on_new_activate"/>
               </widget>
               <packing>
-                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
               </packing>
             </child>
             <child>
@@ -358,7 +331,7 @@
                 <signal name="clicked" handler="on_open_activate"/>
               </widget>
               <packing>
-                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
               </packing>
             </child>
             <child>
@@ -369,7 +342,7 @@
                 <signal name="clicked" handler="on_save_activate"/>
               </widget>
               <packing>
-                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
               </packing>
             </child>
             <child>
@@ -381,10 +354,6 @@
                   </widget>
                 </child>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="tb_addcd">
@@ -396,7 +365,7 @@
                 <signal name="clicked" handler="on_add_cd_activate"/>
               </widget>
               <packing>
-                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
               </packing>
             </child>
             <child>
@@ -408,7 +377,7 @@
                 <signal name="clicked" handler="on_add_directory_activate"/>
               </widget>
               <packing>
-                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
               </packing>
             </child>
             <child>
@@ -419,7 +388,7 @@
                 <signal name="clicked" handler="on_find_activate"/>
               </widget>
               <packing>
-                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
               </packing>
             </child>
             <child>
@@ -431,10 +400,6 @@
                   </widget>
                 </child>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="cancel">
@@ -446,7 +411,7 @@
                 <signal name="clicked" handler="on_cancel_clicked"/>
               </widget>
               <packing>
-                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
               </packing>
             </child>
             <child>
@@ -457,19 +422,7 @@
                 <signal name="clicked" handler="on_quit_activate"/>
               </widget>
               <packing>
-                <property name="expand">False</property>
-              </packing>
-            </child>
-            <child>
-              <widget class="GtkToolButton" id="debugbtn">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">Debug</property>
-                <property name="use_underline">True</property>
-                <property name="stock_id">gtk-dialog-info</property>
-                <signal name="clicked" handler="on_debugbtn_clicked"/>
-              </widget>
-              <packing>
-                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
               </packing>
             </child>
           </widget>
@@ -745,7 +698,6 @@
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                            <property name="headers_clickable">True</property>
                             <property name="rules_hint">True</property>
                           </widget>
                         </child>
