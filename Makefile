@@ -1,4 +1,4 @@
-RUN = PYTHONPATH=/home/gryf/Devel/Python/pyGTKtalog2:/home/gryf/.python_lib python
+RUN = PYTHONPATH=/home/gryf/Devel/Python/pyGTKtalog:/home/gryf/.python_lib python
 LOCALE = LC_ALL=pl_PL.utf8
 FILE = pygtktalog.py
 
