@@ -1,0 +1,303 @@
+# Polish translations for PACKAGE package
+# Polskie tłumaczenia dla pakietu PACKAGE.
+# Copyright (C) 2009 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+#  <gryf73@gmail.com>, 2009.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-01-11 13:51+0100\n"
+"PO-Revision-Date: 2009-01-11 13:51+0100\n"
+"Last-Translator:  <gryf73@gmail.com>\n"
+"Language-Team: Polish\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
+"|| n%100>=20) ? 1 : 2);\n"
+
+#: pygtktalog.py:38
+msgid ""
+"WARNING: You'll need Python Imaging Library (PIL), if you want to make "
+"thumbnails!"
+msgstr ""
+
+#: src/ctrls/c_main.py:284
+msgid "Delete thumbnails"
+msgstr "Usunięcie miniaturek"
+
+#: src/ctrls/c_main.py:284
+msgid "Delete thumbnails?"
+msgstr "Usunąć mniniaturki?"
+
+#: src/ctrls/c_main.py:285
+msgid "Thumbnails for selected items will be permanently removed from catalog."
+msgstr "Miniaturki zaznaczonych obiektów zostaną trwale usunięte z katalogu."
+
+#: src/ctrls/c_main.py:308 src/ctrls/c_main.py:731 src/ctrls/c_main.py:736
+msgid "Delete images"
+msgstr "Usnięcie obrazów"
+
+#: src/ctrls/c_main.py:308
+msgid "Delete all images?"
+msgstr "Usunąć wszystkie obrazy?"
+
+#: src/ctrls/c_main.py:309
+msgid "All images for selected items will be permanently removed from catalog."
+msgstr "Wszystkie obrazy zaznaczonych obiektów zostaną trwale usunięte z katalogu."
+
+#: src/ctrls/c_main.py:342
+msgid "Image view"
+msgstr "Przeglądarka obrazów"
+
+#: src/ctrls/c_main.py:342
+msgid "No Image"
+msgstr "Brak obrazu"
+
+#: src/ctrls/c_main.py:343
+msgid "Image file does not exist."
+msgstr "Plik obrazu nie istnieje."
+
+#: src/ctrls/c_main.py:491
+msgid "Quit application"
+msgstr "Zakończ aplikację"
+
+#: src/ctrls/c_main.py:492
+msgid "Do you really want to quit?"
+msgstr "Czy naprawdę chcesz zakończyć?"
+
+#: src/ctrls/c_main.py:493 src/ctrls/c_main.py:506
+msgid "Current database is not saved, any changes will be lost."
+msgstr "Bieżąca baza nie została zachowana, wszystkie zmiany zostaną utracone."
+
+#: src/ctrls/c_main.py:504 src/ctrls/c_main.py:638
+msgid "Unsaved data"
+msgstr "Niezapisane dane"
+
+#: src/ctrls/c_main.py:505
+msgid "Do you want to abandon changes?"
+msgstr "Czy chcesz porzucić zmiany?"
+
+#: src/ctrls/c_main.py:541
+msgid "Error mounting device"
+msgstr "Błąd w trakcie podłączania urzadzenia"
+
+#: src/ctrls/c_main.py:542
+#, python-format
+msgid "Cannot mount device pointed to %s"
+msgstr "Nie można podłączyć urządzenia %s"
+
+#: src/ctrls/c_main.py:544
+#, python-format
+msgid ""
+"Last mount message:\n"
+"%s"
+msgstr "Ostatni komunikat polecenia mount:\n%s"
+
+#: src/ctrls/c_main.py:616
+msgid "Error writing file"
+msgstr "Błąd w zapisie pliku"
+
+#: src/ctrls/c_main.py:617
+#, python-format
+msgid "Cannot write file %s."
+msgstr "Nie można zapisać pliku %s."
+
+#: src/ctrls/c_main.py:639
+msgid "There is not saved database"
+msgstr ""
+
+#: src/ctrls/c_main.py:640
+msgid "Pressing <b>Ok</b> will abandon catalog."
+msgstr ""
+
+#: src/ctrls/c_main.py:664
+msgid "Error opening file"
+msgstr ""
+
+#: src/ctrls/c_main.py:665
+#, python-format
+msgid "Cannot open file %s."
+msgstr ""
+
+#: src/ctrls/c_main.py:731
+msgid "No images selected"
+msgstr ""
+
+#: src/ctrls/c_main.py:732
+msgid "You have to select at least one image to delete."
+msgstr ""
+
+#: src/ctrls/c_main.py:736
+msgid "Delete selected images?"
+msgstr ""
+
+#: src/ctrls/c_main.py:737
+msgid "Selected images will be permanently removed from catalog."
+msgstr ""
+
+#: src/ctrls/c_main.py:767
+msgid "Choose directory to save images"
+msgstr ""
+
+#: src/ctrls/c_main.py:792 src/ctrls/c_main.py:798
+msgid "Save images"
+msgstr ""
+
+#: src/ctrls/c_main.py:793
+#, python-format
+msgid "%d images was succsefully saved."
+msgstr ""
+
+#: src/ctrls/c_main.py:794
+#, python-format
+msgid ""
+"Images are placed in directory:\n"
+"%s."
+msgstr ""
+
+#: src/ctrls/c_main.py:796
+msgid "Images probably don't have real images - only thumbnails."
+msgstr ""
+
+#: src/ctrls/c_main.py:798
+msgid "No images was saved."
+msgstr ""
+
+#: src/ctrls/c_main.py:807 src/ctrls/c_main.py:811
+msgid "Set thumbnail"
+msgstr ""
+
+#: src/ctrls/c_main.py:807
+msgid "No image selected"
+msgstr ""
+
+#: src/ctrls/c_main.py:808 src/ctrls/c_main.py:812
+msgid "You have to select one image to set as thumbnail."
+msgstr ""
+
+#: src/ctrls/c_main.py:811
+msgid "To many images selected"
+msgstr ""
+
+#: src/ctrls/c_main.py:870
+msgid "Choose export file"
+msgstr ""
+
+#: src/ctrls/c_main.py:1016 src/ctrls/c_main.py:1025
+msgid "Remove tags"
+msgstr ""
+
+#: src/ctrls/c_main.py:1016 src/ctrls/c_main.py:1167
+msgid "No files selected"
+msgstr ""
+
+#: src/ctrls/c_main.py:1017
+msgid "You have to select some files first."
+msgstr ""
+
+#: src/ctrls/c_main.py:1025
+msgid "No tags selected"
+msgstr ""
+
+#: src/ctrls/c_main.py:1026
+msgid "You have to select any tag to remove from files."
+msgstr ""
+
+#: src/ctrls/c_main.py:1052
+msgid "Don't copy images. Generate only thumbnails."
+msgstr ""
+
+#: src/ctrls/c_main.py:1116
+msgid "Delete disc"
+msgstr ""
+
+#: src/ctrls/c_main.py:1116
+msgid "No disc selected"
+msgstr ""
+
+#: src/ctrls/c_main.py:1117
+msgid "You have to select disc first before you can delete it"
+msgstr ""
+
+#: src/ctrls/c_main.py:1123
+#, python-format
+msgid "Delete %s"
+msgstr ""
+
+#: src/ctrls/c_main.py:1123
+#, python-format
+msgid "Delete %s?"
+msgstr ""
+
+#: src/ctrls/c_main.py:1124
+msgid "Object will be permanently removed."
+msgstr ""
+
+#: src/ctrls/c_main.py:1167 src/ctrls/c_main.py:1172
+msgid "Delete files"
+msgstr ""
+
+#: src/ctrls/c_main.py:1168
+msgid "You have to select at least one file to delete."
+msgstr ""
+
+#: src/ctrls/c_main.py:1172
+msgid "Delete files?"
+msgstr ""
+
+#: src/ctrls/c_main.py:1173
+msgid ""
+"Selected files and directories will be permanently\n"
+" removed from catalog."
+msgstr ""
+
+#: src/ctrls/c_main.py:1215
+msgid "Delete thumbnail"
+msgstr ""
+
+#: src/ctrls/c_main.py:1215
+msgid "Delete thumbnail?"
+msgstr ""
+
+#: src/ctrls/c_main.py:1216
+msgid "Current thumbnail will be permanently removed from catalog."
+msgstr ""
+
+#: src/ctrls/c_main.py:1364
+msgid "Error ejecting device"
+msgstr ""
+
+#: src/ctrls/c_main.py:1366
+#, python-format
+msgid "Cannot eject device pointed to %s"
+msgstr ""
+
+#: src/ctrls/c_main.py:1368
+#, python-format
+msgid ""
+"Last eject message:\n"
+"%s"
+msgstr ""
+
+#: src/ctrls/c_main.py:1372
+msgid "Error unmounting device"
+msgstr ""
+
+#: src/ctrls/c_main.py:1374
+#, python-format
+msgid "Cannot unmount device pointed to %s"
+msgstr ""
+
+#: src/ctrls/c_main.py:1376
+#, python-format
+msgid ""
+"Last umount message:\n"
+"%s"
+msgstr ""
+
+#: src/lib/device_helper.py:85
+msgid "Eject program not specified"
+msgstr ""

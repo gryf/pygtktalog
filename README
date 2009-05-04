@@ -121,6 +121,42 @@ design prevent from deleting any file from media directory (placed in
 ~/.pygtktalog/images). Functionality for exporting images and corresponding db
 file is planned.
 
+UPDATE
+------
+There can be added images for virtually any item in catalog. Therefore there is
+some hazard with image filenames.
+After long consideration and experiments I've decided, that images for every
+item will have file name as follows:
+
+sha512("filename" + "file size" + "file modification date").hexdigest()
+
+for thumbnails:
+sha512("filename" + "file size" + "file modification date").hexdigest() + "_t"
+
+Why that way? There is plenty ways to achive goal to keep thumbnails/data with
+applications, however I wanted to keep all things in one place, just to prevent
+mixing this up with existing, system specific (Gnome, KDE, maybe MacOS, or any
+other which is capable to run this application) own solution. Another reason
+lays on catalogs update mechanizm. Imagine, that you have large collection of
+movie clips and want to frequently add and/or delete somethong from that.
+Changing file names of virtually all files is rather rare case. However moving
+them between directories will be much more frequent scenario. And now, if you
+want to update things in catalog, program will just check if there is such
+generated image from movie filename, size and dates, and then it will just
+assign that image to file in catalog. No need to wase time again for generating
+movie shots all over again.
+
+Of course there are some limits for such approach. There is relatively small
+possibility to generate two filenames that are the same in two cases:
+
+1. There are two different files (movies or images) with the same name, same
+size and same timestamp in different directories. This could happen in case of
+images that have fixed size (like BMP) and then due to image/thumbnail creating
+policy only the first one will be placed in images directory.
+
+2. Another possibility........ fuck.
+
+
 BUGS
 ====
 
