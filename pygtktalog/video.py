@@ -12,7 +12,7 @@ import shutil
 from tempfile import mkdtemp, mkstemp
 import math
 
-from misc import float_to_string
+from pygtktalog.misc import float_to_string
 
 class Video(object):
     """Class for retrive midentify script output and put it in dict.
