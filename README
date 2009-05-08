@@ -24,21 +24,30 @@ REQUIREMENTS
 
 pyGTKtalog is written in python with following dependencies:
 
-- python 2.5 or higher
+- python 2.5 or higher (not tested on python 3000)
 - pygtk 2.12 or higher <http://www.pygtk.org>
+- pygtkmvc 1.99 or higher <http://apps.sourceforge.net/trac/pygtkmvc/wiki>
 
 Optional modules:
 
 - PIL <http://www.pythonware.com/products/pil/index.htm> for image manipulation
 
-Additional pyGTKtalog uses pygtkmvc <http://pygtkmvc.sourceforge.net> by Roberto
-Cavada and EXIF module by Gene Cash (slightly updatetd to EXIF 2.2 by me) which
-are included in sources.
+Additional pyGTKtalog uses EXIF module by Gene Cash (slightly updatetd to EXIF
+2.2 by me) which is included in sources.
 
 pyGTKtalog extensivly uses external programs in unix spirit, however there is
 small possibility of using it Windows (probably with limitations) and quite big
 possiblity to run it on other sofisticated unix-like systems (i.e.
 BeOS/ZETA/Haiku, QNX or MacOSX).
+
+Programs that are used:
+- mencoder (provided by mplayer package)
+- montage, convert from ImageMagick
+
+For development process following programs are used:
+- gettext <http://www.gnu.org/software/gettext/gettext.html>
+- nose <http://code.google.com/p/python-nose/>
+- paver <http://code.google.com/p/paver/>
 
 INSTALATION
 ===========
@@ -46,7 +55,7 @@ INSTALATION
 You don't have to install it if you don't want to. You can just change current
 directory to pyGTKtalog and simply run:
 
-./pyGTKtalog
+$ paver run
 
 That's it. Alternatively, if you like to put it in more system wide place, all
 you have to do is:
@@ -121,44 +130,21 @@ design prevent from deleting any file from media directory (placed in
 ~/.pygtktalog/images). Functionality for exporting images and corresponding db
 file is planned.
 
-UPDATE
-------
-There can be added images for virtually any item in catalog. Therefore there is
-some hazard with image filenames.
-After long consideration and experiments I've decided, that images for every
-item will have file name as follows:
 
-sha512("filename" + "file size" + "file modification date").hexdigest()
+DEVELOPMENT
+===========
 
-for thumbnails:
-sha512("filename" + "file size" + "file modification date").hexdigest() + "_t"
+Several tools has been used to develop pyGTKtalog.
 
-Why that way? There is plenty ways to achive goal to keep thumbnails/data with
-applications, however I wanted to keep all things in one place, just to prevent
-mixing this up with existing, system specific (Gnome, KDE, maybe MacOS, or any
-other which is capable to run this application) own solution. Another reason
-lays on catalogs update mechanizm. Imagine, that you have large collection of
-movie clips and want to frequently add and/or delete somethong from that.
-Changing file names of virtually all files is rather rare case. However moving
-them between directories will be much more frequent scenario. And now, if you
-want to update things in catalog, program will just check if there is such
-generated image from movie filename, size and dates, and then it will just
-assign that image to file in catalog. No need to wase time again for generating
-movie shots all over again.
+1. Paver
+--------
 
-Of course there are some limits for such approach. There is relatively small
-possibility to generate two filenames that are the same in two cases:
-
-1. There are two different files (movies or images) with the same name, same
-size and same timestamp in different directories. This could happen in case of
-images that have fixed size (like BMP) and then due to image/thumbnail creating
-policy only the first one will be placed in images directory.
-
-2. Another possibility........ fuck.
-
+I've choose Paver[1] as make equivalent. Inside main project directory there is
+pavement.py script, which provides several tasks, that can be helpfull in a work
+with sources. Paver is also used to generate standard setup.py.
 
 BUGS
 ====
 
-All bugs please report to Roman 'gryf' Dobosz <roman.dobosz@gmail.com>
+All bugs please report to Roman 'gryf' Dobosz <gryf73@gmail.com>
 
