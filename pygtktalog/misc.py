@@ -13,7 +13,7 @@ def float_to_string(float_length):
         @number - digit to be converted into time.
     Returns HH:MM:SS formatted string
     """
-    hour = int(float_length / 3600);
+    hour = int(float_length / 3600)
     float_length -= hour*3600
     minutes = int(float_length / 60)
     float_length -= minutes * 60

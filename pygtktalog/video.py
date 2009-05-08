@@ -14,6 +14,7 @@ import math
 
 from pygtktalog.misc import float_to_string
 
+
 class Video(object):
     """Class for retrive midentify script output and put it in dict.
     Usually there is no need for such a detailed movie/clip information.
