@@ -26,7 +26,7 @@ class Video(object):
         self.filename = filename
         self.tags = {}
 
-        output = os.popen('midentify "%s"' % self.filename).readlines()
+        output = self.__get_movie_info()
 
         attrs = {'ID_VIDEO_WIDTH': ['width', int],
                  'ID_VIDEO_HEIGHT': ['height', int],
@@ -38,13 +38,11 @@ class Video(object):
                  'ID_AUDIO_CODEC': ['audio_codec', str],
                  'ID_AUDIO_FORMAT': ['audio_format', str],
                  'ID_AUDIO_NCH':  ['audio_no_channels', int],}
+                 # TODO: what about audio/subtitle language/existence?
 
-        for line in output:
-            line = line.strip()
-            for attr in attrs:
-                if attr in line:
-                    self.tags[attrs[attr][0]] = \
-                        attrs[attr][1](line.replace("%s=" % attr, ""))
+        for key in output:
+            if key in attrs:
+                self.tags[attrs[key][0]] = attrs[key][1](output[key])
 
         if 'length' in self.tags:
             if self.tags['length'] > 0:
@@ -96,6 +94,36 @@ class Video(object):
         shutil.rmtree(tempdir)
         return image_fn
 
+
+    def __get_movie_info(self):
+        """
+        Gather movie file information with midentify shell command.
+        Returns: dict of command output. Each dict element represents pairs:
+                 variable=value, for example output from midentify will be:
+
+                     ID_VIDEO_ID=0
+                     ID_AUDIO_ID=1
+                     ....
+                     ID_AUDIO_CODEC=mp3
+                     ID_EXIT=EOF
+
+                 so method returns dict:
+
+                     {'ID_VIDEO_ID': '0',
+                      'ID_AUDIO_ID': 1,
+                      ....
+                      'ID_AUDIO_CODEC': 'mp3',
+                      'ID_EXIT': 'EOF'}
+        """
+        output = os.popen('midentify "%s"' % self.filename).readlines()
+        return_dict = {}
+
+        for line in output:
+            line = line.strip()
+            key = line.split('=')
+            if len(key) > 1:
+                return_dict[key[0]] = line.replace("%s=" % key[0], "")
+        return return_dict
 
     def __make_captures(self, directory, no_pictures):
         """
