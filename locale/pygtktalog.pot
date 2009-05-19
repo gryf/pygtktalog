@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: pygtktalog\n"
-"POT-Creation-Date: 2009-05-08 22:06:54.825145\n"
+"POT-Creation-Date: 2009-05-13 21:16:53.904594\n"
 "Last-Translator: Roman Dobosz <gryf73@gmail.com>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
@@ -235,6 +235,18 @@ msgstr ""
 
 #. file 'views/glade/main.glade', line ?
 msgid "Delete tag"
+msgstr ""
+
+#. file 'controllers/main.py', line 46
+msgid "Do you really want to quit?"
+msgstr ""
+
+#. file 'controllers/main.py', line 47
+msgid "Current database is not saved, any changes will be lost."
+msgstr ""
+
+#. file 'controllers/main.py', line 48
+msgid "Quit application"
 msgstr ""
 
 #. file 'models/main.py', line 11
