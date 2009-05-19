@@ -143,6 +143,9 @@ I've choose Paver[1] as make equivalent. Inside main project directory there is
 pavement.py script, which provides several tasks, that can be helpfull in a work
 with sources. Paver is also used to generate standard setup.py.
 
+2. Nose
+-------
+
 BUGS
 ====
 
