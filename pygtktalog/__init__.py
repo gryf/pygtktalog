@@ -21,7 +21,11 @@ GETTEXT_DOMAIN = 'pygtktalog'
 LOCALE_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                            'locale')
 
-locale.setlocale(locale.LC_ALL, '')
+try:
+    locale.setlocale(locale.LC_ALL, '')
+except locale.Error:
+    # unknown locale string, fallback to C
+    locale.setlocale(locale.LC_ALL, 'C')
 
 for module in gtk.glade, gettext:
     if os.path.exists(LOCALE_PATH):
