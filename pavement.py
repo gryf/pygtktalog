@@ -12,19 +12,27 @@ import shutil
 from paver.easy import sh, dry, call_task
 from paver.tasks import task, needs, help
 from paver.setuputils import setup
-#import setuptools.command.sdist
 from paver.misctasks import generate_setup, minilib
 try:
     from pylint import lint
-    have_lint = True
-except:
-    have_lint = False
+    HAVE_LINT = True
+except ImportError:
+    HAVE_LINT = False
+
+
+REV = os.popen("svn info 2>/dev/null|grep ^Revis|cut -d ' ' -f 2").readlines()
+if REV:
+    REV = "r" + REV[0].strip()
+else:
+    REV = '0'
+    
+LOCALES = ('pl','en')
 
 
 # distutil/setuptool setup method.
 setup(
       name='pyGTKtalog',
-      version='1.99',
+      version='1.99.%s' % REV,
 
       long_description='pyGTKtalog is application similar to WhereIsIT, '
                        'for collecting information on files from CD/DVD '
@@ -56,13 +64,13 @@ setup(
 
 
 @task
-@needs(['genpl', 'minilib', 'generate_setup'])
+@needs(['locale_gen', 'minilib', 'generate_setup'])
 def sdist():
     """sdist with message catalogs"""
     call_task("setuptools.command.sdist")
 
 @task
-@needs(['genpl'])
+@needs(['locale_gen'])
 def build():
     """build with message catalogs"""
     call_task("setuptools.command.build")
@@ -98,14 +106,9 @@ def distclean():
 @task
 def run():
     """run application"""
-    sh("PYTHONPATH=%s:$PYTHONPATH bin/gtktalog.py" % _setup_env())
-
-@task
-@needs(['genpl'])
-def runpl():
-    """run application with pl_PL localization"""
-    os.environ['LC_ALL'] = 'pl_PL.utf8'
-    run()
+    #sh("PYTHONPATH=%s:$PYTHONPATH bin/gtktalog.py" % _setup_env())
+    import gtktalog
+    gtktalog.run()
 
 @task
 def pot():
@@ -116,26 +119,35 @@ def pot():
 
 @task
 @needs(['pot'])
-def mergepl():
-    """create or merge if exists polish 'po' translation file"""
-    if os.path.exists(os.path.join('locale', 'pl.po')):
-        sh('msgmerge -U locale/pl.po locale/pygtktalog.pot')
-    else:
-        shutil.copy(os.path.join('locale', 'pygtktalog.pot'),
-                    os.path.join('locale', 'pl.po'))
+def locale_merge():
+    """create or merge if exists 'po' translation files"""
+    potfile = os.path.join('locale', 'pygtktalog.pot')
+    for lang in LOCALES:
+        msg_catalog = os.path.join('locale', "%s.po" % lang)
+        if os.path.exists(msg_catalog):
+            sh('msgmerge -U %s %s' % (msg_catalog, potfile))
+        else:
+            shutil.copy(pot, msg_catalog)
 
 @task
-@needs(['mergepl'])
-def genpl():
-    """generate message catalog file for polish locale"""
-    if not os.path.exists(os.path.join('pygtktalog', 'locale')):
-        full_path = 'pygtktalog'
-        for name in ['locale', 'pl', 'LC_MESSAGES']:
-            full_path = os.path.join(full_path, name)
-            os.mkdir(full_path)
-    sh('msgfmt locale/pl.po -o pygtktalog/locale/pl/LC_MESSAGES/pygtktalog.mo')
+@needs(['locale_merge'])
+def locale_gen():
+    """generate message catalog file for available locale files"""
+    full_path = os.path.join('pygtktalog', 'locale')
+    if not os.path.exists(full_path):
+        os.mkdir(full_path)
+    
+    for lang in LOCALES:
+        lang_path = full_path
+        for dirname in [lang, 'LC_MESSAGES']:
+            lang_path = os.path.join(lang_path, dirname)
+            if not os.path.exists(lang_path):
+                os.mkdir(lang_path)
+        catalog_file = os.path.join(lang_path, 'pygtktalog.mo')
+        msg_catalog = os.path.join('locale', "%s.po" % lang)
+        sh('msgfmt %s -o %s' % (msg_catalog, catalog_file))
 
-if have_lint:
+if HAVE_LINT:
     @task
     def pylint():
         '''Check the module you're building with pylint.'''
@@ -148,13 +160,21 @@ def test():
     os.system("PYTHONPATH=%s:$PYTHONPATH nosetests -w test" % _setup_env())
 
 
+@task
+@needs(['locale_gen'])
+def runpl():
+    """run application with pl_PL localization. This is just for my
+    convenience"""
+    os.environ['LC_ALL'] = 'pl_PL.utf8'
+    run()
+
+
 def _setup_env():
     """Helper function to set up paths"""
     # current directory
     this_path = os.path.dirname(os.path.abspath(__file__))
     if this_path not in sys.path:
         sys.path.insert(0, this_path)
-        
-    # return 
+
     return this_path
 
