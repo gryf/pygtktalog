@@ -7,7 +7,9 @@
 """
 import unittest
 import os
+
 import pygtktalog.misc as pgtkmisc
+
 
 class TestMiscModule(unittest.TestCase):
     """
@@ -25,7 +27,7 @@ class TestMiscModule(unittest.TestCase):
         self.assertRaises(TypeError, pgtkmisc.float_to_string, None)
         self.assertRaises(TypeError, pgtkmisc.float_to_string, '10')
 
+
 if __name__ == "__main__":
     os.chdir(os.path.join(os.path.abspath(os.path.dirname(__file__)), "../"))
-    print os.path.abspath(os.path.curdir)
     unittest.main()
