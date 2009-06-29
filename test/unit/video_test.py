@@ -94,14 +94,38 @@ class TestVideo(unittest.TestCase):
         self.assertEqual(avi.tags['container'], 'ogg')
 
     def test_capture(self):
-        """test capture with some small movie"""
+        """test capture with some small movie and play a little with tags"""
         avi = Video("mocks/m.avi")
         filename = avi.capture()
         self.assertTrue(filename != None)
         self.assertTrue(os.path.exists(filename))
         file_size = os.stat(filename)[6]
-        self.assertEqual(file_size, 9077)
+        self.assertEqual(file_size, 9067)
         os.unlink(filename)
+
+        for length in (480, 380, 4):
+            avi.tags['length'] = length
+            filename = avi.capture()
+            self.assertTrue(filename is not None)
+            os.unlink(filename)
+
+        avi.tags['length'] = 3
+        self.assertTrue(avi.capture() is None)
+
+        avi.tags['length'] = 4
+
+        avi.tags['width'] = 0
+        self.assertTrue(avi.capture() is None)
+
+        avi.tags['width'] = 1025
+        filename = avi.capture()
+        self.assertTrue(filename is not None)
+        os.unlink(filename)
+
+        del(avi.tags['length'])
+        self.assertTrue(avi.capture() is None)
+
+        self.assertTrue(len(str(avi)) > 0)
 
 
 if __name__ == "__main__":
