@@ -30,8 +30,8 @@ class Video(object):
 
         attrs = {'ID_VIDEO_WIDTH': ['width', int],
                  'ID_VIDEO_HEIGHT': ['height', int],
-                 'ID_LENGTH': ['length', lambda x: int(x.split(".")[0])],
                  # length is in seconds
+                 'ID_LENGTH': ['length', lambda x: int(x.split(".")[0])],
                  'ID_DEMUXER': ['container', str],
                  'ID_VIDEO_FORMAT': ['video_format', str],
                  'ID_VIDEO_CODEC': ['video_codec', str],
@@ -44,14 +44,13 @@ class Video(object):
             if key in attrs:
                 self.tags[attrs[key][0]] = attrs[key][1](output[key])
 
-        if 'length' in self.tags:
-            if self.tags['length'] > 0:
-                hours = self.tags['length'] / 3600
-                seconds = self.tags['length'] - hours * 3600
-                minutes = seconds / 60
-                seconds -= minutes * 60
-                length_str = "%02d:%02d:%02d" % (hours, minutes, seconds)
-                self.tags['duration'] = length_str
+        if 'length' in self.tags and self.tags['length'] > 0:
+            hours = self.tags['length'] / 3600
+            seconds = self.tags['length'] - hours * 3600
+            minutes = seconds / 60
+            seconds -= minutes * 60
+            length_str = "%02d:%02d:%02d" % (hours, minutes, seconds)
+            self.tags['duration'] = length_str
 
     def capture(self, out_width=1024):
         """
@@ -67,22 +66,30 @@ class Video(object):
         other place, otherwise it stays in filesystem.
         """
 
-        if not (self.tags.has_key('length') or self.tags.has_key('width')):
+        if not (self.tags.has_key('length') and self.tags.has_key('width')):
+            # no length or width
+            return None
+
+        if not (self.tags['length'] >0 and self.tags['width'] >0):
+            # zero length or wight
             return None
 
         # Calculate number of pictures. Base is equivalent 72 pictures for
         # 1:30:00 movie length
         scale = int(10 * math.log(self.tags['length'], math.e) - 11)
-        no_pictures = self.tags['length'] / scale
-        if no_pictures > 8:
-            # for really short movies
-            no_pictures = (no_pictures / 8 ) * 8 # only multiple of 8, please.
 
-        if not no_pictures:
-            # movie too short or length is 0
+        print "***", scale
+        if scale < 1:
             return None
 
-        if no_pictures < 4:
+        no_pictures = self.tags['length'] / scale
+
+        print "no_pictures: ", no_pictures
+
+        if no_pictures > 8:
+            no_pictures = (no_pictures / 8 ) * 8 # only multiple of 8, please.
+        else:
+            # for really short movies
             no_pictures = 4
 
         tempdir = mkdtemp()
