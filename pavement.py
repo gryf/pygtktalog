@@ -10,7 +10,7 @@ import sys
 import shutil
 
 from paver.easy import sh, dry, call_task
-from paver.tasks import task, needs, help
+from paver.tasks import task, needs, help, cmdopts
 from paver.setuputils import setup
 from paver.misctasks import generate_setup, minilib
 try:
@@ -25,8 +25,8 @@ if REV:
     REV = "r" + REV[0].strip()
 else:
     REV = '0'
-    
-LOCALES = ('pl','en')
+
+LOCALES = {'pl': 'pl_PL.utf8', 'en': 'en_EN'}
 
 
 # distutil/setuptool setup method.
@@ -155,9 +155,13 @@ if HAVE_LINT:
         dry('pylint %s' % (" ".join(pylintopts)), lint.Run, pylintopts)
 
 @task
-def test():
+@cmdopts([('coverage', 'c', 'display coverage information')])
+def test(options):
     """run unit tests"""
-    os.system("PYTHONPATH=%s:$PYTHONPATH nosetests -w test" % _setup_env())
+    cmd = "PYTHONPATH=%s:$PYTHONPATH nosetests -w test" % _setup_env()
+    if hasattr(options.test, 'coverage'):
+        cmd += " --with-coverage --cover-package pygtktalog"
+    os.system(cmd)
 
 
 @task
