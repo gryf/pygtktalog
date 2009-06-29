@@ -19,7 +19,7 @@ class MainController(Controller):
     def __init__(self, model, view):
         """Initialize main controller"""
         Controller.__init__(self, model, view)
-    
+
     def register_view(self, view):
         """Default view registration stuff"""
         view['main'].show()
