@@ -27,6 +27,7 @@ pyGTKtalog is written in python with following dependencies:
 - python 2.5 or higher (not tested on python 3000)
 - pygtk 2.12 or higher <http://www.pygtk.org>
 - pygtkmvc 1.99 or higher <http://apps.sourceforge.net/trac/pygtkmvc/wiki>
+- sqlalchemy 0.5.5 or higher <http://www.sqlalchemy.org>
 
 Optional modules:
 
@@ -46,6 +47,7 @@ Programs that are used:
 
 For development process following programs are used:
 - gettext <http://www.gnu.org/software/gettext/gettext.html>
+- intltool <http://www.gnome.org/>
 - nose <http://code.google.com/p/python-nose/>
 - paver <http://code.google.com/p/paver/>
 
