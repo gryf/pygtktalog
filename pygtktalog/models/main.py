@@ -7,7 +7,12 @@
 """
 from gtkmvc import Model
 
+from pygtktalog.dbobjects import File, Exif, Group, Gthumb
+from pygtktalog.dbobjects import Image, Tag, Thumbnail
+from pygtktalog.dbcommon import connect, Meta
+
+
 class MainModel(Model):
     status_bar_message = _("Idle")
-    
+
     __observables__ = ("status_bar_message",)
