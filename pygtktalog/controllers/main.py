@@ -11,6 +11,7 @@ from gtkmvc import Controller
 
 from pygtktalog.dialogs import yesno, okcancel, info, warn, error
 
+
 class MainController(Controller):
     """
     Controller for main application window
@@ -30,7 +31,6 @@ class MainController(Controller):
         """
         pass
 
-
     def on_quit_activate(self, widget):
         """Quit and save window parameters to config file"""
         # check if any unsaved project is on go.
@@ -43,10 +43,9 @@ class MainController(Controller):
         #        return
         #self.__store_settings()
         #self.model.cleanup()
-        msg1 = _("Do you really want to quit?")
-        msg2 = _("Current database is not saved, any changes will be lost.")
-        title = _("Quit application") + " - pyGTKtalog"
 
-        if yesno(msg1, msg2, title, 0):
+        if yesno(_("Do you really want to quit?"),
+                 _("Current database is not saved, any changes will be "
+                   "lost."), _("Quit application") + " - pyGTKtalog", 0):
             gtk.main_quit()
         return False
