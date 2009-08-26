@@ -8,6 +8,7 @@
 import os
 import sys
 import shutil
+from datetime import datetime
 
 from paver.easy import sh, dry, call_task
 from paver.tasks import task, needs, help, cmdopts
@@ -19,6 +20,18 @@ try:
 except ImportError:
     HAVE_LINT = False
 
+PO_HEADER = """#
+# pygtktalog Language File
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: pygtktalog\\n"
+"POT-Creation-Date: %(time)s\\n"
+"Last-Translator: Roman Dobosz<gryf73@gmail.com>\\n"
+"MIME-Version: 1.0\\n"
+"Content-Type: text/plain; charset=UTF-8\\n"
+"Content-Transfer-Encoding: utf-8\\n"
+"""
 
 REV = os.popen("svn info 2>/dev/null|grep ^Revis|cut -d ' ' -f 2").readlines()
 if REV:
@@ -27,6 +40,7 @@ else:
     REV = '0'
 
 LOCALES = {'pl': 'pl_PL.utf8', 'en': 'en_EN'}
+POTFILE = 'locale/pygtktalog.pot'
 
 
 # distutil/setuptool setup method.
@@ -78,12 +92,12 @@ def build():
 
 @task
 def clean():
-    """remove 'pyo', 'pyc' and '~' files"""
+    """remove 'pyo', 'pyc', 'h' and '~' files"""
     # clean *.pyc, *.pyo and jEdit backup files *~
     for root, dummy, files in os.walk("."):
         for fname in files:
             if fname.endswith(".pyc") or fname.endswith(".pyo") or \
-               fname.endswith("~"):
+               fname.endswith("~") or fname.endswith(".h"):
                 fdel = os.path.join(root, fname)
                 os.unlink(fdel)
                 print "deleted", fdel
@@ -98,7 +112,7 @@ def distclean():
             shutil.rmtree(dirname, ignore_errors=True)
             print "removed directory", dirname
 
-    for filename in ['paver-minilib.zip', 'setup.py']:
+    for filename in ['paver-minilib.zip', 'setup.py', 'test/.coverage']:
         if os.path.exists(filename):
             os.unlink(filename)
             print "deleted", filename
@@ -115,19 +129,35 @@ def pot():
     """generate 'pot' file out of python/glade files"""
     if not os.path.exists('locale'):
         os.mkdir('locale')
-    sh("python bin/generate_pot.py > locale/pygtktalog.pot")
+
+    if not os.path.exists(POTFILE):
+        fname = open(POTFILE, "w")
+        fname.write(PO_HEADER % {'time': datetime.now()})
+
+    cmd = "xgettext --omit-header -k_ -kN_ -j -o %s %s"
+    cmd_glade = "intltool-extract --type=gettext/glade %s"
+
+    for walk_tuple in os.walk("pygtktalog"):
+        root = walk_tuple[0]
+        for fname in walk_tuple[2]:
+            if fname.endswith(".py"):
+                sh(cmd % (POTFILE, os.path.join(root, fname)))
+            elif fname.endswith(".glade"):
+                sh(cmd_glade % os.path.join(root, fname))
+                sh(cmd % (POTFILE, os.path.join(root, fname+".h")))
 
 @task
 @needs(['pot'])
 def locale_merge():
     """create or merge if exists 'po' translation files"""
     potfile = os.path.join('locale', 'pygtktalog.pot')
+
     for lang in LOCALES:
         msg_catalog = os.path.join('locale', "%s.po" % lang)
         if os.path.exists(msg_catalog):
             sh('msgmerge -U %s %s' % (msg_catalog, potfile))
         else:
-            shutil.copy(pot, msg_catalog)
+            shutil.copy(potfile, msg_catalog)
 
 @task
 @needs(['locale_merge'])
@@ -136,7 +166,7 @@ def locale_gen():
     full_path = os.path.join('pygtktalog', 'locale')
     if not os.path.exists(full_path):
         os.mkdir(full_path)
-    
+
     for lang in LOCALES:
         lang_path = full_path
         for dirname in [lang, 'LC_MESSAGES']:
@@ -162,7 +192,6 @@ def test(options):
     if hasattr(options.test, 'coverage'):
         cmd += " --with-coverage --cover-package pygtktalog"
     os.system(cmd)
-
 
 @task
 @needs(['locale_gen'])
