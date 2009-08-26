@@ -78,13 +78,10 @@ class Video(object):
         # 1:30:00 movie length
         scale = int(10 * math.log(self.tags['length'], math.e) - 11)
 
-        print "***", scale
         if scale < 1:
             return None
 
         no_pictures = self.tags['length'] / scale
-
-        print "no_pictures: ", no_pictures
 
         if no_pictures > 8:
             no_pictures = (no_pictures / 8 ) * 8 # only multiple of 8, please.
