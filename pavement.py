@@ -1,6 +1,8 @@
 """
     Project: pyGTKtalog
-    Description: Makefile and setup.py replacement. Used package: paver
+    Description: Makefile and setup.py replacement. Used python packages -
+    paver, nosetests. External commands - xgettext, intltool-extract, svn,
+    grep.
     Type: management
     Author: Roman 'gryf' Dobosz, gryf73@gmail.com
     Created: 2009-05-07
@@ -10,10 +12,12 @@ import sys
 import shutil
 from datetime import datetime
 
-from paver.easy import sh, dry, call_task
+from paver.easy import sh, dry, call_task, options, Bunch
 from paver.tasks import task, needs, help, cmdopts
 from paver.setuputils import setup
 from paver.misctasks import generate_setup, minilib
+import paver.doctools
+
 try:
     from pylint import lint
     HAVE_LINT = True
@@ -75,6 +79,8 @@ setup(
       scripts=['bin/gtktalog.py'],
       test_suite = 'nose.collector'
 )
+
+options(sphinx=Bunch(builddir="build", sourcedir="source"))
 
 
 @task
@@ -186,10 +192,10 @@ if HAVE_LINT:
 
 @task
 @cmdopts([('coverage', 'c', 'display coverage information')])
-def test(options):
+def test(opts):
     """run unit tests"""
     cmd = "PYTHONPATH=%s:$PYTHONPATH nosetests -w test" % _setup_env()
-    if hasattr(options.test, 'coverage'):
+    if hasattr(opts.test, 'coverage'):
         cmd += " --with-coverage --cover-package pygtktalog"
     os.system(cmd)
 

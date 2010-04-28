@@ -7,7 +7,6 @@
 """
 import unittest
 import os
-from tempfile import mkstemp
 
 from pygtktalog.dbcommon import connect, Meta, Session, Base
 

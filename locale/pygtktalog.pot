@@ -244,7 +244,7 @@ msgstr ""
 msgid "Current database is not saved, any changes will be lost."
 msgstr ""
 
-#: pygtktalog/controllers/main.py:48
+#: pygtktalog/controllers/main.py:48 pygtktalog/controllers/main.py:49
 msgid "Quit application"
 msgstr ""
 

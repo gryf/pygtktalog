@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: pygtktalog\n"
-"POT-Creation-Date: 2009-08-25 22:22:50.964390\n"
+"POT-Creation-Date: 2009-08-26 22:10:33.892815\n"
 "Last-Translator: Roman Dobosz<gryf73@gmail.com>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -247,7 +247,7 @@ msgstr "Czy na pewno chcesz zakończyć?"
 msgid "Current database is not saved, any changes will be lost."
 msgstr "Bieżący katalog nie jest zapisany, wszelkie zmiany zostaną utracone."
 
-#: pygtktalog/controllers/main.py:48
+#: pygtktalog/controllers/main.py:48 pygtktalog/controllers/main.py:49
 msgid "Quit application"
 msgstr "Zakończ aplikację"
 

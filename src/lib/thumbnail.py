@@ -56,7 +56,7 @@ class Thumbnail(object):
                                                    # rotated 90 CW
                         8: Image.ROTATE_90}        # Rotated 90 CCW
         flips = {7: Image.FLIP_LEFT_RIGHT, 5: Image.FLIP_LEFT_RIGHT}
-        
+
         image_file = open(self.filename, 'rb')
         try:
             exif = EXIF.process_file(image_file)
@@ -71,7 +71,7 @@ class Thumbnail(object):
             if __debug__:
                 print "file", self.filename, "with hash", self.sha512, "exists"
             return self.sha512, exif
-            
+
         if 'JPEGThumbnail' in exif:
             if __debug__:
                 print self.filename, "exif thumb"
@@ -79,15 +79,16 @@ class Thumbnail(object):
             thumb_file = open(self.thumbnail_path, 'wb')
             thumb_file.write(exif_thumbnail)
             thumb_file.close()
-            
+
             if 'Image Orientation' in exif:
                 orient = exif['Image Orientation'].values[0]
                 if orient > 1 and orient in orientations:
-                    temp_image_path = mkstemp()[1]
-                    
+                    fd, temp_image_path = mkstemp()
+                    os.close(fd)
+
                     thumb_image = Image.open(self.thumbnail_path)
                     tmp_thumb_img = thumb_image.transpose(orientations[orient])
-                    
+
                     if orient in flips:
                         tmp_thumb_img = tmp_thumb_img.transpose(flips[orient])
 

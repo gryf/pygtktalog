@@ -9,8 +9,15 @@ import gtk
 
 from gtkmvc import Controller
 
-from pygtktalog.dialogs import yesno, okcancel, info, warn, error
+#from pygtktalog.dialogs import yesno
+from pygtktalog.controllers.discs import DiscsController
+#from pygtktalog.controllers.files import FilesController
+#from pygtktalog.controllers.details import DetailsController
+#from pygtktalog.controllers.tags import TagcloudController
+#from pygtktalog.dialogs import yesno, okcancel, info, warn, error
+from pygtktalog.logger import get_logger
 
+LOG = get_logger("main controller")
 
 class MainController(Controller):
     """
@@ -21,8 +28,16 @@ class MainController(Controller):
         """Initialize main controller"""
         Controller.__init__(self, model, view)
 
+        # add controllers for files/tags components
+        self.discs = DiscsController(model, view.discs)
+        #self.files = FilesController(model, view.files)
+        #self.details = DetailsController(model, view.details)
+        #self.tags = TagcloudController(model, view.tags)
+
+
     def register_view(self, view):
         """Default view registration stuff"""
+        # one row contains image and text
         view['main'].show()
 
     def register_adapters(self):
@@ -31,21 +46,20 @@ class MainController(Controller):
         """
         pass
 
+    # signals
+    def on_main_destroy_event(self, widget, event):
+        """Quit"""
+        self.on_quit_activate(widget)
+        return True
+
     def on_quit_activate(self, widget):
         """Quit and save window parameters to config file"""
-        # check if any unsaved project is on go.
-        #if self.model.unsaved_project and \
-        #self.model.config.confd['confirmquit']:
-        #    if not yesno.Qst(_("Quit application") + " - pyGTKtalog",
-        #                       _("Do you really want to quit?"),
-        #                       _("Current database is not saved, any changes "
-        #                         "will be lost.")).run():
-        #        return
-        #self.__store_settings()
-        #self.model.cleanup()
 
-        if yesno(_("Do you really want to quit?"),
-                 _("Current database is not saved, any changes will be "
-                   "lost."), _("Quit application") + " - pyGTKtalog", 0):
-            gtk.main_quit()
+        #if yesno(_("Do you really want to quit?"),
+        #         _("Current database is not saved, any changes will be "
+        #           "lost."), _("Quit application") + " - pyGTKtalog", 0):
+        self.model.cleanup()
+        LOG.debug("quit application")
+        gtk.main_quit()
         return False
+

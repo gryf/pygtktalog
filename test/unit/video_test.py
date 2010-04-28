@@ -100,7 +100,7 @@ class TestVideo(unittest.TestCase):
         self.assertTrue(filename != None)
         self.assertTrue(os.path.exists(filename))
         file_size = os.stat(filename)[6]
-        self.assertEqual(file_size, 9067)
+        self.assertEqual(file_size, 9075)
         os.unlink(filename)
 
         for length in (480, 380, 4):
