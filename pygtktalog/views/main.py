@@ -7,6 +7,8 @@
 """
 import os.path
 
+import gtk
+
 from gtkmvc import View
 
 
@@ -53,8 +55,7 @@ class DiscsView(View):
         Initialize view
         """
         View.__init__(self)
-        self.popup_menu = DiscsPopupView()
-
+        self.menu = DiscsPopupView()
 
 class DiscsPopupView(View):
     """
@@ -69,47 +70,51 @@ class DiscsPopupView(View):
         """
         View.__init__(self)
 
+    def disable_update(self, state):
+        """
+        """
+        self['update1'].set_sensitive(not state)
 
-#class FilesView(View):
-#    """
-#    Separate subview of Files TreeView as a table.
-#    """
-#    glade = get_glade("files.glade")
-#    top = 'files'
+class FilesView(View):
+    """
+    Separate subview of Files TreeView as a table.
+    """
+    glade = get_glade("files.glade")
+    top = 'files'
 
-#    def __init__(self):
-#        """
-#        Initialize view
-#        """
-#        View.__init__(self)
-
-
-#class TagcloudView(View):
-#    """
-#    Textview subview with clickable tags.
-#    """
-#    glade = get_glade("tagcloud.glade")
-#    top = 'tag_cloud_textview'
-
-#    def __init__(self):
-#        """
-#        Initialize view
-#        """
-#        View.__init__(self)
+    def __init__(self):
+        """
+        Initialize view
+        """
+        View.__init__(self)
 
 
-#class DetailsView(View):
-#    """
-#    Notebook subview containing tabs with details and possibly Exif, images
-#    assocated with object and alternatively thumbnail.
-#    """
-#    glade = get_glade("details.glade")
-#    top = 'notebook_details'
+class TagcloudView(View):
+    """
+    Textview subview with clickable tags.
+    """
+    glade = get_glade("tagcloud.glade")
+    top = 'tag_cloud_textview'
 
-#    def __init__(self):
-#        """
-#        Initialize view
-#        """
-#        View.__init__(self)
+    def __init__(self):
+        """
+        Initialize view
+        """
+        View.__init__(self)
+
+
+class DetailsView(View):
+    """
+    Notebook subview containing tabs with details and possibly Exif, images
+    assocated with object and alternatively thumbnail.
+    """
+    glade = get_glade("details.glade")
+    top = 'notebook_details'
+
+    def __init__(self):
+        """
+        Initialize view
+        """
+        View.__init__(self)
 
 

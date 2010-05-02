@@ -54,7 +54,8 @@ class MainModel(ModelMT):
         self.discs = gtk.TreeStore(gobject.TYPE_INT,
                                    gobject.TYPE_STRING,
                                    str,
-                                   gobject.TYPE_INT)
+                                   gobject.TYPE_INT,
+                                   gobject.TYPE_PYOBJECT)
 
         if self.cat_fname:
             self.open(self.cat_fname)
@@ -195,7 +196,8 @@ class MainModel(ModelMT):
         """
         """
         session = Session()
-        dirs = session.query(File).filter(File.type == 1).all()
+        dirs = session.query(File).filter(File.type == 1)
+        dirs = dirs.order_by(File.filename).all()
 
         def get_children(parent_id=1, iterator=None):
             """
@@ -214,6 +216,7 @@ class MainModel(ModelMT):
                     else:
                         self.discs.set_value(myiter, 2, gtk.STOCK_DIRECTORY)
                     self.discs.set_value(myiter, 3, fileob.parent_id)
+                    self.discs.set_value(myiter, 4, fileob)
                     get_children(fileob.id, myiter)
             return
         get_children()
@@ -223,4 +226,4 @@ class MainModel(ModelMT):
 
     # TODO: get this thing right
     def get_root_entries(self, id):
-        LOG.debug("id: %s", str(id))
+        LOG.debug("get_root_entries, id: %s", str(id))

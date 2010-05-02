@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.4.5 on Mon Aug 31 09:03:55 2009 -->
+<?xml version="1.0"?>
 <glade-interface>
+  <!-- interface-requires gtk+ 2.6 -->
+  <!-- interface-naming-policy toplevel-contextual -->
   <widget class="GtkWindow" id="top_discs">
     <child>
       <widget class="GtkTreeView" id="discs">
@@ -10,66 +10,66 @@
         <property name="headers_visible">False</property>
         <property name="rules_hint">True</property>
         <signal name="button_press_event" handler="on_discs_button_press_event"/>
-        <signal name="row_activated" handler="on_discs_row_activated"/>
         <signal name="cursor_changed" handler="on_discs_cursor_changed"/>
+        <signal name="row_activated" handler="on_discs_row_activated"/>
         <signal name="key_release_event" handler="on_discs_key_release_event"/>
       </widget>
     </child>
   </widget>
   <widget class="GtkMenu" id="discs_popup">
     <child>
-      <widget class="GtkMenuItem" id="expand_all1">
+      <widget class="GtkMenuItem" id="expand_all">
         <property name="visible">True</property>
         <property name="tooltip" translatable="yes">Expand all nodes</property>
         <property name="label" translatable="yes">_Expand all</property>
         <property name="use_underline">True</property>
-        <signal name="activate" handler="on_expand_all1_activate"/>
+        <signal name="activate" handler="on_expand_all_activate"/>
       </widget>
     </child>
     <child>
-      <widget class="GtkMenuItem" id="collapse_all1">
+      <widget class="GtkMenuItem" id="collapse_all">
         <property name="visible">True</property>
         <property name="tooltip" translatable="yes">Collapse all nodes</property>
         <property name="label" translatable="yes">_Collapse all</property>
         <property name="use_underline">True</property>
-        <signal name="activate" handler="on_collapse_all1_activate"/>
+        <signal name="activate" handler="on_collapse_all_activate"/>
       </widget>
     </child>
     <child>
-      <widget class="GtkSeparatorMenuItem" id="separator4">
+      <widget class="GtkSeparatorMenuItem" id="separator">
         <property name="visible">True</property>
       </widget>
     </child>
     <child>
-      <widget class="GtkMenuItem" id="update1">
+      <widget class="GtkMenuItem" id="update">
         <property name="visible">True</property>
         <property name="label" translatable="yes">_Update</property>
         <property name="use_underline">True</property>
-        <signal name="activate" handler="on_update1_activate"/>
+        <signal name="activate" handler="on_update_activate"/>
       </widget>
     </child>
     <child>
-      <widget class="GtkMenuItem" id="rename1">
+      <widget class="GtkMenuItem" id="rename">
         <property name="visible">True</property>
         <property name="label" translatable="yes">_Rename</property>
         <property name="use_underline">True</property>
-        <signal name="activate" handler="on_rename1_activate"/>
+        <signal name="activate" handler="on_rename_activate"/>
       </widget>
     </child>
     <child>
-      <widget class="GtkMenuItem" id="delete2">
+      <widget class="GtkMenuItem" id="delete">
         <property name="visible">True</property>
         <property name="label" translatable="yes">_Delete</property>
         <property name="use_underline">True</property>
-        <signal name="activate" handler="on_delete2_activate"/>
+        <signal name="activate" handler="on_delete_activate"/>
       </widget>
     </child>
     <child>
-      <widget class="GtkMenuItem" id="statistics1">
+      <widget class="GtkMenuItem" id="statistics">
         <property name="visible">True</property>
         <property name="label" translatable="yes">_Statistics</property>
         <property name="use_underline">True</property>
-        <signal name="activate" handler="on_statistics1_activate"/>
+        <signal name="activate" handler="on_statistics_activate"/>
       </widget>
     </child>
   </widget>

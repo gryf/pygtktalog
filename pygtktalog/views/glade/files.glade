@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
+<!--Generated with glade3 3.4.5 on Sat Aug 29 15:22:37 2009 -->
+<glade-interface>
+  <widget class="GtkWindow" id="top_files">
+    <child>
+      <widget class="GtkTreeView" id="files">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="rules_hint">True</property>
+        <signal name="drag_data_get" handler="on_files_drag_data_get"/>
+        <signal name="button_press_event" handler="on_files_button_press_event"/>
+        <signal name="row_activated" handler="on_files_row_activated"/>
+        <signal name="cursor_changed" handler="on_files_cursor_changed"/>
+        <signal name="key_release_event" handler="on_files_key_release_event"/>
+      </widget>
+    </child>
+  </widget>
+</glade-interface>

@@ -9,7 +9,9 @@ import gtk
 
 from gtkmvc import Controller
 
-from pygtktalog.dialogs import info
+from pygtktalog.logger import get_logger
+
+LOG = get_logger("discs ctrl")
 
 
 class DiscsController(Controller):
@@ -21,8 +23,22 @@ class DiscsController(Controller):
         Controller.__init__(self, model, view)
 
     def register_view(self, view):
-        """Default view registration stuff"""
-        self.view['discs'].set_model(self.model.discs)
+        """
+        Do DiscTree registration
+        """
+        view['discs'].set_model(self.model.discs)
+
+        # connect signals to popup menu - framework somehow omits automatic
+        # signal connection for subviews which are not under included to
+        # widgets tree
+        sigs = {'expand_all': ('activate', self.on_expand_all_activate),
+                'collapse_all': ('activate', self.on_collapse_all_activate),
+                'update': ('activate', self.on_update_activate),
+                'rename': ('activate', self.on_rename_activate),
+                'delete': ('activate', self.on_delete_activate),
+                'statistics': ('activate', self.on_statistics_activate)}
+        for signal in sigs:
+            view.menu[signal].connect(sigs[signal][0], sigs[signal][1])
 
         col = gtk.TreeViewColumn('kolumna')
 
@@ -35,50 +51,34 @@ class DiscsController(Controller):
         col.set_attributes(cellpb, stock_id=0)
         col.set_attributes(cell, text=1)
 
-        self.view['discs'].append_column(col)
-        self.view['discs'].show()
+        view['discs'].append_column(col)
+        view['discs'].show()
+
+
 
     # signals
     def on_discs_button_press_event(self, treeview, event):
         """
-        Handle right click on discs treeview. Show popup menu.
+        Handle right click on discs treeview - show popup menu.
         """
+        LOG.debug('on_discs_button_press_event')
+        pathinfo = treeview.get_path_at_pos(int(event.x), int(event.y))
 
-        time = event.time
-        try:
-            path, column, x, y = treeview.get_path_at_pos(int(event.x),
-                                                          int(event.y))
-        except TypeError:
-            treeview.get_selection().unselect_all()
-            return False
+        if event.button == 3 and pathinfo:
+            path, column, x, y = pathinfo
 
-        if event.button == 3:
-            """Right mouse button. Show context menu."""
-            try:
-                selection = treeview.get_selection()
-                model, list_of_paths = selection.get_selected_rows()
-            except TypeError:
-                list_of_paths = []
+            # Make sure, that there is selected row
+            sel = treeview.get_selection()
+            sel.unselect_all()
+            sel.select_path(path)
 
-            if path not in list_of_paths:
-                treeview.get_selection().unselect_all()
-                treeview.get_selection().select_path(path)
-            # setup menu
-            ids = self.__get_tv_selection_ids(treeview)
-            for menu_item in ['update1','rename1','delete2', 'statistics1']:
-                self.view.popup_menu[menu_item].set_sensitive(not not ids)
-
-            # checkout, if we dealing with disc or directory
-            # if ancestor is 'root', then activate "update" menu item
-            treeiter = self.model.discs.get_iter(path)
-            #ancestor = self.model.discs.get_value(treeiter, 3) == 1
-            #self.view['update1'].set_sensitive(ancestor)
-
-            self.view.popup_menu['discs_popup'].popup(None, None, None, event.button, time)
+            self._popup_menu(sel, event, event.button)
+            return True
 
     def on_discs_cursor_changed(self, widget):
         """Show files on right treeview, after clicking the left disc
         treeview."""
+        LOG.debug('on_discs_cursor_changed')
         model = self.view['discs'].get_model()
         path, column = self.view['discs'].get_cursor()
         if path:
@@ -90,53 +90,59 @@ class DiscsController(Controller):
         return
 
     def on_discs_key_release_event(self, treeview, event):
+        """
+        Trigger popup menu by pressing 'menu' key
+        """
+        LOG.debug('on_discs_key_release_event')
         if gtk.gdk.keyval_name(event.keyval) == 'Menu':
-            ids = self.__get_tv_selection_ids(treeview)
-            menu_items = ['update1','rename1','delete2', 'statistics1']
-            for menu_item in menu_items:
-                self.view[menu_item].set_sensitive(not not ids)
-            self.__popup_menu(event, 'discs_popup')
+            self._popup_menu(treeview.get_selection(), event, 0)
             return True
         return False
 
     def on_discs_row_activated(self, treeview, path, treecolumn):
-        """If possible, expand or collapse branch of discs tree"""
+        """
+        If possible, expand or collapse branch of discs tree
+        """
         if treeview.row_expanded(path):
             treeview.collapse_row(path)
         else:
             treeview.expand_row(path, False)
-        return
 
 
-    # private class functions
-    def __set_files_hiden_columns_visible(self, boolean):
-        """switch visibility of default hidden columns in files treeview"""
-        info("switch visibility of default hidden columns in files treeview")
-        #self.view['files'].get_column(0).set_visible(boolean)
-        #self.view['files'].get_column(2).set_visible(boolean)
+    def on_expand_all_activate(self, menu_item):
+        """
+        Expand all
+        """
+        self.view['discs'].expand_all()
 
-    def __get_tv_selection_ids(self, treeview):
-        """get selection from treeview and return coresponding ids' from
-        connected model or None"""
-        ids = []
-        try:
-            selection = treeview.get_selection()
-            model, list_of_paths = selection.get_selected_rows()
-            for path in list_of_paths:
-                ids.append(model.get_value(model.get_iter(path), 0))
-            return ids
-        except:
-            # DEBUG: treeview have no selection or smth is broken
-            if __debug__:
-                print "c_main.py: __get_tv_selection_ids(): error on",
-                print "getting selected items"
-            return
-        return None
+    def on_collapse_all_activate(self, menu_item):
+        self.view['discs'].collapse_all()
 
-    def __popup_menu(self, event, menu='discs_popup'):
-        """Popoup desired menu"""
-        self.view.discs_popup['discs_popup'].popup(None, None, None, 0, 0)
-        #self.view[menu].popup(None, None, None, event.button,
-        #                               event.time)
-        self.view.discs_popup['discs_popup'].show_all()
-        return
+    def on_update_activate(self, menu_item):
+        raise NotImplementedError
+
+    def on_rename_activate(self, menu_item):
+        raise NotImplementedError
+
+    def on_delete_activate(self, menu_item):
+        raise NotImplementedError
+
+    def on_statistics_activate(self, menu_item):
+        raise NotImplementedError
+
+    def _popup_menu(self, selection, event, button):
+        """
+        Popup menu for discs treeview. Gather information from discs model,
+        and trigger menu popup.
+        """
+        LOG.debug('_popup_menu')
+        model, list_of_paths = selection.get_selected_rows()
+
+        #for path in list_of_paths:
+        #    if model.get_value(model.get_iter(path), 4).parent_id == 1:
+        #        self.view.popup_menu.disable_update(False)
+        #    else:
+        #        self.view.popup_menu.disable_update(True)
+
+        self.view.menu['discs_popup'].popup(None, None, None,
+                                                  button, event.time)

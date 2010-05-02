@@ -862,10 +862,6 @@ class MainController(Controller):
 
             self.__popup_menu(event)
 
-    def on_expand_all1_activate(self, menu_item):
-        self.view['discs'].expand_all()
-        return
-        
     def on_export_activate(self, menu_item):
         """export db file and coressponding images to tar.bz2 archive"""
         dialog = Dialogs.ChooseFilename(None, _("Choose export file"))

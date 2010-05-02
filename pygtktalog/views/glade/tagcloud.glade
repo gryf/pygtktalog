@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<glade-interface>
+  <!-- interface-requires gtk+ 2.6 -->
+  <!-- interface-naming-policy toplevel-contextual -->
+  <widget class="GtkWindow" id="top_tags">
+    <child>
+      <widget class="GtkTextView" id="tag_cloud_textview">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+        <property name="wrap_mode">word</property>
+        <property name="cursor_visible">False</property>
+        <signal name="visibility_notify_event" handler="on_tag_cloud_textview_visibility_notify_event"/>
+        <signal name="drag_motion" handler="on_tag_cloud_textview_drag_motion"/>
+        <signal name="event_after" handler="on_tag_cloud_textview_event_after"/>
+        <signal name="drag_drop" handler="on_tag_cloud_textview_drag_drop"/>
+        <signal name="drag_leave" handler="on_tag_cloud_textview_drag_leave"/>
+        <signal name="drag_data_received" handler="on_tag_cloud_textview_drag_data_received"/>
+      </widget>
+    </child>
+  </widget>
+</glade-interface>
