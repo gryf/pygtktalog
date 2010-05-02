@@ -126,9 +126,9 @@ def distclean():
 @task
 def run():
     """run application"""
-    #sh("PYTHONPATH=%s:$PYTHONPATH bin/gtktalog.py" % _setup_env())
-    import gtktalog
-    gtktalog.run()
+    sh("PYTHONPATH=%s:$PYTHONPATH bin/gtktalog.py" % _setup_env())
+    #import gtktalog
+    #gtktalog.run()
 
 @task
 def pot():
