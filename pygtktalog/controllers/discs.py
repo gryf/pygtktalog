@@ -65,7 +65,7 @@ class DiscsController(Controller):
         pathinfo = treeview.get_path_at_pos(int(event.x), int(event.y))
 
         if event.button == 3 and pathinfo:
-            path, column, x, y = pathinfo
+            path = pathinfo[0]
 
             # Make sure, that there is selected row
             sel = treeview.get_selection()
@@ -76,18 +76,10 @@ class DiscsController(Controller):
             return True
 
     def on_discs_cursor_changed(self, widget):
-        """Show files on right treeview, after clicking the left disc
-        treeview."""
+        """
+        Show files on right treeview, after clicking the left disc treeview.
+        """
         LOG.debug('on_discs_cursor_changed')
-        model = self.view['discs'].get_model()
-        path, column = self.view['discs'].get_cursor()
-        if path:
-            iter = self.model.discs.get_iter(path)
-            id = self.model.discs.get_value(iter, 0)
-            # self.__set_files_hiden_columns_visible(False) # TODO: ale o so chozi???
-            self.model.get_root_entries(id)
-
-        return
 
     def on_discs_key_release_event(self, treeview, event):
         """
@@ -108,7 +100,6 @@ class DiscsController(Controller):
         else:
             treeview.expand_row(path, False)
 
-
     def on_expand_all_activate(self, menu_item):
         """
         Expand all
@@ -116,18 +107,33 @@ class DiscsController(Controller):
         self.view['discs'].expand_all()
 
     def on_collapse_all_activate(self, menu_item):
+        """
+        Collapse all
+        """
         self.view['discs'].collapse_all()
 
     def on_update_activate(self, menu_item):
+        """
+        Trigger update specified tree entry
+        """
         raise NotImplementedError
 
     def on_rename_activate(self, menu_item):
+        """
+        Rename disk or directory
+        """
         raise NotImplementedError
 
     def on_delete_activate(self, menu_item):
+        """
+        Delete disk or directory from catalog
+        """
         raise NotImplementedError
 
     def on_statistics_activate(self, menu_item):
+        """
+        Show statistics for selected item
+        """
         raise NotImplementedError
 
     def _popup_menu(self, selection, event, button):
@@ -138,11 +144,9 @@ class DiscsController(Controller):
         LOG.debug('_popup_menu')
         model, list_of_paths = selection.get_selected_rows()
 
-        #for path in list_of_paths:
-        #    if model.get_value(model.get_iter(path), 4).parent_id == 1:
-        #        self.view.popup_menu.disable_update(False)
-        #    else:
-        #        self.view.popup_menu.disable_update(True)
+        for path in list_of_paths:
+            self.view.menu.set_update_sensitivity(not model.get_value(\
+                    model.get_iter(path), 4).parent_id == 1)
 
         self.view.menu['discs_popup'].popup(None, None, None,
-                                                  button, event.time)
+                                            button, event.time)

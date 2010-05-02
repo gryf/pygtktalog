@@ -76,7 +76,7 @@ class MainModel(ModelMT):
         self.cat_fname = filename
 
         if self._open_or_decompress():
-            return self._read_db()
+            return self._populate_discs_from_db()
         else:
             return False
 
@@ -192,8 +192,10 @@ class MainModel(ModelMT):
         # http://www.logilab.org/blogentry/17873
         os.close(fd)
 
-    def _read_db(self):
+    def _populate_discs_from_db(self):
         """
+        Read objects from database, fill TreeStore model with discs
+        information
         """
         session = Session()
         dirs = session.query(File).filter(File.type == 1)
@@ -224,6 +226,5 @@ class MainModel(ModelMT):
 
         return True
 
-    # TODO: get this thing right
     def get_root_entries(self, id):
-        LOG.debug("get_root_entries, id: %s", str(id))
+        LOG.debug("not implemented!, get_root_entries, id: %s", str(id))

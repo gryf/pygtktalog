@@ -7,8 +7,6 @@
 """
 import os.path
 
-import gtk
-
 from gtkmvc import View
 
 
@@ -57,6 +55,7 @@ class DiscsView(View):
         View.__init__(self)
         self.menu = DiscsPopupView()
 
+
 class DiscsPopupView(View):
     """
     Separate Discs PopUp subview.
@@ -70,10 +69,13 @@ class DiscsPopupView(View):
         """
         View.__init__(self)
 
-    def disable_update(self, state):
+    def set_update_sensitivity(self, state):
         """
+        Update sensitivity for 'update' popup menu item
+
         """
-        self['update1'].set_sensitive(not state)
+        self['update'].set_sensitive(not state)
+
 
 class FilesView(View):
     """
@@ -116,5 +118,4 @@ class DetailsView(View):
         Initialize view
         """
         View.__init__(self)
-
 
