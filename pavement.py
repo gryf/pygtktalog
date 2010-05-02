@@ -192,10 +192,10 @@ if HAVE_LINT:
 
 @task
 @cmdopts([('coverage', 'c', 'display coverage information')])
-def test(opts):
+def test(options):
     """run unit tests"""
     cmd = "PYTHONPATH=%s:$PYTHONPATH nosetests -w test" % _setup_env()
-    if hasattr(opts.test, 'coverage'):
+    if hasattr(options.test, 'coverage'):
         cmd += " --with-coverage --cover-package pygtktalog"
     os.system(cmd)
 
