@@ -24,12 +24,15 @@ FEATURES
 REQUIREMENTS
 ------------
 
-pyGTKtalog is written in python with following dependencies:
+pyGTKtalog was developed using python and following libraries:
 
-* python 2.5 or higher (not tested on python 3000)
-* `pygtk 2.12 <http://www.pygtk.org>`_ or higher
-* `pygtkmvc 1.99 <http://apps.sourceforge.net/trac/pygtkmvc/wiki>`_ or higher
-* `sqlalchemy 0.5.5 <http://www.sqlalchemy.org>`_ or higher
+* python 2.6
+* `pygtk 2.16 <http://www.pygtk.org>`_
+* `pygtkmvc 1.99 <http://apps.sourceforge.net/trac/pygtkmvc/wiki>`_
+* `sqlalchemy 0.6 <http://www.sqlalchemy.org>`_
+
+It may work on other (lower) version of libraries, and it should work with 
+higher versions of libraries.
 
 Optional modules
 ^^^^^^^^^^^^^^^^
@@ -72,7 +75,7 @@ you have to do is:
 #. then modify pyGTKtalog line 6 to match right pygtktalog.py directory
 
 Then, just run pyGTKtalog script.
-  
+
 TODO
 ----
 

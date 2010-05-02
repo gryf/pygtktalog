@@ -53,21 +53,21 @@ class DiscsView(View):
         Initialize view
         """
         View.__init__(self)
-        #self.discs_popup = DiscsPopupView()
+        self.popup_menu = DiscsPopupView()
 
 
-#class DiscsPopupView(View):
-#    """
-#    Separate Discs PopUp subview.
-#    """
-#    glade = get_glade("discs.glade")
-#    top = 'discs_popup'
+class DiscsPopupView(View):
+    """
+    Separate Discs PopUp subview.
+    """
+    glade = get_glade("discs.glade")
+    top = 'discs_popup'
 
-#    def __init__(self):
-#        """
-#        Initialize view
-#        """
-#        View.__init__(self)
+    def __init__(self):
+        """
+        Initialize view
+        """
+        View.__init__(self)
 
 
 #class FilesView(View):

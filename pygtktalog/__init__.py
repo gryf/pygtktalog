@@ -1,6 +1,6 @@
 """
     Project: pyGTKtalog
-    Description: Initialize for main module - i18n and so.
+    Description: Initialization for main module - i18n and so.
     Type: core
     Author: Roman 'gryf' Dobosz, gryf73@gmail.com
     Created: 2009-05-05

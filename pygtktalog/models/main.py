@@ -7,6 +7,7 @@
 """
 import os
 import bz2
+from string import printable
 from tempfile import mkstemp
 
 import gtk
@@ -22,17 +23,26 @@ LOG = get_logger("main model")
 
 
 class MainModel(ModelMT):
+    """
+    Main model for application.
+    It is responsible for communicate with database objects and I/O
+    operations.
+    """
     status_bar_message = _("Idle")
     current_disc = None
 
     __observables__ = ("status_bar_message", "current_disc")
 
     def __init__(self, filename=None):
-        """Initialization. Make some nice defaults."""
-        print "model"
+        """
+        Initialization. Make some nice defaults.
+        Arguments:
+            filename - String that indicates optionally compressed with bzip2
+                       file containing sqlite3 database.
+        """
         ModelMT.__init__(self)
         # Opened/saved database location in filesystem. Could be compressed.
-        self.db_filename = filename
+        self.cat_fname = filename
         # Temporary (usually in /tmp) working database.
         self.tmp_filename = None
         # Flag indicates, that db was compressed
@@ -41,45 +51,50 @@ class MainModel(ModelMT):
 
         self.db_unsaved = False
 
-        self.discs = gtk.TreeStore(str, gobject.TYPE_STRING)
+        self.discs = gtk.TreeStore(gobject.TYPE_INT,
+                                   gobject.TYPE_STRING,
+                                   str,
+                                   gobject.TYPE_INT)
 
-        # XXX remove this on production!
-        myiter = self.discs.insert_before(None, None)
-        self.discs.set_value(myiter, 1, "bubu")
-        self.discs.set_value(myiter, 1, "foo")
-        self.discs.set_value(myiter, 1, "bar")
+        if self.cat_fname:
+            self.open(self.cat_fname)
 
-        itr = self.discs.append(None, None)
-        self.discs.set_value(itr, 0, gtk.STOCK_DIRECTORY)
-        self.discs.set_value(itr, 1, "foobar")
-        for nr, name in enumerate(('foo', 'bar', 'baz')):
-            self.discs.append(itr, (gtk.STOCK_FILE, "%s %d" % (name, nr)))
-
-        #self.open()
-
-    def open(self, filename=None):
+    def open(self, filename):
+        """
+        Open catalog file and read db
+        Arguments:
+            @filename - see MainModel __init__ docstring.
+        Returns: Bool - true for success, false otherwise.
+        """
+        LOG.debug("filename: '%s'", filename)
         self.unsaved_project = False
-        if filename is not None and not os.path.exists(filename):
-            LOG.warn("db file '%s' doesn't exist", filename)
+        if not os.path.exists(filename):
+            LOG.warn("db file '%s' doesn't exist.", filename)
             return False
 
-        if filename:
-            self.db_filename = filename
-        if self.db_filename:
-            return self.__open_or_decompress()
+        self.cat_fname = filename
+
+        if self._open_or_decompress():
+            return self._read_db()
         else:
-            self.__create_empty_db()
-        return True
+            return False
+
+    def new(self):
+        """
+        Create new catalog
+        """
+        self._cleanup_and_create_temp_db_file()
 
     def cleanup(self):
-        """remove temporary directory tree from filesystem"""
+        """
+        Remove temporary directory tree from filesystem
+        """
         if self.tmp_filename is None:
             return
 
-        #import ipdb; ipdb.set_trace()
-        LOG.debug("cleanup()")
         try:
             os.unlink(self.tmp_filename)
+            LOG.debug("file %s succesfully deleted", self.tmp_filename)
         except OSError:
             LOG.exception("temporary db file doesn't exists!")
         except TypeError:
@@ -87,32 +102,57 @@ class MainModel(ModelMT):
             LOG.exception("temporary db file doesn't exists!")
 
 
-    def __create_empty_db(self):
-        pass
+    def _create_empty_db(self):
+        """
+        Create new DB
+        """
+        self._cleanup_and_create_temp_db_file()
 
-    def __open_or_decompress(self):
-        filename = os.path.abspath(self.db_filename)
-        LOG.info("database file: %s", filename)
+    def _examine_file(self, filename):
+        """
+        Try to recognize file.
+        Arguments:
+            @filename - String with full path to file to examine
+        Returns: 'sql', 'bz2' or None for file sqlite, compressed with bzip2
+                  or other respectively
+        """
+        try:
+            head_of_file = open(filename).read(15)
+            LOG.debug("head of file: %s", filter(lambda x: x in printable,
+                                                 head_of_file))
+        except IOError:
+            LOG.exception("Error opening file '%s'!", filename)
+            self.cleanup()
+            self.cat_fname = None
+            self.tmp_filename = None
+            return None
 
-        self.__cleanup_and_create_temp_db_file()
+        if head_of_file == "SQLite format 3":
+            LOG.debug("File format: uncompressed sqlite")
+            return 'sql'
+        elif head_of_file[0:10] == "BZh91AY&SY":
+            LOG.debug("File format: bzip2")
+            return 'bz2'
+        else:
+            return None
+
+    def _open_or_decompress(self):
+        """
+        Try to open file, which user thinks is our catalog file.
+        Returns: Bool - true for success, false otherwise
+        """
+        filename = os.path.abspath(self.cat_fname)
+        LOG.info("catalog file: %s", filename)
+
+        self._cleanup_and_create_temp_db_file()
         LOG.debug("tmp database file: %s", str(self.tmp_filename))
 
-        try:
-            test_file = open(filename).read(15)
-            LOG.debug("test_file: %s", test_file)
-        except IOError:
-            self.cleanup()
-            self.db_filename = None
-            self.tmp_filename = None
-            LOG.exception("Error opening file!")
-            return False
-
-        if test_file == "SQLite format 3":
+        examine = self._examine_file(filename)
+        if examine == "sql":
             db_tmp = open(self.tmp_filename, "wb")
             db_tmp.write(open(filename).read())
             db_tmp.close()
-            LOG.debug("file format: sqlite")
-        elif test_file[0:10] == "BZh91AY&SY":
+        elif examine == "bz2":
             open_file = bz2.BZ2File(filename)
             try:
                 db_tmp = open(self.tmp_filename, "w")
@@ -120,27 +160,67 @@ class MainModel(ModelMT):
                 db_tmp.close()
                 open_file.close()
             except IOError:
-                # file is not bz2
                 self.cleanup()
                 self.filename = None
                 self.internal_dirname = None
-                # TODO: add logger
                 LOG.exception("File is probably not a bz2!")
                 return False
+            if self._examine_file(self.tmp_filename) is not 'sql':
+                LOG.error("Error opening file '%s' - not a catalog file!",
+                          self.tmp_filename)
+                self.cleanup()
+                self.cat_fname = None
+                self.tmp_filename = None
+                return False
+
         else:
+            LOG.error("Error opening file '%s' - not a catalog file!",
+                      self.tmp_filename)
+            self.cleanup()
             self.filename = None
             self.internal_dirname = None
             return False
+
         connect(os.path.abspath(self.tmp_filename))
         return True
 
-    def __cleanup_and_create_temp_db_file(self):
+    def _cleanup_and_create_temp_db_file(self):
         self.cleanup()
         fd, self.tmp_filename = mkstemp()
         # close file descriptor, otherwise it can be source of app crash!
         # http://www.logilab.org/blogentry/17873
         os.close(fd)
 
+    def _read_db(self):
+        """
+        """
+        session = Session()
+        dirs = session.query(File).filter(File.type == 1).all()
+
+        def get_children(parent_id=1, iterator=None):
+            """
+            Get all children of the selected parent.
+            Arguments:
+                @parent_id - integer with id of the parent (from db)
+                @iterator - TODO
+            """
+            for fileob in dirs:
+                if fileob.parent_id == parent_id:
+                    myiter = self.discs.insert_before(iterator, None)
+                    self.discs.set_value(myiter, 0, fileob.id)
+                    self.discs.set_value(myiter, 1, fileob.filename)
+                    if iterator is None:
+                        self.discs.set_value(myiter, 2, gtk.STOCK_CDROM)
+                    else:
+                        self.discs.set_value(myiter, 2, gtk.STOCK_DIRECTORY)
+                    self.discs.set_value(myiter, 3, fileob.parent_id)
+                    get_children(fileob.id, myiter)
+            return
+        get_children()
+        session.close()
+
+        return True
+
     # TODO: get this thing right
     def get_root_entries(self, id):
-        LOG.debug("id: %s" (type(id)))
+        LOG.debug("id: %s", str(id))

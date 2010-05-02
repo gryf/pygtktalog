@@ -40,10 +40,13 @@ def get_logger(module_name, level=None, to_file=False):
 
     if to_file:
         log_handler = logging.FileHandler(path)
-        formatter = logging.Formatter("%(asctime)s %(filename)s:%(lineno) - %(name)s - %(levelname)s - %(message)s")
+        formatter = logging.Formatter("%(asctime)s %(filename)s:%(lineno) - "
+                                      "%(name)s - %(levelname)s - "
+                                      "%(message)s")
     else:
         log_handler = logging.StreamHandler(sys.stderr)
-        formatter = logging.Formatter("%(name)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s")
+        formatter = logging.Formatter("%(name)s - %(filename)s:%(lineno)s - "
+                                      "%(levelname)s - %(message)s")
 
     log_handler.setFormatter(formatter)
     log.addHandler(log_handler)
