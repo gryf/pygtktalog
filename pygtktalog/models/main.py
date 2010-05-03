@@ -51,11 +51,9 @@ class MainModel(ModelMT):
 
         self.db_unsaved = False
 
-        self.discs = gtk.TreeStore(gobject.TYPE_INT,
+        self.discs = gtk.TreeStore(gobject.TYPE_PYOBJECT,
                                    gobject.TYPE_STRING,
-                                   str,
-                                   gobject.TYPE_INT,
-                                   gobject.TYPE_PYOBJECT)
+                                   str)
 
         if self.cat_fname:
             self.open(self.cat_fname)
@@ -211,14 +209,12 @@ class MainModel(ModelMT):
             for fileob in dirs:
                 if fileob.parent_id == parent_id:
                     myiter = self.discs.insert_before(iterator, None)
-                    self.discs.set_value(myiter, 0, fileob.id)
+                    self.discs.set_value(myiter, 0, fileob)
                     self.discs.set_value(myiter, 1, fileob.filename)
                     if iterator is None:
                         self.discs.set_value(myiter, 2, gtk.STOCK_CDROM)
                     else:
                         self.discs.set_value(myiter, 2, gtk.STOCK_DIRECTORY)
-                    self.discs.set_value(myiter, 3, fileob.parent_id)
-                    self.discs.set_value(myiter, 4, fileob)
                     get_children(fileob.id, myiter)
             return
         get_children()

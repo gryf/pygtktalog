@@ -19,18 +19,22 @@ class DiscsController(Controller):
     Controller for discs TreeView
     """
     def __init__(self, model, view):
-        """Initialize controller"""
+        """
+        Initialize DiscsController
+        """
+        LOG.debug(self.__init__.__doc__.strip())
         Controller.__init__(self, model, view)
 
     def register_view(self, view):
         """
         Do DiscTree registration
         """
+        LOG.debug(self.register_view.__doc__.strip())
         view['discs'].set_model(self.model.discs)
 
         # connect signals to popup menu - framework somehow omits automatic
-        # signal connection for subviews which are not under included to
-        # widgets tree
+        # signal connection for subviews which are not included to widgets
+        # tree
         sigs = {'expand_all': ('activate', self.on_expand_all_activate),
                 'collapse_all': ('activate', self.on_collapse_all_activate),
                 'update': ('activate', self.on_update_activate),
@@ -40,28 +44,30 @@ class DiscsController(Controller):
         for signal in sigs:
             view.menu[signal].connect(sigs[signal][0], sigs[signal][1])
 
-        col = gtk.TreeViewColumn('kolumna')
+        col = gtk.TreeViewColumn('discs_column')
 
         cellpb = gtk.CellRendererPixbuf()
         cell = gtk.CellRendererText()
 
+        # make cell text editabe
+        cell.set_property('editable', True)
+        cell.connect('edited', self.on_editing_done, self.model.discs)
+
         col.pack_start(cellpb, False)
         col.pack_start(cell, True)
 
-        col.set_attributes(cellpb, stock_id=0)
+        col.set_attributes(cellpb, stock_id=2)
         col.set_attributes(cell, text=1)
 
         view['discs'].append_column(col)
         view['discs'].show()
 
-
-
-    # signals
+    # treeview signals
     def on_discs_button_press_event(self, treeview, event):
         """
         Handle right click on discs treeview - show popup menu.
         """
-        LOG.debug('on_discs_button_press_event')
+        LOG.debug(self.on_discs_button_press_event.__doc__.strip())
         pathinfo = treeview.get_path_at_pos(int(event.x), int(event.y))
 
         if event.button == 3 and pathinfo:
@@ -79,13 +85,14 @@ class DiscsController(Controller):
         """
         Show files on right treeview, after clicking the left disc treeview.
         """
-        LOG.debug('on_discs_cursor_changed')
+        LOG.debug(self.on_discs_cursor_changed.__doc__.strip())
+        raise NotImplementedError
 
     def on_discs_key_release_event(self, treeview, event):
         """
         Trigger popup menu by pressing 'menu' key
         """
-        LOG.debug('on_discs_key_release_event')
+        LOG.debug(self.on_discs_key_release_event.__doc__.strip())
         if gtk.gdk.keyval_name(event.keyval) == 'Menu':
             self._popup_menu(treeview.get_selection(), event, 0)
             return True
@@ -95,58 +102,79 @@ class DiscsController(Controller):
         """
         If possible, expand or collapse branch of discs tree
         """
+        LOG.debug(self.on_discs_row_activated.__doc__.strip())
         if treeview.row_expanded(path):
             treeview.collapse_row(path)
         else:
             treeview.expand_row(path, False)
 
+    def on_editing_done(self, cell, path, new_text, model):
+        """
+        Store changed filename text
+        """
+        LOG.debug(self.on_editing_done.__doc__.strip())
+        model[path][0].filename = new_text
+        model[path][1] = new_text
+        return
+
+    # popup menu signals
     def on_expand_all_activate(self, menu_item):
         """
         Expand all
         """
+        LOG.debug(self.on_expand_all_activate.__doc__.strip())
         self.view['discs'].expand_all()
 
     def on_collapse_all_activate(self, menu_item):
         """
         Collapse all
         """
+        LOG.debug(self.on_collapse_all_activate.__doc__.strip())
         self.view['discs'].collapse_all()
 
     def on_update_activate(self, menu_item):
         """
         Trigger update specified tree entry
         """
+        LOG.debug(self.on_update_activate.__doc__.strip())
         raise NotImplementedError
 
     def on_rename_activate(self, menu_item):
         """
         Rename disk or directory
         """
-        raise NotImplementedError
+        LOG.debug(self.on_rename_activate.__doc__.strip())
+        treeview = self.view['discs']
+        selection = treeview.get_selection()
+        path = selection.get_selected_rows()[1][0]
+        treeview.set_cursor(path, treeview.get_column(0), start_editing=True)
 
     def on_delete_activate(self, menu_item):
         """
         Delete disk or directory from catalog
         """
+        LOG.debug(self.on_delete_activate.__doc__.strip())
         raise NotImplementedError
 
     def on_statistics_activate(self, menu_item):
         """
         Show statistics for selected item
         """
+        LOG.debug(self.on_statistics_activate.__doc__.strip())
         raise NotImplementedError
 
+    # private methods
     def _popup_menu(self, selection, event, button):
         """
         Popup menu for discs treeview. Gather information from discs model,
         and trigger menu popup.
         """
-        LOG.debug('_popup_menu')
+        LOG.debug(self._popup_menu.__doc__.strip())
         model, list_of_paths = selection.get_selected_rows()
 
         for path in list_of_paths:
             self.view.menu.set_update_sensitivity(not model.get_value(\
-                    model.get_iter(path), 4).parent_id == 1)
+                    model.get_iter(path), 0).parent_id == 1)
 
         self.view.menu['discs_popup'].popup(None, None, None,
                                             button, event.time)
