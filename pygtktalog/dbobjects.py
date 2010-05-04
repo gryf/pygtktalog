@@ -28,8 +28,9 @@ class File(Base):
     note = Column(Text)
     description = Column(Text)
 
-    children = relation('File', backref=backref('parent',
-                                                remote_side="File.id"))
+    children = relation('File',
+                        backref=backref('parent', remote_side="File.id"),
+                        order_by=[type, filename])
     tags = relation("Tag", secondary=tags_files)
     thumbnail = relation("Thumbnail", backref="file")
     images = relation("Image", backref="file")

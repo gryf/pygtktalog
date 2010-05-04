@@ -245,24 +245,23 @@ class MainModel(ModelMT):
         Arguments:
             fileob - File object
         """
-        files = self._session.query(File).filter(File.parent_id==fileob.id)\
-                                .order_by(File.type, File.filename).all()
-        files = []
-        LOG.info("found %d files for root id %s" %(len(files), str(fileob)))
+        LOG.info("found %d files for File object: %s" % (len(fileob.children),
+                                                        str(fileob)))
 
         self.files.clear()
 
-        for fob in files:
+        for child in fileob.children:
             myiter = self.files.insert_before(None, None)
-            self.files.set_value(myiter, 0, fob.id)
-            self.files.set_value(myiter, 1, fob.parent_id if fob.parent_id!=1 else None)
-            self.files.set_value(myiter, 2, fob.filename)
-            self.files.set_value(myiter, 3, fob.filepath)
-            self.files.set_value(myiter, 4, fob.size)
-            self.files.set_value(myiter, 5, fob.date)
+            self.files.set_value(myiter, 0, child.id)
+            self.files.set_value(myiter, 1, child.parent_id \
+                    if child.parent_id!=1 else None)
+            self.files.set_value(myiter, 2, child.filename)
+            self.files.set_value(myiter, 3, child.filepath)
+            self.files.set_value(myiter, 4, child.size)
+            self.files.set_value(myiter, 5, child.date)
             self.files.set_value(myiter, 6, 1)
             self.files.set_value(myiter, 7, gtk.STOCK_DIRECTORY \
-                    if fob.type==1 else gtk.STOCK_FILE)
+                    if child.type==1 else gtk.STOCK_FILE)
 
 
 
