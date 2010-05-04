@@ -13,6 +13,16 @@ import __builtin__
 import gtk.glade
 
 
+__all__ = ['controllers',
+           'models',
+           'views',
+           'EXIF',
+           'dbcommon',
+           'dbobjects',
+           'dialogs',
+           'logger',
+           'misc']
+
 GETTEXT_DOMAIN = 'pygtktalog'
 # There should be message catalogs in "locale" directory placed by setup.py
 # script. If there is no such directory, let's assume that message catalogs are

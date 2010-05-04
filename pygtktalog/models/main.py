@@ -45,6 +45,8 @@ class MainModel(ModelMT):
         self.cat_fname = filename
         # Temporary (usually in /tmp) working database.
         self.tmp_filename = None
+        # SQLAlchemy session object for internal use
+        self._session = None
         # Flag indicates, that db was compressed
         # TODO: make it depend on configuration
         self.compressed = False
@@ -54,7 +56,14 @@ class MainModel(ModelMT):
         self.discs = gtk.TreeStore(gobject.TYPE_PYOBJECT,
                                    gobject.TYPE_STRING,
                                    str)
-
+        self.files = gtk.ListStore(gobject.TYPE_PYOBJECT,
+                                   gobject.TYPE_STRING,
+                                   gobject.TYPE_STRING,
+                                   gobject.TYPE_STRING,
+                                   gobject.TYPE_UINT64,
+                                   gobject.TYPE_STRING,
+                                   gobject.TYPE_INT,
+                                   str)
         if self.cat_fname:
             self.open(self.cat_fname)
 
@@ -82,12 +91,18 @@ class MainModel(ModelMT):
         """
         Create new catalog
         """
-        self._cleanup_and_create_temp_db_file()
+        self.cleanup()
+        self._create_temp_db_file()
 
     def cleanup(self):
         """
         Remove temporary directory tree from filesystem
         """
+
+        if self._session:
+            self._session.close()
+            self._session = None
+
         if self.tmp_filename is None:
             return
 
@@ -105,7 +120,8 @@ class MainModel(ModelMT):
         """
         Create new DB
         """
-        self._cleanup_and_create_temp_db_file()
+        self.cleanup()
+        self._create_temp_db_file()
 
     def _examine_file(self, filename):
         """
@@ -143,7 +159,10 @@ class MainModel(ModelMT):
         filename = os.path.abspath(self.cat_fname)
         LOG.info("catalog file: %s", filename)
 
-        self._cleanup_and_create_temp_db_file()
+        if self._session:
+            self.cleanup()
+
+        self._create_temp_db_file()
         LOG.debug("tmp database file: %s", str(self.tmp_filename))
 
         examine = self._examine_file(filename)
@@ -181,10 +200,10 @@ class MainModel(ModelMT):
             return False
 
         connect(os.path.abspath(self.tmp_filename))
+        self._session = Session()
         return True
 
-    def _cleanup_and_create_temp_db_file(self):
-        self.cleanup()
+    def _create_temp_db_file(self):
         fd, self.tmp_filename = mkstemp()
         # close file descriptor, otherwise it can be source of app crash!
         # http://www.logilab.org/blogentry/17873
@@ -195,8 +214,7 @@ class MainModel(ModelMT):
         Read objects from database, fill TreeStore model with discs
         information
         """
-        session = Session()
-        dirs = session.query(File).filter(File.type == 1)
+        dirs = self._session.query(File).filter(File.type == 1)
         dirs = dirs.order_by(File.filename).all()
 
         def get_children(parent_id=1, iterator=None):
@@ -218,9 +236,33 @@ class MainModel(ModelMT):
                     get_children(fileob.id, myiter)
             return
         get_children()
-        session.close()
 
         return True
 
-    def get_root_entries(self, id):
-        LOG.debug("not implemented!, get_root_entries, id: %s", str(id))
+    def update_files(self, fileob):
+        """
+        Update files ListStore
+        Arguments:
+            fileob - File object
+        """
+        files = self._session.query(File).filter(File.parent_id==fileob.id)\
+                                .order_by(File.type, File.filename).all()
+        files = []
+        LOG.info("found %d files for root id %s" %(len(files), str(fileob)))
+
+        self.files.clear()
+
+        for fob in files:
+            myiter = self.files.insert_before(None, None)
+            self.files.set_value(myiter, 0, fob.id)
+            self.files.set_value(myiter, 1, fob.parent_id if fob.parent_id!=1 else None)
+            self.files.set_value(myiter, 2, fob.filename)
+            self.files.set_value(myiter, 3, fob.filepath)
+            self.files.set_value(myiter, 4, fob.size)
+            self.files.set_value(myiter, 5, fob.date)
+            self.files.set_value(myiter, 6, 1)
+            self.files.set_value(myiter, 7, gtk.STOCK_DIRECTORY \
+                    if fob.type==1 else gtk.STOCK_FILE)
+
+
+

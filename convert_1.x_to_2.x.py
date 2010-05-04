@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
     for id, date in dst_c.execute(sql).fetchall():
         sql = "update files set date=? where id=?"
-        if int(date) > 0:
+        if date and int(date) > 0:
             dst_c.execute(sql, (datetime.fromtimestamp(int(date)), id))
         else:
             dst_c.execute(sql, (None, id))
@@ -105,10 +105,13 @@ if __name__ == "__main__":
 
     for id, date in dst_c.execute(sql).fetchall():
         sql = "update gthumb set date=? where id=?"
-        if int(date) > 0:
-            dst_c.execute(sql, (datetime.fromtimestamp(int(date)), id))
-        else:
-            dst_c.execute(sql, (None, id))
+        try:
+            if int(date) > 0:
+                dst_c.execute(sql, (datetime.fromtimestamp(int(date)), id))
+            else:
+                dst_c.execute(sql, (None, id))
+        except:
+            print id, date
 
     dst_con.commit()
     dst_c.close()

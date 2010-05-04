@@ -52,6 +52,8 @@ class DiscsController(Controller):
         # make cell text editabe
         cell.set_property('editable', True)
         cell.connect('edited', self.on_editing_done, self.model.discs)
+        # TODO: find a way how to disable default return keypress on editable
+        # fields
 
         col.pack_start(cellpb, False)
         col.pack_start(cell, True)
@@ -70,30 +72,37 @@ class DiscsController(Controller):
         LOG.debug(self.on_discs_button_press_event.__doc__.strip())
         pathinfo = treeview.get_path_at_pos(int(event.x), int(event.y))
 
-        if event.button == 3 and pathinfo:
-            path = pathinfo[0]
+        if event.button == 3:
+            if pathinfo:
+                path = pathinfo[0]
 
-            # Make sure, that there is selected row
-            sel = treeview.get_selection()
-            sel.unselect_all()
-            sel.select_path(path)
+                # Make sure, that there is selected row
+                sel = treeview.get_selection()
+                sel.unselect_all()
+                sel.select_path(path)
 
-            self._popup_menu(sel, event, event.button)
+                self._popup_menu(sel, event, event.button)
+            else:
+                self._popup_menu(None, event, event.button)
             return True
 
-    def on_discs_cursor_changed(self, widget):
+    def on_discs_cursor_changed(self, treeview):
         """
         Show files on right treeview, after clicking the left disc treeview.
         """
         LOG.debug(self.on_discs_cursor_changed.__doc__.strip())
-        raise NotImplementedError
+        selection = treeview.get_selection()
+        path = selection.get_selected_rows()[1][0]
+        self.model.update_files(self.model.discs.get_value(\
+                self.model.discs.get_iter(path), 0))
 
     def on_discs_key_release_event(self, treeview, event):
         """
-        Trigger popup menu by pressing 'menu' key
+        Watch for specific keys
         """
         LOG.debug(self.on_discs_key_release_event.__doc__.strip())
         if gtk.gdk.keyval_name(event.keyval) == 'Menu':
+            LOG.debug('Menu key pressed')
             self._popup_menu(treeview.get_selection(), event, 0)
             return True
         return False
@@ -170,11 +179,15 @@ class DiscsController(Controller):
         and trigger menu popup.
         """
         LOG.debug(self._popup_menu.__doc__.strip())
-        model, list_of_paths = selection.get_selected_rows()
+        if selection is None:
+            self.view.menu.set_menu_items_sensitivity(False)
+        else:
+            model, list_of_paths = selection.get_selected_rows()
 
-        for path in list_of_paths:
-            self.view.menu.set_update_sensitivity(not model.get_value(\
-                    model.get_iter(path), 0).parent_id == 1)
+            for path in list_of_paths:
+                self.view.menu.set_menu_items_sensitivity(True)
+                self.view.menu.set_update_sensitivity(model.get_value(\
+                        model.get_iter(path), 0).parent_id == 1)
 
         self.view.menu['discs_popup'].popup(None, None, None,
                                             button, event.time)

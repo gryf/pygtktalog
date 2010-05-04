@@ -31,8 +31,13 @@ class MainView(View):
         """
         View.__init__(self)
         self['tag_path_box'].hide()
+
         self.discs = DiscsView()
-        self['scrolledwindow1'].add_with_viewport(self.discs.get_top_widget())
+        #self['scrolledwindow_discs'].add_with_viewport(self.discs.get_top_widget())
+        self['scrolledwindow_discs'].add(self.discs.get_top_widget())
+
+        self.files = FilesView()
+        self['scrolledwindow_files'].add_with_viewport(self.files.get_top_widget())
 
     def set_widgets_scan_sensitivity(self, sensitive=True):
         """
@@ -71,11 +76,23 @@ class DiscsPopupView(View):
 
     def set_update_sensitivity(self, state):
         """
-        Update sensitivity for 'update' popup menu item
-
+        Set sensitivity for 'update' popup menu item
+        Arguments:
+            @state - Bool, if True update menu item will be sensitive,
+                     otherwise not
         """
-        self['update'].set_sensitive(not state)
+        self['update'].set_sensitive(state)
 
+    def set_menu_items_sensitivity(self, state):
+        """
+        Set sensitivity for couple of popup menu items, which should be
+        disabled if user right-clicks on no item in treeview.
+        Arguments:
+            @state - Bool, if True update menu item will be sensitive,
+                     otherwise not
+        """
+        for item in ['update', 'rename', 'delete', 'statistics']:
+            self[item].set_sensitive(state)
 
 class FilesView(View):
     """
@@ -90,6 +107,18 @@ class FilesView(View):
         """
         View.__init__(self)
 
+class FilesPopupView(View):
+    """
+    Separate Files PopUp subview.
+    """
+    glade = get_glade("files.glade")
+    top = 'files_popup'
+
+    def __init__(self):
+        """
+        Initialize view
+        """
+        View.__init__(self)
 
 class TagcloudView(View):
     """
