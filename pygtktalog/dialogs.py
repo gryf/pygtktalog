@@ -15,7 +15,9 @@ class Dialog(object):
     """
 
     def __init__(self, dialog_type, message, secondary_msg="", title=""):
-        """Initialize some defaults"""
+        """
+        Initialize some defaults
+        """
         self.dialog = None
         self.buttons = gtk.BUTTONS_OK
         self.ok_default = False
@@ -54,6 +56,23 @@ class Dialog(object):
         self.dialog.format_secondary_text(self.secondary_msg)
         self.dialog.set_title(self.title)
 
+class About(object):
+    """
+    Show About dialog
+    """
+    def __init__(self, name=None, ver="", title="", authors=[],licence=""):
+        self.dialog = gtk.AboutDialog()
+        self.dialog.set_title(title)
+        self.dialog.set_version(ver)
+        self.dialog.set_license(licence)
+        self.dialog.set_name(name)
+        self.dialog.set_authors(authors)
+        self.dialog.connect('response',
+                            lambda dialog, response: self.dialog.destroy())
+        self.dialog.show()
+
+# TODO: finish this, re-use Dialog class instead of copy/paste of old classes!
+# def about(name, version, )
 
 def yesno(message, secondarymsg="", title="", default=False):
     """Question with yes-no buttons. Returns False on 'no', True on 'yes'"""

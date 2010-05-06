@@ -5,6 +5,9 @@
     Author: Roman 'gryf' Dobosz, gryf73@gmail.com
     Created: 2009-05-05
 """
+
+__version__ = "1.9.0"
+
 import os
 import locale
 import gettext

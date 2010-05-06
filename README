@@ -4,7 +4,7 @@ pyGTKtalog
 pyGTKtalog is Linux/FreeBSD program for indexing CD/DVD or directories on
 filesystem. It is similar to `gtktalog <http://www.nongnu.org/gtktalog/>`_ or
 `gwhere <http://www.gwhere.org/home.php3>`_. There is no coincidence in name of
-application, because it's ment to be replacement (in some way) for gtktalog,
+application, because it's menat to be replacement (in some way) for gtktalog,
 which seems to be dead project for years.
 
 Current version is 1.9.
@@ -24,15 +24,26 @@ FEATURES
 REQUIREMENTS
 ------------
 
-pyGTKtalog was developed using python and following libraries:
+pyGTKtalog requires python and following libraries:
 
-* python 2.6
+* `python 2.6 <http://www.python.org/>`_
 * `pygtk 2.16 <http://www.pygtk.org>`_
-* `pygtkmvc 1.99 <http://apps.sourceforge.net/trac/pygtkmvc/wiki>`_
+* `pygtkmvc 1.99 <http://sourceforge.net/apps/trac/pygtkmvc/wiki>`_
 * `sqlalchemy 0.6 <http://www.sqlalchemy.org>`_
 
 It may work on other (lower) version of libraries, and it should work with 
 higher versions of libraries.
+
+.. note::
+
+    Although pygtkmvc is `listed on pypi 
+    <http://pypi.python.org/pypi/python-gtkmvc/>`_ it may happen that you
+    have to download it directly from
+    `sourceforge <http://sourceforge.net/apps/trac/pygtkmvc/wiki>`_ page and
+    install manually. I don't know about pygtk (I've installed it by my
+    system package manager), but all the others python libraries (sqlalchemy, 
+    paver, nose, coverage) should be installable via `pip 
+    <http://pypi.python.org/pypi/pip>`_
 
 Optional modules
 ^^^^^^^^^^^^^^^^
@@ -52,26 +63,30 @@ Programs that are used:
 * montage, convert from ImageMagick
 
 For development process following programs are used:
+
 * `gettext <http://www.gnu.org/software/gettext/gettext.html>`_
 * `intltool <http://www.gnome.org/>`_
 * `nose <http://code.google.com/p/python-nose/>`_
-* `paver <http://code.google.com/p/paver/>`_
+* `coverage <http://nedbatchelder.com/code/coverage/>`_
+* `paver <http://code.google.com/p/paver/>`__
 
 INSTALATION
 -----------
 
 You don't have to install it if you don't want to. You can just change current
-directory to pyGTKtalog and simply run:
+directory to pyGTKtalog and simply run::
 
-$ paver run
+    $ paver run
 
 That's it. Alternatively, if you like to put it in more system wide place, all
 you have to do is:
 
 #. put pyGTKtalog directory into your destination of choice (/usr/local/share,
-  /opt or ~/ is typical bet)
+   /opt or ~/ is typical bet)
+
 #. copy pyGTKtalog shell script to /usr/bin, /usr/local/bin or in
-  other place, where PATH variable is pointing or you feel like.
+   other place, where PATH variable is pointing or you feel like.
+
 #. then modify pyGTKtalog line 6 to match right pygtktalog.py directory
 
 Then, just run pyGTKtalog script.
@@ -86,11 +101,13 @@ function to update DB schema).
 For version 1.0 there are no features to be done, just bug fixes.
 
 There are still minor aims for versions 1.x to be done:
+
 * consolidate popup-menus with edit menu
 * add popup menu for directly removing tag from tag cloud
 * implement advanced search
 
 For version 2.0:
+
 * Export/Import
 * Icon grid in files view
 * command line support: query, adding media to collection etc
@@ -101,7 +118,9 @@ For version 2.0:
   selected
 * tests
 * warning about existing image in media directory
+
 Removed:
+
 * filetypes handling (movies, images, archives, documents etc). Now it have
   common, unified external "plugin" system - simple text output from command
   line programs.
@@ -115,6 +134,7 @@ Removed:
     * sub lang
     * release date (from - to)
     * anidb link/imdb link
+
 Maybe in future versions. Now text file descriptions/notes and tags have to
 be enough for good and fast information search.
 

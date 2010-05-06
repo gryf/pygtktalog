@@ -10,12 +10,14 @@ import gtk
 from gtkmvc import Controller
 
 #from pygtktalog.dialogs import yesno
+from pygtktalog.dialogs import About
 from pygtktalog.controllers.discs import DiscsController
 from pygtktalog.controllers.files import FilesController
 #from pygtktalog.controllers.details import DetailsController
 #from pygtktalog.controllers.tags import TagcloudController
 #from pygtktalog.dialogs import yesno, okcancel, info, warn, error
 from pygtktalog.logger import get_logger
+from pygtktalog import __version__
 
 LOG = get_logger("main controller")
 
@@ -77,3 +79,10 @@ class MainController(Controller):
         gtk.main_quit()
         return False
 
+    def on_about1_activate(self, widget):
+        """Show about dialog"""
+        About("pyGTKtalog",
+              "%s" % __version__,
+              "About",
+              ["Roman 'gryf' Dobosz"],
+              '')

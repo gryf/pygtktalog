@@ -31,9 +31,9 @@ class File(Base):
     children = relation('File',
                         backref=backref('parent', remote_side="File.id"),
                         order_by=[type, filename])
-    tags = relation("Tag", secondary=tags_files)
+    tags = relation("Tag", secondary=tags_files, order_by="Tag.tag")
     thumbnail = relation("Thumbnail", backref="file")
-    images = relation("Image", backref="file")
+    images = relation("Image", backref="file", order_by="Image.filename")
 
     def __init__(self, filename=None, path=None, date=None, size=None,
                  ftype=None, src=None):
