@@ -22,6 +22,8 @@ Meta = MetaData()
 Base = declarative_base(metadata=Meta)
 Session = sessionmaker()
 
+LOG = get_logger("dbcommon")
+
 
 def connect(filename):
     """
@@ -30,8 +32,7 @@ def connect(filename):
         @filename - string with absolute or relative path to sqlite database
                     file.
     """
-    get_logger("dbcommon").info("db filename: %s" % filename)
+    LOG.info("db filename: %s" % filename)
     engine = create_engine("sqlite:///%s" % filename)
     Meta.bind = engine
-    Meta.create_all()
-
+    Meta.create_all(engine)

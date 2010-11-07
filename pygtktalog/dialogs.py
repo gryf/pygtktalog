@@ -5,13 +5,15 @@
     Author: Roman 'gryf' Dobosz, gryf73@gmail.com
     Created: 2009-05-12
 """
+import os
+
 import gtk
 
 
 class Dialog(object):
-    """Show simple dialog for questions
-        if "OK" button pressed, return "True"
-        "Cancel" button return "False"
+    """
+    Show simple dialog for questions
+    Returns: Bool - True, if "OK" button pressed, False otherwise.
     """
 
     def __init__(self, dialog_type, message, secondary_msg="", title=""):
@@ -29,7 +31,7 @@ class Dialog(object):
     def run(self):
         """Show the dialog"""
         if self.dialog is None:
-            self.__create_dialog()
+            self._create_dialog()
 
         # Change default/focus from cancel/no to ok/yes. Suitable only for
         # Question dialog.
@@ -45,7 +47,7 @@ class Dialog(object):
             return True
         return False
 
-    def __create_dialog(self):
+    def _create_dialog(self):
         """Create MessageDialog widgt"""
         if self.type == gtk.MESSAGE_QUESTION and \
            self.buttons not in (gtk.BUTTONS_YES_NO, gtk.BUTTONS_OK_CANCEL):
@@ -60,7 +62,7 @@ class About(object):
     """
     Show About dialog
     """
-    def __init__(self, name=None, ver="", title="", authors=[],licence=""):
+    def __init__(self, name=None, ver="", title="", authors=[], licence=""):
         self.dialog = gtk.AboutDialog()
         self.dialog.set_title(title)
         self.dialog.set_version(ver)
@@ -73,6 +75,90 @@ class About(object):
 
 # TODO: finish this, re-use Dialog class instead of copy/paste of old classes!
 # def about(name, version, )
+
+class ChooseFile(object):
+    """
+    Common file chooser
+    """
+    URI = None
+    BUTTON_PAIRS = {'cancel': (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL),
+                    'ok': (gtk.STOCK_OK, gtk.RESPONSE_APPLY),
+                    'save': (gtk.STOCK_SAVE, gtk.RESPONSE_APPLY),
+                    'open': (gtk.STOCK_OPEN, gtk.RESPONSE_APPLY)}
+    CHOOSER_TYPES = {'open': gtk.FILE_CHOOSER_ACTION_OPEN,
+                     'save': gtk.FILE_CHOOSER_ACTION_SAVE}
+    FILTERS = {'catalogs': {'name': "Catalog files",
+                            'patterns': ("*.sqlite", "*.sqlite.bz2")},
+               'all': {'name': "All files", 'patterns': ("*.*",)}}
+
+    def __init__(self, title="", buttons=('cancel', 'ok'), path=None,
+                 chooser_type="open"):
+        super(ChooseFile, self).__init__()
+        self.path = path
+        self.title = title
+        self.action = self.CHOOSER_TYPES[chooser_type]
+        self.buttons=[]
+        for button in buttons:
+            self.buttons.append(self.BUTTON_PAIRS[button][0])
+            self.buttons.append(self.BUTTON_PAIRS[button][1])
+        self.buttons = tuple(self.buttons)
+        self.confirmation = False
+        self.dialog = None
+        self.filters = []
+
+    def _mk_dialog(self):
+        """
+        Create FileChooserDialog object
+        """
+        self.dialog = gtk.FileChooserDialog(self.title, None, self.action,
+                                            self.buttons)
+        self.dialog.set_action(gtk.FILE_CHOOSER_ACTION_SAVE)
+        self.dialog.set_default_response(gtk.RESPONSE_OK)
+        self.dialog.set_do_overwrite_confirmation(self.confirmation)
+        self.dialog.set_title(self.title)
+
+        if self.URI:
+            self.dialog.set_current_folder_uri(self.URI)
+        elif self.path and os.path.exists(self.path):
+            self.path = "file://"+os.path.abspath(self.path)
+            self.dialog.set_current_folder_uri(self.path)
+
+        for filtr in self._get_filters():
+            self.dialog.add_filter(filtr)
+
+    def _get_filters(self):
+        """
+        """
+        filters = []
+        for filter_def in self.filters:
+            filtr = gtk.FileFilter()
+            filtr.set_name(self.FILTERS[filter_def]['name'])
+            for pat in self.FILTERS[filter_def]['patterns']:
+                filtr.add_pattern(pat)
+            filters.append(filtr)
+        return filters
+
+    def run(self):
+        """
+        Show dialog, get response.
+        Returns:
+
+        Returns: String - with filename, None otherwise.
+        """
+
+        if self.dialog is None:
+            self._mk_dialog()
+
+        response = self.dialog.run()
+        filename = None
+
+        if response == gtk.RESPONSE_APPLY:
+            filename = self.dialog.get_filename()
+            self.__class__.URI = self.dialog.get_current_folder_uri()
+
+        self.dialog.destroy()
+        return filename
+
 
 def yesno(message, secondarymsg="", title="", default=False):
     """Question with yes-no buttons. Returns False on 'no', True on 'yes'"""
@@ -116,3 +202,21 @@ def error(message, secondarymsg="", title="", button=gtk.BUTTONS_OK):
     dialog.run()
     return True
 
+def open_catalog(title=_("Open catalog"), path=None):
+    """
+    Request filename from user to open.
+    Returns: string - full path and filename or None
+    """
+    requester = ChooseFile(title)
+    requester.filters = ['catalogs', 'all']
+    return requester.run()
+
+def save_catalog(title=_("Open catalog"), path=None):
+    """
+    Request filename from user for save.
+    Returns: string - full path and filename or None
+    """
+    requester = ChooseFile(title, chooser_type="save")
+    requester.filters = ['catalogs', 'all']
+    requester.confirmation = True
+    return requester.run()

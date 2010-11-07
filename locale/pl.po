@@ -32,14 +32,17 @@ msgid "Add _Directory"
 msgstr "Dodaj kata_log"
 
 #: pygtktalog/views/glade/main.glade.h:6
+#: pygtktalog/views/glade/files.glade.h:1
 msgid "Add _Images"
 msgstr "Dodaj _obrazy"
 
 #: pygtktalog/views/glade/main.glade.h:7
+#: pygtktalog/views/glade/files.glade.h:2
 msgid "Add _Thumbnail"
 msgstr "Dodaj miniaturę"
 
 #: pygtktalog/views/glade/main.glade.h:8
+#: pygtktalog/views/glade/files.glade.h:3
 msgid ""
 "Add images to file. If file have no thumbnail,\n"
 "thumbnail from first image will be generated."
@@ -48,182 +51,234 @@ msgstr ""
 "zostanie wygenerowana miniatura z pierwszego obrazu."
 
 #: pygtktalog/views/glade/main.glade.h:10
+#: pygtktalog/views/glade/main.glade.h:6
 msgid "Cancel"
 msgstr "Analuj"
 
 #: pygtktalog/views/glade/main.glade.h:11
+#: pygtktalog/views/glade/main.glade.h:7
 msgid "Catalog _statistics"
 msgstr "_Statystyka katalogu"
 
 #: pygtktalog/views/glade/main.glade.h:12
+#: pygtktalog/views/glade/discs.glade.h:1
 msgid "Collapse all nodes"
 msgstr "Zwiń wszystkie gałęzie"
 
 #: pygtktalog/views/glade/main.glade.h:13
+#: pygtktalog/views/glade/main.glade.h:8
 msgid "Create new catalog"
 msgstr "Utwórz nowy katalog"
 
 #: pygtktalog/views/glade/main.glade.h:14
+#: pygtktalog/views/glade/main.glade.h:9
 msgid "Delete all images"
 msgstr "Usuń wszystkie obrazy"
 
 #: pygtktalog/views/glade/main.glade.h:15
+#: pygtktalog/views/glade/main.glade.h:10
 msgid "Delete all thumbnals"
 msgstr "Usuń wszystkie miniatury"
 
 #: pygtktalog/views/glade/main.glade.h:16
+#: pygtktalog/views/glade/main.glade.h:11
 msgid "Delete tag"
 msgstr "Usuń tag"
 
 #: pygtktalog/views/glade/main.glade.h:17
+#: pygtktalog/views/glade/main.glade.h:12
 msgid "Deletes all images from files in current colection"
 msgstr "Usuwa wszystkie obrazy z plików w bieżącej kolekcji"
 
 #: pygtktalog/views/glade/main.glade.h:18
+#: pygtktalog/views/glade/main.glade.h:13
 msgid "Discs"
 msgstr "Dyski"
 
 #: pygtktalog/views/glade/main.glade.h:19
+#: pygtktalog/views/glade/details.glade.h:1
 msgid "Double click to open image"
 msgstr "Dwukrotne kliknięcie otwiera obraz"
 
 #: pygtktalog/views/glade/main.glade.h:20
+#: pygtktalog/views/glade/details.glade.h:2
 msgid "EXIF"
 msgstr "EXIF"
 
 #: pygtktalog/views/glade/main.glade.h:21
+#: pygtktalog/views/glade/discs.glade.h:2
 msgid "Expand all nodes"
 msgstr "Rozwiń wszystkie gałęzie"
 
 #: pygtktalog/views/glade/main.glade.h:22
+#: pygtktalog/views/glade/main.glade.h:14
 msgid "Export"
 msgstr "Eksport"
 
 #: pygtktalog/views/glade/main.glade.h:23
+#: pygtktalog/views/glade/details.glade.h:3
 msgid "File info"
 msgstr "Informacje o pliku"
 
 #: pygtktalog/views/glade/main.glade.h:24
+#: pygtktalog/views/glade/main.glade.h:15
 msgid "Find file"
 msgstr "Znajdź plik"
 
 #: pygtktalog/views/glade/main.glade.h:25
+#: pygtktalog/views/glade/details.glade.h:4
 msgid "Images"
 msgstr "Obrazy"
 
 #: pygtktalog/views/glade/main.glade.h:26
+#: pygtktalog/views/glade/main.glade.h:16
 msgid "Import"
 msgstr "Import"
 
 #: pygtktalog/views/glade/main.glade.h:27
+#: pygtktalog/views/glade/main.glade.h:17
 msgid "Open catalog file"
 msgstr "Otwórz plik katalogu"
 
 #: pygtktalog/views/glade/main.glade.h:28
+#: pygtktalog/views/glade/main.glade.h:18
 msgid "Quit pyGTKtalog"
 msgstr "Zakończ pyGTKtalog"
 
 #: pygtktalog/views/glade/main.glade.h:29
+#: pygtktalog/views/glade/files.glade.h:5
 msgid "Re_move Thumbnail"
 msgstr "Usuń miniaturę"
 
 #: pygtktalog/views/glade/main.glade.h:30
+#: pygtktalog/views/glade/main.glade.h:19
 msgid "Recent files"
 msgstr "Ostatnio używane pliki"
 
 #: pygtktalog/views/glade/main.glade.h:31
+#: pygtktalog/views/glade/files.glade.h:6
 msgid "Rem_ove All Images"
 msgstr "Usuń wszystkie obrazy"
 
 #: pygtktalog/views/glade/main.glade.h:32
+#: pygtktalog/views/glade/files.glade.h:7
 msgid "Remo_ve tag"
 msgstr "Usuń tag"
 
 #: pygtktalog/views/glade/main.glade.h:33
+#: pygtktalog/views/glade/main.glade.h:20
 msgid "Save all images..."
 msgstr "Zapisz wszytkie obrazy..."
 
 #: pygtktalog/views/glade/main.glade.h:34
+#: pygtktalog/views/glade/main.glade.h:21
 msgid "Save catalog"
 msgstr "Zapisz katalog"
 
 #: pygtktalog/views/glade/main.glade.h:35
+#: pygtktalog/views/glade/main.glade.h:22
 msgid "Set as _thumbnail"
 msgstr "Ustaw jako miniaturę"
 
 #: pygtktalog/views/glade/main.glade.h:36
+#: pygtktalog/views/glade/main.glade.h:23
 msgid "Status bar"
 msgstr "Pasek stanu"
 
 #: pygtktalog/views/glade/main.glade.h:37
+#: pygtktalog/views/glade/main.glade.h:24
 msgid "Tags"
 msgstr "Tagi"
 
 #: pygtktalog/views/glade/main.glade.h:38
+#: pygtktalog/views/glade/main.glade.h:25
 msgid "Toolbar"
 msgstr "Pasek narzędzi"
 
 #: pygtktalog/views/glade/main.glade.h:39
+#: pygtktalog/views/glade/main.glade.h:26
 msgid "_Add images"
 msgstr "Dodaj obrazy"
 
 #: pygtktalog/views/glade/main.glade.h:40
+#: pygtktalog/views/glade/files.glade.h:8
 msgid "_Add tag"
 msgstr "_Dodaj tag"
 
 #: pygtktalog/views/glade/main.glade.h:41
+#: pygtktalog/views/glade/main.glade.h:27
 msgid "_Catalog"
 msgstr "_Katalog"
 
 #: pygtktalog/views/glade/main.glade.h:42
+#: pygtktalog/views/glade/discs.glade.h:3
 msgid "_Collapse all"
 msgstr "_Zwiń wszystko"
 
 #: pygtktalog/views/glade/main.glade.h:43
+#: pygtktalog/views/glade/discs.glade.h:4
+#: pygtktalog/views/glade/files.glade.h:9
 msgid "_Delete"
 msgstr "_Usuń"
 
 #: pygtktalog/views/glade/main.glade.h:44
+#: pygtktalog/views/glade/main.glade.h:28
 msgid "_Delete images"
 msgstr "Usuń obrazy"
 
 #: pygtktalog/views/glade/main.glade.h:45
+#: pygtktalog/views/glade/main.glade.h:29
+#: pygtktalog/views/glade/files.glade.h:10
+#: pygtktalog/views/glade/test.glade.h:1
 msgid "_Edit"
 msgstr "_Edycja"
 
 #: pygtktalog/views/glade/main.glade.h:46
+#: pygtktalog/views/glade/discs.glade.h:5
 msgid "_Expand all"
 msgstr "_Rozwiń wszystko"
 
-#: pygtktalog/views/glade/main.glade.h:47
+#: pygtktalog/views/glade/main.glade.h:47 pygtktalog/views/main_menu.py:19
+#: pygtktalog/views/glade/main.glade.h:30
+#: pygtktalog/views/glade/test.glade.h:2
 msgid "_File"
 msgstr "_Plik"
 
 #: pygtktalog/views/glade/main.glade.h:48
+#: pygtktalog/views/glade/main.glade.h:31
+#: pygtktalog/views/glade/test.glade.h:3
 msgid "_Help"
 msgstr "_Pomoc"
 
 #: pygtktalog/views/glade/main.glade.h:49
+#: pygtktalog/views/glade/main.glade.h:32
 msgid "_Remove Thumbnail"
 msgstr "Usuń miniaturę"
 
 #: pygtktalog/views/glade/main.glade.h:50
+#: pygtktalog/views/glade/discs.glade.h:6
+#: pygtktalog/views/glade/files.glade.h:11
 msgid "_Rename"
 msgstr "_Zmień nazwę"
 
 #: pygtktalog/views/glade/main.glade.h:51
+#: pygtktalog/views/glade/main.glade.h:33
 msgid "_Save images to..."
 msgstr "Zapisz obrazy do..."
 
 #: pygtktalog/views/glade/main.glade.h:52
+#: pygtktalog/views/glade/discs.glade.h:7
 msgid "_Statistics"
 msgstr "_Statystyka"
 
 #: pygtktalog/views/glade/main.glade.h:53
+#: pygtktalog/views/glade/discs.glade.h:8
 msgid "_Update"
 msgstr "_Uaktualnij"
 
 #: pygtktalog/views/glade/main.glade.h:54
+#: pygtktalog/views/glade/main.glade.h:34
+#: pygtktalog/views/glade/test.glade.h:4
 msgid "_View"
 msgstr "_Widok"
 
@@ -232,10 +287,12 @@ msgid "gtk-clear"
 msgstr ""
 
 #: pygtktalog/views/glade/main.glade.h:56
+#: pygtktalog/views/glade/main.glade.h:35
 msgid "pyGTKtalog"
 msgstr "pyGTKtalog"
 
 #: pygtktalog/views/glade/main.glade.h:57
+#: pygtktalog/views/glade/main.glade.h:36
 msgid "pyGTKtalog - Image"
 msgstr "pyGTKtalog - Obraz"
 
@@ -251,6 +308,68 @@ msgstr "Bieżący katalog nie jest zapisany, wszelkie zmiany zostaną utracone."
 msgid "Quit application"
 msgstr "Zakończ aplikację"
 
-#: pygtktalog/models/main.py:16
+#: pygtktalog/models/main.py:16 pygtktalog/models/main.py:31
 msgid "Idle"
 msgstr "Bezczynny"
+
+#: pygtktalog/controllers/files.py:33
+#, fuzzy
+msgid "Disc"
+msgstr "Dyski"
+
+#: pygtktalog/controllers/files.py:39
+#, fuzzy
+msgid "Filename"
+msgstr "_Zmień nazwę"
+
+#: pygtktalog/controllers/files.py:50
+msgid "Path"
+msgstr ""
+
+#: pygtktalog/controllers/files.py:56
+msgid "Size"
+msgstr ""
+
+#: pygtktalog/controllers/files.py:61
+msgid "Date"
+msgstr ""
+
+#: pygtktalog/views/glade/test.glade.h:5
+msgid "gtk-about"
+msgstr ""
+
+#: pygtktalog/views/glade/test.glade.h:6
+msgid "gtk-copy"
+msgstr ""
+
+#: pygtktalog/views/glade/test.glade.h:7
+msgid "gtk-cut"
+msgstr ""
+
+#: pygtktalog/views/glade/test.glade.h:8
+msgid "gtk-delete"
+msgstr ""
+
+#: pygtktalog/views/glade/test.glade.h:9
+msgid "gtk-new"
+msgstr ""
+
+#: pygtktalog/views/glade/test.glade.h:10
+msgid "gtk-open"
+msgstr ""
+
+#: pygtktalog/views/glade/test.glade.h:11
+msgid "gtk-paste"
+msgstr ""
+
+#: pygtktalog/views/glade/test.glade.h:12
+msgid "gtk-quit"
+msgstr ""
+
+#: pygtktalog/views/glade/test.glade.h:13
+msgid "gtk-save"
+msgstr ""
+
+#: pygtktalog/views/glade/test.glade.h:14
+msgid "gtk-save-as"
+msgstr ""

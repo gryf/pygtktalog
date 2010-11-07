@@ -13,6 +13,7 @@ from tempfile import mkstemp
 import gtk
 import gobject
 from gtkmvc import ModelMT
+from sqlalchemy import create_engine
 
 from pygtktalog.dbobjects import File, Exif, Group, Gthumb
 from pygtktalog.dbobjects import Image, Tag, Thumbnail
@@ -45,17 +46,38 @@ class MainModel(ModelMT):
         self.cat_fname = filename
         # Temporary (usually in /tmp) working database.
         self.tmp_filename = None
+        self.config = {}
         # SQLAlchemy session object for internal use
         self._session = None
         # Flag indicates, that db was compressed
         # TODO: make it depend on configuration
         self.compressed = False
 
-        self.db_unsaved = False
+        self.db_unsaved = None
 
+        self.discs = None
+        self.files = None
+
+        self._init_discs()
+        self._init_files()
+
+        if self.cat_fname:
+            self.open(self.cat_fname)
+
+
+    def _init_discs(self):
+        """
+        Create TreeStore model for the discs
+        """
         self.discs = gtk.TreeStore(gobject.TYPE_PYOBJECT,
                                    gobject.TYPE_STRING,
                                    str)
+
+
+    def _init_files(self):
+        """
+        Create ListStore model for the diles
+        """
         self.files = gtk.ListStore(gobject.TYPE_PYOBJECT,
                                    gobject.TYPE_STRING,
                                    gobject.TYPE_STRING,
@@ -64,8 +86,6 @@ class MainModel(ModelMT):
                                    gobject.TYPE_STRING,
                                    gobject.TYPE_INT,
                                    str)
-        if self.cat_fname:
-            self.open(self.cat_fname)
 
     def open(self, filename):
         """
@@ -87,12 +107,45 @@ class MainModel(ModelMT):
         else:
             return False
 
+    def save(self, filename=None):
+        """
+        Save tared directory at given catalog fielname
+        Arguments:
+            @filename - see MainModel __init__ docstring.
+        Returns: tuple:
+            Bool - true for success, false otherwise.
+            String or None - error message
+        """
+
+        if not filename and not self.cat_fname:
+            LOG.debug("no filename detected!")
+            return False, None
+
+        if filename:
+            if not '.sqlite' in filename:
+                filename += '.sqlite'
+            else:
+                filename = filename[:filename.rindex('.sqlite')] + '.sqlite'
+
+            if 'compress' in self.config and self.config['compress']:
+                filename += '.bz2'
+
+            self.cat_fname = filename
+        val, err = self._compress_and_save()
+        if not val:
+            self.cat_fname = None
+        return val, err
+
     def new(self):
         """
         Create new catalog
         """
         self.cleanup()
         self._create_temp_db_file()
+        self._create_schema()
+        self._init_discs()
+        self._init_files()
+        self.db_unsaved = False
 
     def cleanup(self):
         """
@@ -108,20 +161,13 @@ class MainModel(ModelMT):
 
         try:
             os.unlink(self.tmp_filename)
-            LOG.debug("file %s succesfully deleted", self.tmp_filename)
         except OSError:
-            LOG.exception("temporary db file doesn't exists!")
+            LOG.error("temporary db file doesn't exists!")
         except TypeError:
-            # TODO: file not exist - create? print error message?
-            LOG.exception("temporary db file doesn't exists!")
-
-
-    def _create_empty_db(self):
-        """
-        Create new DB
-        """
-        self.cleanup()
-        self._create_temp_db_file()
+            # TODO: file does not exist - create? print error message?
+            LOG.error("temporary db file doesn't exists!")
+        else:
+            LOG.debug("file %s succesfully deleted", self.tmp_filename)
 
     def _examine_file(self, filename):
         """
@@ -179,7 +225,7 @@ class MainModel(ModelMT):
                 open_file.close()
             except IOError:
                 self.cleanup()
-                self.filename = None
+                self.cat_fname = None
                 self.internal_dirname = None
                 LOG.exception("File is probably not a bz2!")
                 return False
@@ -195,7 +241,7 @@ class MainModel(ModelMT):
             LOG.error("Error opening file '%s' - not a catalog file!",
                       self.tmp_filename)
             self.cleanup()
-            self.filename = None
+            self.cat_fname = None
             self.internal_dirname = None
             return False
 
@@ -204,10 +250,32 @@ class MainModel(ModelMT):
         return True
 
     def _create_temp_db_file(self):
+        """
+        Create new DB file, populate schema.
+        """
         fd, self.tmp_filename = mkstemp()
+        LOG.debug("new db filename: %s" % self.tmp_filename)
         # close file descriptor, otherwise it can be source of app crash!
         # http://www.logilab.org/blogentry/17873
         os.close(fd)
+
+    def _create_schema(self):
+        """
+        """
+        self._session = Session()
+
+        connect(os.path.abspath(self.tmp_filename))
+
+        root = File()
+        root.id = 1
+        root.filename = 'root'
+        root.size = 0
+        root.source = 0
+        root.type = 0
+        root.parent_id = 1
+
+        self._session.add(root)
+        self._session.commit()
 
     def _populate_discs_from_db(self):
         """
@@ -222,7 +290,7 @@ class MainModel(ModelMT):
             Get all children of the selected parent.
             Arguments:
                 @parent_id - integer with id of the parent (from db)
-                @iterator - TODO
+                @iterator - gtk.TreeIter, which points to a path inside model
             """
             for fileob in dirs:
                 if fileob.parent_id == parent_id:
@@ -263,5 +331,30 @@ class MainModel(ModelMT):
             self.files.set_value(myiter, 7, gtk.STOCK_DIRECTORY \
                     if child.type==1 else gtk.STOCK_FILE)
 
+    def _compress_and_save(self):
+        """
+        Create (and optionaly compress) tar archive from working directory and
+        write it to specified file.
+        """
 
+        # flush all changes
+        self._session.commit()
 
+        try:
+            if 'compress' in self.config and self.config['compress']:
+                output_file = bz2.BZ2File(self.cat_fname, "w")
+            else:
+                output_file = open(self.cat_fname, "w")
+            LOG.debug("save (and optionally compress) successed")
+
+        except IOError, (errno, strerror):
+            LOG.error("error saving or compressing file", errno, strerror)
+            return False, strerror
+
+        dbpath = open(self.tmp_filename)
+        output_file.write(dbpath.read())
+        dbpath.close()
+        output_file.close()
+
+        self.db_unsaved = False
+        return True, None

@@ -12,6 +12,7 @@ import shutil
 from tempfile import mkdtemp, mkstemp
 import math
 
+import Image
 from pygtktalog.misc import float_to_string
 
 
@@ -21,9 +22,15 @@ class Video(object):
     Midentify script belongs to mplayer package.
     """
 
-    def __init__(self, filename):
-        """Init class instance. Filename of a video file is required."""
+    def __init__(self, filename, out_width=1024):
+        """
+        Init class instance.
+        Arguments:
+            @filename - Filename of a video file (required).
+            @out_width - width of final image to be scaled to.
+        """
         self.filename = filename
+        self.out_width = out_width
         self.tags = {}
 
         output = self.__get_movie_info()
@@ -52,14 +59,12 @@ class Video(object):
             length_str = "%02d:%02d:%02d" % (hours, minutes, seconds)
             self.tags['duration'] = length_str
 
-    def capture(self, out_width=1024):
+    def capture(self):
         """
         Extract images for given video filename and montage it into one, big
         picture, similar to output from Windows Media Player thing, but without
         captions and time (who need it anyway?).
-        Arguments:
-            @out_width - width of generated image. If actual image width
-                         exceeds this number scale is performed.
+
         Returns: image filename or None
 
         NOTE: You should remove returned file manually, or move it in some
@@ -93,7 +98,7 @@ class Video(object):
         file_desc, image_fn = mkstemp()
         os.close(file_desc)
         self.__make_captures(tempdir, no_pictures)
-        self.__make_montage(tempdir, image_fn, no_pictures, out_width)
+        self.__make_montage(tempdir, image_fn, no_pictures, self.out_width)
 
         shutil.rmtree(tempdir)
         return image_fn
@@ -149,26 +154,71 @@ class Video(object):
             shutil.move(os.path.join(directory, "00000001.jpg"),
                         os.path.join(directory, "picture_%s.jpg" % time))
 
-    def __make_montage(self, directory, image_fn, no_pictures, out_width):
+    def __make_montage2(self, directory, image_fn, no_pictures):
         """
         Generate one big image from screnshots and optionally resize it.
         Arguments:
             @directory - source directory containing images
             @image_fn - destination final image
             @no_pictures - number of pictures
-            @out_width - width of final image to be scaled to.
         """
         scale = False
         row_length = 4
         if no_pictures < 8:
             row_length = 2
 
-        if (self.tags['width'] * row_length) > out_width:
+        if (self.tags['width'] * row_length) > self.out_width:
             scale = True
         else:
             for i in [8, 6, 5]:
                 if (no_pictures % i) == 0 and \
-                   (i * self.tags['width']) <= out_width:
+                   (i * self.tags['width']) <= self.out_width:
+                    row_length = i
+                    break
+
+        tile = "%dx%d" % (row_length, no_pictures / row_length)
+
+        _curdir = os.path.abspath(os.path.curdir)
+        os.chdir(directory)
+
+        # composite pictures
+        # readlines trick will make to wait for process end
+        #cmd = "montage -tile %s -geometry +2+2 picture_*.jpg montage.jpg"
+        imgs = [Image.open(fn).resize((photow,photoh)) for fn in fnames]
+
+        os.popen(cmd % tile).readlines()
+
+        # scale it to minimum 'modern' width: 1024
+        if scale:
+            cmd = "convert -scale %s montage.jpg montage_scaled.jpg"
+            os.popen(cmd % out_width).readlines()
+            shutil.move(os.path.join(directory, 'montage_scaled.jpg'),
+                        image_fn)
+        else:
+            shutil.move(os.path.join(directory, 'montage.jpg'),
+                        image_fn)
+
+        os.chdir(_curdir)
+
+    def __make_montage(self, directory, image_fn, no_pictures):
+        """
+        Generate one big image from screnshots and optionally resize it.
+        Arguments:
+            @directory - source directory containing images
+            @image_fn - destination final image
+            @no_pictures - number of pictures
+        """
+        scale = False
+        row_length = 4
+        if no_pictures < 8:
+            row_length = 2
+
+        if (self.tags['width'] * row_length) > self.out_width:
+            scale = True
+        else:
+            for i in [8, 6, 5]:
+                if (no_pictures % i) == 0 and \
+                   (i * self.tags['width']) <= self.ut_width:
                     row_length = i
                     break
 
@@ -185,7 +235,7 @@ class Video(object):
         # scale it to minimum 'modern' width: 1024
         if scale:
             cmd = "convert -scale %s montage.jpg montage_scaled.jpg"
-            os.popen(cmd % out_width).readlines()
+            os.popen(cmd % self.out_width).readlines()
             shutil.move(os.path.join(directory, 'montage_scaled.jpg'),
                         image_fn)
         else:
