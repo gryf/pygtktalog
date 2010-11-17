@@ -14,12 +14,8 @@ from pygtktalog.controllers.files import FilesController
 #from pygtktalog.controllers.details import DetailsController
 #from pygtktalog.controllers.tags import TagcloudController
 #from pygtktalog.dialogs import yesno, okcancel, info, warn, error
-from pygtktalog.dialogs import open_catalog, save_catalog, error, yesno
-from pygtktalog.dialogs import About # TODO: how about make it like a functions above?
+from pygtktalog.dialogs import open_catalog, save_catalog, error, yesno, about
 from pygtktalog.logger import get_logger
-from pygtktalog import __version__
-# although it seems to be unused, it is necessary, because it contains
-# definitions for additional connectable widgets for observers.
 
 LOG = get_logger("main controller")
 
@@ -56,16 +52,13 @@ class MainController(Controller):
             view.set_widgets_app_sensitivity(False)
         view['main'].show()
 
-    def register_adapters(self):
-        """
-        progress bar/status bar adapters goes here
-        """
-        LOG.debug(self.register_adapters.__doc__.strip())
-        #title_ad = Adapter(self.model, "cat_fname")
-        #title_ad.connect_widget(self.view["main"],
-        #                        setter=lambda w,v: \
-        #        w.set_title(self._get_title()))
-        pass
+        # status bar
+        LOG.debug("register statusbar")
+        self.context_id = self.view['mainStatus'].get_context_id('status')
+        self.statusbar_id = \
+                self.view['mainStatus'].push(self.context_id,
+                                             self.model.status_bar_message)
+
 
     # signals
     def on_main_destroy_event(self, widget, event):
@@ -95,8 +88,6 @@ class MainController(Controller):
         """
         LOG.debug(self.on_new_activate.__doc__.strip())
         self.model.new()
-        self.view.discs['discs'].set_model(self.model.discs)
-        self.view.files['files'].set_model(self.model.files)
         self._set_title()
         self.view.set_widgets_app_sensitivity(True)
 
@@ -150,8 +141,7 @@ class MainController(Controller):
 
     def on_about1_activate(self, widget):
         """Show about dialog"""
-        About("pyGTKtalog", "%s" % __version__, "About",
-              ["Roman 'gryf' Dobosz"], '')
+        about()
 
     def on_save_activate(self, widget):
         """

@@ -7,6 +7,11 @@
 """
 
 __version__ = "1.9.0"
+__appname__ = "pyGTKtalog"
+__copyright__ = u"\u00A9 Roman 'gryf' Dobosz"
+__summary__ = "%s is simple tool for managing file collections." % __appname__
+__web__ = "http://bitbucket.org/gryf"
+__logo_img__ = "views/pixmaps/Giant Worms.png"
 
 import os
 import locale

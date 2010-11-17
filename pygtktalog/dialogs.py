@@ -9,6 +9,8 @@ import os
 
 import gtk
 
+import pygtktalog
+
 
 class Dialog(object):
     """
@@ -58,23 +60,6 @@ class Dialog(object):
         self.dialog.format_secondary_text(self.secondary_msg)
         self.dialog.set_title(self.title)
 
-class About(object):
-    """
-    Show About dialog
-    """
-    def __init__(self, name=None, ver="", title="", authors=[], licence=""):
-        self.dialog = gtk.AboutDialog()
-        self.dialog.set_title(title)
-        self.dialog.set_version(ver)
-        self.dialog.set_license(licence)
-        self.dialog.set_name(name)
-        self.dialog.set_authors(authors)
-        self.dialog.connect('response',
-                            lambda dialog, response: self.dialog.destroy())
-        self.dialog.show()
-
-# TODO: finish this, re-use Dialog class instead of copy/paste of old classes!
-# def about(name, version, )
 
 class ChooseFile(object):
     """
@@ -97,7 +82,7 @@ class ChooseFile(object):
         self.path = path
         self.title = title
         self.action = self.CHOOSER_TYPES[chooser_type]
-        self.buttons=[]
+        self.buttons = []
         for button in buttons:
             self.buttons.append(self.BUTTON_PAIRS[button][0])
             self.buttons.append(self.BUTTON_PAIRS[button][1])
@@ -120,7 +105,7 @@ class ChooseFile(object):
         if self.URI:
             self.dialog.set_current_folder_uri(self.URI)
         elif self.path and os.path.exists(self.path):
-            self.path = "file://"+os.path.abspath(self.path)
+            self.path = "file://" + os.path.abspath(self.path)
             self.dialog.set_current_folder_uri(self.path)
 
         for filtr in self._get_filters():
@@ -167,6 +152,7 @@ def yesno(message, secondarymsg="", title="", default=False):
     dialog.ok_default = default
     return dialog.run()
 
+
 def okcancel(message, secondarymsg="", title="", default=False):
     """Question with ok-cancel buttons. Returns False on 'cancel', True on
     'ok'"""
@@ -174,6 +160,7 @@ def okcancel(message, secondarymsg="", title="", default=False):
     dialog.buttons = gtk.BUTTONS_OK_CANCEL
     dialog.ok_default = default
     return dialog.run()
+
 
 def info(message, secondarymsg="", title="", button=gtk.BUTTONS_OK):
     """Info dialog. Button defaults to gtk.BUTTONS_OK, but can be changed with
@@ -184,6 +171,7 @@ def info(message, secondarymsg="", title="", button=gtk.BUTTONS_OK):
     dialog.run()
     return True
 
+
 def warn(message, secondarymsg="", title="", button=gtk.BUTTONS_OK):
     """Warning dialog. Button defaults to gtk.BUTTONS_OK, but can be changed
     with gtk.BUTTONS_CANCEL, gtk.BUTTONS_CLOSE or gtk.BUTTONS_NONE.
@@ -192,6 +180,7 @@ def warn(message, secondarymsg="", title="", button=gtk.BUTTONS_OK):
     dialog.buttons = button
     dialog.run()
     return True
+
 
 def error(message, secondarymsg="", title="", button=gtk.BUTTONS_OK):
     """Error dialog. Button defaults to gtk.BUTTONS_OK, but can be changed with
@@ -202,6 +191,7 @@ def error(message, secondarymsg="", title="", button=gtk.BUTTONS_OK):
     dialog.run()
     return True
 
+
 def open_catalog(title=_("Open catalog"), path=None):
     """
     Request filename from user to open.
@@ -210,6 +200,7 @@ def open_catalog(title=_("Open catalog"), path=None):
     requester = ChooseFile(title)
     requester.filters = ['catalogs', 'all']
     return requester.run()
+
 
 def save_catalog(title=_("Open catalog"), path=None):
     """
@@ -220,3 +211,19 @@ def save_catalog(title=_("Open catalog"), path=None):
     requester.filters = ['catalogs', 'all']
     requester.confirmation = True
     return requester.run()
+
+
+def about():
+    """
+    Show About dialog
+    """
+    dialog = gtk.AboutDialog()
+    dialog.set_version(pygtktalog.__version__)
+    dialog.set_program_name(pygtktalog.__appname__)
+    dialog.set_copyright(pygtktalog.__copyright__)
+    dialog.set_comments(pygtktalog.__summary__)
+    dialog.set_website(pygtktalog.__web__)
+    dialog.set_logo(gtk.gdk.pixbuf_new_from_file(\
+            os.path.join(os.path.dirname(__file__), pygtktalog.__logo_img__)))
+    dialog.run()
+    dialog.destroy()

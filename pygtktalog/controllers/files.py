@@ -26,13 +26,13 @@ class FilesController(Controller):
         """
         Controller.__init__(self, model, view)
         self.DND_TARGETS = [('files_tags', 0, 69)]
-
+        self.files_model = self.model.files
 
     def register_view(self, view):
         """
         Register view, and setup columns for files treeview
         """
-        view['files'].set_model(self.model.files)
+        view['files'].set_model(self.files_model.files)
 
         sigs = {"add_tag": ("activate", self.on_add_tag1_activate),
                 "delete_tag": ("activate", self.on_delete_tag_activate),
@@ -45,7 +45,6 @@ class FilesController(Controller):
                 "rename": ("activate", self.on_rename2_activate)}
         for signal in sigs:
             view.menu[signal].connect(sigs[signal][0], sigs[signal][1])
-
 
         view['files'].get_selection().set_mode(gtk.SELECTION_MULTIPLE)
 
@@ -108,10 +107,11 @@ class FilesController(Controller):
         """
         Handle right click on files treeview - show popup menu.
         """
-        LOG.debug(self.on_files_button_press_event.__doc__.strip())
+        LOG.debug("Mouse button pressed")
         pathinfo = treeview.get_path_at_pos(int(event.x), int(event.y))
 
-        if event.button == 3: # Right mouse button. Show context menu.
+        if event.button == 3:  # Right mouse button. Show context menu.
+            LOG.debug("It's a right button")
             if pathinfo:
                 path = pathinfo[0]
 
@@ -151,6 +151,7 @@ class FilesController(Controller):
             #    self.view['edit'].set_sensitive(True)
             #self.__popup_menu(event, 'files_popup')
             #return True
+        LOG.debug("It's other button")
 
     def on_files_cursor_changed(self, treeview):
         """Show details of selected file/directory"""
@@ -171,75 +172,96 @@ class FilesController(Controller):
             self._popup_menu(selection, event, 0)
 
         if gtk.gdk.keyval_name(event.keyval) == 'BackSpace':
-            d_path, d_column = self.view['discs'].get_cursor()
-            if d_path and d_column:
-                # easy way
-                model = self.view['discs'].get_model()
-                child_iter = model.get_iter(d_path)
-                parent_iter = model.iter_parent(child_iter)
-                if parent_iter:
-                    self.view['discs'].set_cursor(model.get_path(parent_iter))
-                else:
-                    # hard way
-                    f_model = treeview.get_model()
-                    first_iter = f_model.get_iter_first()
-                    first_child_value = f_model.get_value(first_iter, 0)
-                    # get two steps up
-                    val = self.model.get_parent_id(first_child_value)
-                    parent_value = self.model.get_parent_id(val)
-                    iter = self.model.discs_tree.get_iter_first()
-                    while iter:
-                        current_value = self.model.discs_tree.get_value(iter,
-                                                                        0)
-                        if current_value == parent_value:
-                            path = self.model.discs_tree.get_path(iter)
-                            self.view['discs'].set_cursor(path)
-                            iter = None
-                        else:
-                            iter = self.model.discs_tree.iter_next(iter)
-        #if gtk.gdk.keyval_name(event.keyval) == 'Delete':
-        #    for file_id in  self.__get_tv_selection_ids(treeview):
-        #        self.main.delete(file_id)
+            row, gtk_column = self.view['files'].get_cursor()
+            if row and gtk_column:
+                fileob = self.files_model.get_value(row)
+                if fileob.parent.parent.id != 1:
+                    self.files_model.refresh(fileob.parent.parent)
+                    # TODO: synchronize with disks
+                    self.model.discs.currentdir = fileob.parent.parent
 
-        #ids = self.__get_tv_selection_ids(self.view['files'])
+            self.view['files'].grab_focus()
+
 
     def on_files_row_activated(self, files_obj, row, column):
-        """On directory doubleclick in files listview dive into desired
-        branch."""
-        f_iter = self.model.files_list.get_iter(row)
-        current_id = self.model.files_list.get_value(f_iter, 0)
+        """
+        On directory doubleclick in files listview dive into desired branch.
+        """
 
-        if self.model.files_list.get_value(f_iter, 6) == 1:
+        fileob = self.files_model.get_value(row=row)
+        if not fileob.children:
             # ONLY directories. files are omitted.
-            self.__set_files_hiden_columns_visible(False)
-            self.model.get_root_entries(current_id)
+            return
 
-            d_path, d_column = self.view['discs'].get_cursor()
-            if d_path:
-                if not self.view['discs'].row_expanded(d_path):
-                    self.view['discs'].expand_row(d_path, False)
+        self.files_model.refresh(fileob)
+        self.model.discs.currentdir = fileob
+        self.view['files'].grab_focus()
 
-                discs_model = self.model.discs_tree
-                iterator = discs_model.get_iter(d_path)
-                new_iter = discs_model.iter_children(iterator)
-                if new_iter:
-                    while new_iter:
-                        current_value = discs_model.get_value(new_iter, 0)
-                        if current_value == current_id:
-                            path = discs_model.get_path(new_iter)
-                            self.view['discs'].set_cursor(path)
-                        new_iter = discs_model.iter_next(new_iter)
+        # TODO: synchronize with disks
         return
 
-    def on_add_tag1_activate(self, menu_item): pass
-    def on_delete_tag_activate(self, menuitem): pass
-    def on_add_thumb1_activate(self, menuitem): pass
-    def on_remove_thumb1_activate(self, menuitem): pass
-    def on_add_image1_activate(self, menuitem): pass
-    def on_remove_image1_activate(self, menuitem): pass
-    def on_edit2_activate(self, menuitem): pass
-    def on_delete3_activate(self, menuitem): pass
-    def on_rename2_activate(self, menuitem): pass
+    def on_add_tag1_activate(self, menu_item):
+        """
+        TODO
+        """
+        LOG.debug(self.on_add_tag1_activate.__doc__.strip())
+        raise NotImplementedError
+
+    def on_delete_tag_activate(self, menuitem):
+        """
+        TODO
+        """
+        LOG.debug(self.on_delete_tag_activate.__doc__.strip())
+        raise NotImplementedError
+
+    def on_add_thumb1_activate(self, menuitem):
+        """
+        TODO
+        """
+        LOG.debug(self.on_add_thumb1_activate.__doc__.strip())
+        raise NotImplementedError
+
+    def on_remove_thumb1_activate(self, menuitem):
+        """
+        TODO
+        """
+        LOG.debug(self.on_remove_thumb1_activate.__doc__.strip())
+        raise NotImplementedError
+
+    def on_add_image1_activate(self, menuitem):
+        """
+        TODO
+        """
+        LOG.debug(self.on_add_image1_activate.__doc__.strip())
+        raise NotImplementedError
+
+    def on_remove_image1_activate(self, menuitem):
+        """
+        TODO
+        """
+        LOG.debug(self.on_remove_image1_activate.__doc__.strip())
+        raise NotImplementedError
+
+    def on_edit2_activate(self, menuitem):
+        """
+        TODO
+        """
+        LOG.debug(self.on_edit2_activate.__doc__.strip())
+        raise NotImplementedError
+
+    def on_delete3_activate(self, menuitem):
+        """
+        TODO
+        """
+        LOG.debug(self.on_delete3_activate.__doc__.strip())
+        raise NotImplementedError
+
+    def on_rename2_activate(self, menuitem):
+        """
+        TODO
+        """
+        LOG.debug(self.on_rename2_activate.__doc__.strip())
+        raise NotImplementedError
 
     # private methods
     def _popup_menu(self, selection, event, button):
@@ -258,4 +280,3 @@ class FilesController(Controller):
 
         self.view.menu['files_popup'].popup(None, None, None,
                                             button, event.time)
-

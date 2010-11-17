@@ -19,6 +19,9 @@ from pygtktalog.dbobjects import File, Exif, Group, Gthumb
 from pygtktalog.dbobjects import Image, Tag, Thumbnail
 from pygtktalog.dbcommon import connect, Meta, Session
 from pygtktalog.logger import get_logger
+from pygtktalog.models.details import DetailsModel
+from pygtktalog.models.discs import DiscsModel
+from pygtktalog.models.files import FilesModel
 
 LOG = get_logger("main model")
 
@@ -55,37 +58,11 @@ class MainModel(ModelMT):
 
         self.db_unsaved = None
 
-        self.discs = None
-        self.files = None
-
-        self._init_discs()
-        self._init_files()
+        self.discs = DiscsModel()
+        self.files = FilesModel()
 
         if self.cat_fname:
             self.open(self.cat_fname)
-
-
-    def _init_discs(self):
-        """
-        Create TreeStore model for the discs
-        """
-        self.discs = gtk.TreeStore(gobject.TYPE_PYOBJECT,
-                                   gobject.TYPE_STRING,
-                                   str)
-
-
-    def _init_files(self):
-        """
-        Create ListStore model for the diles
-        """
-        self.files = gtk.ListStore(gobject.TYPE_PYOBJECT,
-                                   gobject.TYPE_STRING,
-                                   gobject.TYPE_STRING,
-                                   gobject.TYPE_STRING,
-                                   gobject.TYPE_UINT64,
-                                   gobject.TYPE_STRING,
-                                   gobject.TYPE_INT,
-                                   str)
 
     def open(self, filename):
         """
@@ -103,7 +80,7 @@ class MainModel(ModelMT):
         self.cat_fname = filename
 
         if self._open_or_decompress():
-            return self._populate_discs_from_db()
+            return self.discs.refresh(self._session)
         else:
             return False
 
@@ -143,8 +120,8 @@ class MainModel(ModelMT):
         self.cleanup()
         self._create_temp_db_file()
         self._create_schema()
-        self._init_discs()
-        self._init_files()
+        self.discs.clear()
+        self.files.clear()
         self.db_unsaved = False
 
     def cleanup(self):
@@ -247,6 +224,7 @@ class MainModel(ModelMT):
 
         connect(os.path.abspath(self.tmp_filename))
         self._session = Session()
+        LOG.debug("session obj: %s" % str(self._session))
         return True
 
     def _create_temp_db_file(self):
@@ -263,6 +241,7 @@ class MainModel(ModelMT):
         """
         """
         self._session = Session()
+        LOG.debug("session obj: %s" % str(self._session))
 
         connect(os.path.abspath(self.tmp_filename))
 
@@ -276,60 +255,6 @@ class MainModel(ModelMT):
 
         self._session.add(root)
         self._session.commit()
-
-    def _populate_discs_from_db(self):
-        """
-        Read objects from database, fill TreeStore model with discs
-        information
-        """
-        dirs = self._session.query(File).filter(File.type == 1)
-        dirs = dirs.order_by(File.filename).all()
-
-        def get_children(parent_id=1, iterator=None):
-            """
-            Get all children of the selected parent.
-            Arguments:
-                @parent_id - integer with id of the parent (from db)
-                @iterator - gtk.TreeIter, which points to a path inside model
-            """
-            for fileob in dirs:
-                if fileob.parent_id == parent_id:
-                    myiter = self.discs.insert_before(iterator, None)
-                    self.discs.set_value(myiter, 0, fileob)
-                    self.discs.set_value(myiter, 1, fileob.filename)
-                    if iterator is None:
-                        self.discs.set_value(myiter, 2, gtk.STOCK_CDROM)
-                    else:
-                        self.discs.set_value(myiter, 2, gtk.STOCK_DIRECTORY)
-                    get_children(fileob.id, myiter)
-            return
-        get_children()
-
-        return True
-
-    def update_files(self, fileob):
-        """
-        Update files ListStore
-        Arguments:
-            fileob - File object
-        """
-        LOG.info("found %d files for File object: %s" % (len(fileob.children),
-                                                        str(fileob)))
-
-        self.files.clear()
-
-        for child in fileob.children:
-            myiter = self.files.insert_before(None, None)
-            self.files.set_value(myiter, 0, child.id)
-            self.files.set_value(myiter, 1, child.parent_id \
-                    if child.parent_id!=1 else None)
-            self.files.set_value(myiter, 2, child.filename)
-            self.files.set_value(myiter, 3, child.filepath)
-            self.files.set_value(myiter, 4, child.size)
-            self.files.set_value(myiter, 5, child.date)
-            self.files.set_value(myiter, 6, 1)
-            self.files.set_value(myiter, 7, gtk.STOCK_DIRECTORY \
-                    if child.type==1 else gtk.STOCK_FILE)
 
     def _compress_and_save(self):
         """

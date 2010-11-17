@@ -18,19 +18,24 @@ class DiscsController(Controller):
     """
     Controller for discs TreeView
     """
+
     def __init__(self, model, view):
         """
         Initialize DiscsController
         """
         LOG.debug(self.__init__.__doc__.strip())
         Controller.__init__(self, model, view)
+        self.discs_model = self.model.discs.discs
 
     def register_view(self, view):
         """
         Do DiscTree registration
         """
         LOG.debug(self.register_view.__doc__.strip())
-        view['discs'].set_model(self.model.discs)
+        view['discs'].set_model(self.discs_model)
+
+        # register observers
+        self.model.discs.register_observer(self)
 
         # connect signals to popup menu - framework somehow omits automatic
         # signal connection for subviews which are not included to widgets
@@ -51,7 +56,7 @@ class DiscsController(Controller):
 
         # make cell text editabe
         cell.set_property('editable', True)
-        cell.connect('edited', self.on_editing_done, self.model.discs)
+        cell.connect('edited', self.on_editing_done, self.discs_model)
         # TODO: find a way how to disable default return keypress on editable
         # fields
 
@@ -93,8 +98,8 @@ class DiscsController(Controller):
         LOG.debug(self.on_discs_cursor_changed.__doc__.strip())
         selection = treeview.get_selection()
         path = selection.get_selected_rows()[1][0]
-        self.model.update_files(self.model.discs.get_value(\
-                self.model.discs.get_iter(path), 0))
+        self.model.files.refresh(self.discs_model.get_value(\
+                self.discs_model.get_iter(path), 0))
 
     def on_discs_key_release_event(self, treeview, event):
         """
@@ -171,6 +176,13 @@ class DiscsController(Controller):
         """
         LOG.debug(self.on_statistics_activate.__doc__.strip())
         raise NotImplementedError
+
+    # observable properties
+    def property_currentdir_value_change(self, model, old, new):
+        """
+        Change of a current dir signalized by other controllers/models
+        """
+        LOG.debug(self.property_currentdir_value_change.__doc__.strip())
 
     # private methods
     def _popup_menu(self, selection, event, button):

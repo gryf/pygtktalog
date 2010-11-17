@@ -33,17 +33,17 @@ class Video(object):
         self.out_width = out_width
         self.tags = {}
 
-        output = self.__get_movie_info()
+        output = self._get_movie_info()
 
         attrs = {'ID_VIDEO_WIDTH': ['width', int],
                  'ID_VIDEO_HEIGHT': ['height', int],
                  # length is in seconds
                  'ID_LENGTH': ['length', lambda x: int(x.split(".")[0])],
-                 'ID_DEMUXER': ['container', str],
-                 'ID_VIDEO_FORMAT': ['video_format', str],
-                 'ID_VIDEO_CODEC': ['video_codec', str],
-                 'ID_AUDIO_CODEC': ['audio_codec', str],
-                 'ID_AUDIO_FORMAT': ['audio_format', str],
+                 'ID_DEMUXER': ['container', self._return_lower],
+                 'ID_VIDEO_FORMAT': ['video_format', self._return_lower],
+                 'ID_VIDEO_CODEC': ['video_codec', self._return_lower],
+                 'ID_AUDIO_CODEC': ['audio_codec', self._return_lower],
+                 'ID_AUDIO_FORMAT': ['audio_format', self._return_lower],
                  'ID_AUDIO_NCH':  ['audio_no_channels', int],}
                  # TODO: what about audio/subtitle language/existence?
 
@@ -97,14 +97,15 @@ class Video(object):
         tempdir = mkdtemp()
         file_desc, image_fn = mkstemp()
         os.close(file_desc)
-        self.__make_captures(tempdir, no_pictures)
-        self.__make_montage(tempdir, image_fn, no_pictures, self.out_width)
+        self._make_captures(tempdir, no_pictures)
+        #self._make_montage(tempdir, image_fn, no_pictures)
+        self._make_montage3(tempdir, image_fn, no_pictures)
 
         shutil.rmtree(tempdir)
         return image_fn
 
 
-    def __get_movie_info(self):
+    def _get_movie_info(self):
         """
         Gather movie file information with midentify shell command.
         Returns: dict of command output. Each dict element represents pairs:
@@ -134,7 +135,7 @@ class Video(object):
                 return_dict[key[0]] = line.replace("%s=" % key[0], "")
         return return_dict
 
-    def __make_captures(self, directory, no_pictures):
+    def _make_captures(self, directory, no_pictures):
         """
         Make screens with mplayer into given directory
         Arguments:
@@ -154,13 +155,125 @@ class Video(object):
             shutil.move(os.path.join(directory, "00000001.jpg"),
                         os.path.join(directory, "picture_%s.jpg" % time))
 
-    def __make_montage2(self, directory, image_fn, no_pictures):
+    def _make_montage2(self, directory, image_fn, no_pictures):
         """
-        Generate one big image from screnshots and optionally resize it.
+        Generate one big image from screnshots and optionally resize it. Use
+        external tools from ImageMagic package to arrange and compose final
+        image. First, images are prescaled, before they will be montaged.
+
         Arguments:
             @directory - source directory containing images
             @image_fn - destination final image
             @no_pictures - number of pictures
+        timeit result:
+            python /usr/lib/python2.6/timeit.py -n 1 -r 1 'from pygtktalog.video import Video; v = Video("/home/gryf/t/a.avi"); v.capture()'
+            1 loops, best of 1: 25 sec per loop
+        """
+        row_length = 4
+        if no_pictures < 8:
+            row_length = 2
+
+        if not (self.tags['width'] * row_length) > self.out_width:
+            for i in (8, 6, 5):
+                if (no_pictures % i) == 0 and \
+                   (i * self.tags['width']) <= self.out_width:
+                    row_length = i
+                    break
+
+        coef = float(self.out_width - row_length * 4) / (self.tags['width'] * row_length)
+        scaled_width = int(self.tags['width'] * coef)
+
+        # scale images
+        for fname in os.listdir(directory):
+            cmd = "convert -scale %d %s %s_s.jpg"
+            os.popen(cmd % (scaled_width, os.path.join(directory, fname),
+                            os.path.join(directory, fname))).readlines()
+            shutil.move(os.path.join(directory, fname + "_s.jpg"),
+                        os.path.join(directory, fname))
+
+
+        tile = "%dx%d" % (row_length, no_pictures / row_length)
+
+        _curdir = os.path.abspath(os.path.curdir)
+        os.chdir(directory)
+
+        # composite pictures
+        # readlines trick will make to wait for process end
+        cmd = "montage -tile %s -geometry +2+2 picture_*.jpg montage.jpg"
+        os.popen(cmd % tile).readlines()
+
+        shutil.move(os.path.join(directory, 'montage.jpg'), image_fn)
+        os.chdir(_curdir)
+
+    def _make_montage3(self, directory, image_fn, no_pictures):
+        """
+        Generate one big image from screnshots and optionally resize it. Uses
+        PIL package to create output image.
+        Arguments:
+            @directory - source directory containing images
+            @image_fn - destination final image
+            @no_pictures - number of pictures
+        timeit result:
+            python /usr/lib/python2.6/timeit.py -n 1 -r 1 'from pygtktalog.video import Video; v = Video("/home/gryf/t/a.avi"); v.capture()'
+            1 loops, best of 1: 18.8 sec per loop
+        """
+        scale = False
+        row_length = 4
+        if no_pictures < 8:
+            row_length = 2
+
+        if not (self.tags['width'] * row_length) > self.out_width:
+            for i in [8, 6, 5]:
+                if (no_pictures % i) == 0 and \
+                   (i * self.tags['width']) <= self.out_width:
+                    row_length = i
+                    break
+
+        coef = float(self.out_width - row_length - 1) / (self.tags['width'] * row_length)
+        if coef < 1:
+            dim = int(self.tags['width'] * coef), int(self.tags['height'] * coef)
+        else:
+            dim = int(self.tags['width']), int(self.tags['height'])
+
+        ifn_list = os.listdir(directory)
+        ifn_list.sort()
+        img_list = [Image.open(os.path.join(directory, fn)).resize(dim) \
+                for fn in ifn_list]
+
+        rows = no_pictures / row_length
+        cols = row_length
+        isize = (cols * dim[0] + cols + 1,
+                 rows * dim[1] + rows + 1)
+
+        inew = Image.new('RGB', isize, (80, 80, 80))
+
+        for irow in range(no_pictures * row_length):
+            for icol in range(row_length):
+                left = 1 + icol*(dim[0] + 1)
+                right = left + dim[0]
+                upper = 1 + irow * (dim[1] + 1)
+                lower = upper + dim[1]
+                bbox = (left, upper, right, lower)
+                try:
+                    img = img_list.pop(0)
+                except:
+                    break
+                inew.paste(img, bbox)
+        inew.save(image_fn, 'JPEG')
+
+    def _make_montage(self, directory, image_fn, no_pictures):
+        """
+        Generate one big image from screnshots and optionally resize it. Use
+        external tools from ImageMagic package to arrange and compose final
+        image.
+
+        Arguments:
+            @directory - source directory containing images
+            @image_fn - destination final image
+            @no_pictures - number of pictures
+        timeit result:
+            python /usr/lib/python2.6/timeit.py -n 1 -r 1 'from pygtktalog.video import Video; v = Video("/home/gryf/t/a.avi"); v.capture()'
+            1 loops, best of 1: 32.5 sec per loop
         """
         scale = False
         row_length = 4
@@ -173,52 +286,6 @@ class Video(object):
             for i in [8, 6, 5]:
                 if (no_pictures % i) == 0 and \
                    (i * self.tags['width']) <= self.out_width:
-                    row_length = i
-                    break
-
-        tile = "%dx%d" % (row_length, no_pictures / row_length)
-
-        _curdir = os.path.abspath(os.path.curdir)
-        os.chdir(directory)
-
-        # composite pictures
-        # readlines trick will make to wait for process end
-        #cmd = "montage -tile %s -geometry +2+2 picture_*.jpg montage.jpg"
-        imgs = [Image.open(fn).resize((photow,photoh)) for fn in fnames]
-
-        os.popen(cmd % tile).readlines()
-
-        # scale it to minimum 'modern' width: 1024
-        if scale:
-            cmd = "convert -scale %s montage.jpg montage_scaled.jpg"
-            os.popen(cmd % out_width).readlines()
-            shutil.move(os.path.join(directory, 'montage_scaled.jpg'),
-                        image_fn)
-        else:
-            shutil.move(os.path.join(directory, 'montage.jpg'),
-                        image_fn)
-
-        os.chdir(_curdir)
-
-    def __make_montage(self, directory, image_fn, no_pictures):
-        """
-        Generate one big image from screnshots and optionally resize it.
-        Arguments:
-            @directory - source directory containing images
-            @image_fn - destination final image
-            @no_pictures - number of pictures
-        """
-        scale = False
-        row_length = 4
-        if no_pictures < 8:
-            row_length = 2
-
-        if (self.tags['width'] * row_length) > self.out_width:
-            scale = True
-        else:
-            for i in [8, 6, 5]:
-                if (no_pictures % i) == 0 and \
-                   (i * self.tags['width']) <= self.ut_width:
                     row_length = i
                     break
 
@@ -244,6 +311,15 @@ class Video(object):
 
         os.chdir(_curdir)
 
+    def _return_lower(self, chain):
+        """
+        Return lowercase version of provided string argument
+        Arguments:
+            @chain string to be lowered
+        Returns:
+            @string with lowered string
+        """
+        return str(chain).lower()
 
     def __str__(self):
         str_out = ''
