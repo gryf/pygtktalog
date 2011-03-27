@@ -98,7 +98,7 @@ class Image(Base):
 
     def __init__(self, filename=None):
         self.filename = filename
-        self.file = file
+        self.file = None
 
     def __repr__(self):
         return "<Image('%s', %s)>" % (str(self.filename), str(self.id))

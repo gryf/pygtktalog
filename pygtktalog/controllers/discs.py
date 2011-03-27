@@ -183,6 +183,7 @@ class DiscsController(Controller):
         Change of a current dir signalized by other controllers/models
         """
         LOG.debug(self.property_currentdir_value_change.__doc__.strip())
+        self._set_cursor_to_obj_position(new)
 
     # private methods
     def _popup_menu(self, selection, event, button):
@@ -203,3 +204,11 @@ class DiscsController(Controller):
 
         self.view.menu['discs_popup'].popup(None, None, None,
                                             button, event.time)
+
+    def _set_cursor_to_obj_position(self, obj):
+        """
+        Set cursor/focus to specified object postion in Discs treeview.
+        """
+        path = self.model.discs.find_path(obj)
+        self.view['discs'].expand_to_path(path)
+        self.view['discs'].set_cursor(path)

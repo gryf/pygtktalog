@@ -40,8 +40,10 @@ class Dialog(object):
         # Ofcourse, if something changes in the future, this could break
         # things.
         if self.ok_default:
-            button = self.dialog.get_children()[0].get_children()[2]
-            button.get_children()[self.ok_default].grab_default()
+            # this is tricky: Ok/Yes buttons appears as first on the list, but
+            # they are visibile in oposite order. This could be a bug.
+            button = self.dialog.get_action_area().get_children()[0]
+            button.grab_default()
 
         retval = self.dialog.run()
         self.dialog.destroy()

@@ -176,7 +176,7 @@ class FilesController(Controller):
             if row and gtk_column:
                 fileob = self.files_model.get_value(row)
                 if fileob.parent.parent.id != 1:
-                    self.files_model.refresh(fileob.parent.parent)
+                    #self.files_model.refresh(fileob.parent.parent)
                     # TODO: synchronize with disks
                     self.model.discs.currentdir = fileob.parent.parent
 

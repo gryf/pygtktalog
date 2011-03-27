@@ -77,6 +77,10 @@ class MainModel(ModelMT):
             LOG.warn("db file '%s' doesn't exist.", filename)
             return False
 
+        if not os.path.isfile(filename):
+            LOG.warn("db file '%s' is not a regular file.", filename)
+            return False
+
         self.cat_fname = filename
 
         if self._open_or_decompress():

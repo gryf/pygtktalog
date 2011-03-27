@@ -25,14 +25,21 @@ Session = sessionmaker()
 LOG = get_logger("dbcommon")
 
 
-def connect(filename):
+def connect(filename=None):
     """
     create engine and bind to Meta object.
     Arguments:
         @filename - string with absolute or relative path to sqlite database
-                    file.
+                    file. If None, db in-memory will be created
     """
+
+    if not filename:
+        filename = ':memory:'
+
     LOG.info("db filename: %s" % filename)
-    engine = create_engine("sqlite:///%s" % filename)
+
+    connect_string = "sqlite:///%s" % filename
+    engine = create_engine(connect_string)
     Meta.bind = engine
-    Meta.create_all(engine)
+    Meta.create_all(checkfirst=True)
+
