@@ -8,15 +8,20 @@
 import os
 import sys
 from datetime import datetime
-import magic
+import mimetypes
 
-from pygtktalog.dbobjects import File
+from pygtktalog.dbobjects import File, Image
+from pygtktalog.dbcommon import Session
 from pygtktalog.logger import get_logger
+from pygtktalog.video import Video
+
+
 LOG = get_logger(__name__)
 
 
 class NoAccessError(Exception):
     pass
+
 
 class Scan(object):
     """
@@ -25,27 +30,27 @@ class Scan(object):
     def __init__(self, path):
         """
         Initialize
+        @Arguments:
+            @path - string with initial root directory to scan
         """
         self.abort = False
         self.path = path.rstrip(os.path.sep)
-        self._items = []
-        self.magic = magic.open(magic.MIME)
-        self.magic.load()
+        self._files = []
+        self._existing_files = []
+        self._session = Session()
 
     def add_files(self):
         """
         Returns list, which contain object, modification date and file
         size.
-        @Arguments:
-            @path - string with initial root directory to scan
         """
-        self._items = []
+        self._files = []
         LOG.debug("given path: %s" % self.path)
 
         # See, if file exists. If not it would raise OSError exception
         os.stat(self.path)
 
-        if not os.access(self.path, os.R_OK|os.X_OK) \
+        if not os.access(self.path, os.R_OK | os.X_OK) \
                 or not os.path.isdir(self.path):
             raise NoAccessError("Access to %s is forbidden" % self.path)
 
@@ -54,7 +59,11 @@ class Scan(object):
         if not self._recursive(None, directory, path, 0, 0, 1):
             return None
 
-        return self._items
+        # add only first item from _files, because it is a root of the other,
+        # so other will be automatically added aswell.
+        self._session.add(self._files[0])
+        self._session.commit()
+        return self._files
 
     def _get_dirsize(self, path):
         """
@@ -77,10 +86,38 @@ class Scan(object):
         """
         Try to guess type and gather information about File object if possible
         """
+        mimedict = {'audio': self._audio,
+                    'video': self._video,
+                    'image': self._image}
         fp = os.path.join(fobj.filepath.encode(sys.getfilesystemencoding()),
                           fobj.filename.encode(sys.getfilesystemencoding()))
-        import mimetypes
-        print mimetypes.guess_type(fp)
+
+        mimeinfo = mimetypes.guess_type(fp)
+        if mimeinfo[0] and mimeinfo[0].split("/")[0] in mimedict.keys():
+            mimedict[mimeinfo[0].split("/")[0]](fobj, fp)
+        else:
+            #LOG.info("Filetype not supported " + str(mimeinfo) + " " +  fp)
+            pass
+
+    def _audio(self, fobj, filepath):
+        #LOG.warning('audio')
+        return
+
+    def _image(self, fobj, filepath):
+        #LOG.warning('image')
+        return
+
+    def _video(self, fobj, filepath):
+        """
+        Make captures for a movie. Save it under uniq name.
+        """
+        vid = Video(filepath)
+
+        preview_fn = vid.capture()
+        Image(preview_fn, fobj)
+
+    def _get_all_files(self):
+        self._existing_files = self._session.query(File).all()
 
     def _mk_file(self, fname, path, parent):
         """
@@ -96,10 +133,10 @@ class Scan(object):
         fob.parent = parent
         fob.type = 2
 
-        if not parent:
+        if parent is None:
             fob.parent_id = 1
 
-        self._items.append(fob)
+        self._files.append(fob)
         return fob
 
     def _recursive(self, parent, fname, path, date, size, ftype):
@@ -124,6 +161,7 @@ class Scan(object):
         parent.size = self._get_dirsize(fullpath)
         parent.type = 1
 
+        self._get_all_files()
         root, dirs, files = os.walk(fullpath).next()
         for fname in files:
             fpath = os.path.join(root, fname)
@@ -131,9 +169,19 @@ class Scan(object):
             if os.path.islink(fpath):
                 fob.filename = fob.filename + " -> " + os.readlink(fpath)
                 fob.type = 3
-                size += fob.size
             else:
-                self._gather_information(fob)
+                existing_obj = self._object_exists(fob)
+                if existing_obj:
+                    fob.tags = existing_obj.tags
+                    fob.thumbnail = [th.get_copy \
+                            for th in existing_obj.thumbnail]
+                    fob.images = [img.get_copy() \
+                            for img in existing_obj.images]
+                else:
+                    LOG.debug("gather information")
+                    self._gather_information(fob)
+                size += fob.size
+            self._existing_files.append(fob)
 
         for dirname in dirs:
             dirpath = os.path.join(root, dirname)
@@ -152,6 +200,18 @@ class Scan(object):
 
         LOG.debug("size of items: %s" % parent.size)
         return True
+
+    def _object_exists(self, fobj):
+        """
+        Perform check if current File object already exists in collection. If
+        so, return first matching one, None otherwise.
+        """
+        for efobj in self._existing_files:
+            if efobj.size == fobj.size \
+                    and efobj.type == fobj.type \
+                    and efobj.date == fobj.date:
+                return efobj
+        return None
 
 class asdScan(object):
     """

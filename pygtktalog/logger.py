@@ -28,9 +28,9 @@ def formatter_message(message, use_color = True):
     return message
 
 COLORS = {'WARNING': YELLOW,
-          'INFO': WHITE,
+          'INFO': GREEN,
           'DEBUG': BLUE,
-          'CRITICAL': YELLOW,
+          'CRITICAL': WHITE,
           'ERROR': RED}
 
 class ColoredFormatter(logging.Formatter):

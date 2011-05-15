@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
     Project: pyGTKtalog
     Description: convert db created with v.1.x into v.2.x
