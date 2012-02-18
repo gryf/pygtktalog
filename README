@@ -1,5 +1,5 @@
 pyGTKtalog 1.0
-==================
+==============
 
 pyGTKtalog is Linux/FreeBSD program for indexing CD/DVD or directories on
 filesystem. It is similar to gtktalog <http://www.nongnu.org/gtktalog/> or
@@ -75,6 +75,7 @@ There are still minor aims for versions 1.x to be done:
 - implement advanced search
 
 For version 2.0:
+- Export/Import
 - Icon grid in files view
 - command line support: query, adding media to collection etc
 - internationalization
@@ -82,7 +83,8 @@ For version 2.0:
 - user definied group of tags (represented by color in cloud tag)
 - hiding specified files - configurable, like dot prefixed, cfg and manualy
   selected
-
+- tests
+- warning about existing image in media directory
 Removed:
 - filetypes handling (movies, images, archives, documents etc). Now it have
   common, unified external "plugin" system - simple text output from command
@@ -103,17 +105,22 @@ Removed:
 NOTES
 =====
 
-Catalog file is tared and gziped sqlite database and directories with images and
-thumbnails. If there are more images, the size of catalog file will grow. So be
-carefull with adding big images in your catalog file!
+Catalog file is plain sqlite database (optionally compressed with bzip2). All
+images are stored in ~/.pygtktalog/images directory. Names for images are
+generated sha512 hash from image file itself. There is small possibility for two
+identical hash for different image files. However, no images are overwritten.
+Thumbnail filename for each image is simply concatenation of image filename in
+images directory and '_t' string.
 
-There is also converter form old database to new. In fact no image are stored in
-archive with katalog. All thumnails will be lost. All images without big image
-will be lost. There ar serious changes with application design, and I decided,
-that is better to keep media unpacked on disk, instead of pack it every time
-with save and unpack with open methods. New design prevent from deleting eny
-file from media directory (placed in ~/.pygtktalog/images). Functionality for
-exporting images and corresponding db file is planned.
+There is also converter from old database to new for internal use only. In
+public release there will be no other formats so it will be useless, and
+deleted. There are some issues with converting. All thumbnails will be lost. All
+images without big image will be lost. There are serious changes with
+application design, and I decided, that is better to keep media unpacked on
+disk, instead of pack it every time with save and unpack with open methods. New
+design prevent from deleting any file from media directory (placed in
+~/.pygtktalog/images). Functionality for exporting images and corresponding db
+file is planned.
 
 BUGS
 ====

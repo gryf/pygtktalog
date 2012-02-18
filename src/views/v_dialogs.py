@@ -45,10 +45,11 @@ class Qst(object):
 
     def run(self):
         retval = self.dialog.run()
-        self.dialog.destroy()
+        retval = False
         if retval == gtk.RESPONSE_OK:
-            return True
-        return False
+            retval = True
+        self.dialog.destroy()
+        return retval
 
 class Inf(object):
     """Show simple dialog for notices"""
@@ -139,10 +140,11 @@ class InputDiskLabel(object):
         entry = gladexml.get_widget("volname")
         entry.set_text(self.label)
         result = dialog.run()
-        dialog.destroy()
+        res = None
         if result == gtk.RESPONSE_OK:
-            return entry.get_text()
-        return None
+            res = entry.get_text()
+        dialog.destroy()
+        return res
 
 class InputNewName(object):
     """Sepcific dialog for quering user for a disc label"""
@@ -158,10 +160,11 @@ class InputNewName(object):
         entry = gladexml.get_widget("name")
         entry.set_text(self.name)
         result = dialog.run()
-        dialog.destroy()
+        res = None
         if result == gtk.RESPONSE_OK:
-            return entry.get_text()
-        return None
+            res = entry.get_text()
+        dialog.destroy()
+        return res
 
 class PointDirectoryToAdd(object):
     """Sepcific dialog for quering user for selecting directory to add"""
@@ -206,7 +209,7 @@ class PointDirectoryToAdd(object):
         ch = True
         result = dialog.run()
         while ch:
-            if result == gtk.RESPONSE_OK and (self.volname.get_text()=='' or \
+            if result == gtk.RESPONSE_OK and (self.volname.get_text() == '' or \
                                               self.directory.get_text() == ''):
                 a = Err("Error - pyGTKtalog",
                         "There are fields needed to be filled.",
@@ -215,11 +218,15 @@ class PointDirectoryToAdd(object):
                 result = dialog.run()
             else:
                 ch = False
-        dialog.destroy()
+
+        volname = self.volname.get_text()
+        directory = self.directory.get_text()
+
+        res = (None,None)
         if result == gtk.RESPONSE_OK:
-            return self.volname.get_text(),self.directory.get_text()
-        else:
-            return None,None
+            res = (volname, directory)
+        dialog.destroy()
+        return res
 
 class SelectDirectory(object):
     """Sepcific dialog for quering user for selecting directory to add"""
@@ -257,15 +264,15 @@ class SelectDirectory(object):
         dialog.destroy()
         return retval
 
-class ChooseDBFilename(object):
-    """Sepcific dialog for quering user for selecting filename for database"""
+class ChooseFilename(object):
+    """Dialog for quering user for selecting filename"""
 
     URI=None
 
-    def __init__(self, path=None):
+    def __init__(self, path=None, title=''):
         self.path = path
         self.dialog = gtk.FileChooserDialog(
-            title="Save catalog as...",
+            title="",
             action=gtk.FILE_CHOOSER_ACTION_SAVE,
             buttons=(
                 gtk.STOCK_CANCEL,
@@ -276,7 +283,7 @@ class ChooseDBFilename(object):
         self.dialog.set_action(gtk.FILE_CHOOSER_ACTION_SAVE)
         self.dialog.set_default_response(gtk.RESPONSE_OK)
         self.dialog.set_do_overwrite_confirmation(True)
-        self.dialog.set_title('Save catalog to file...')
+        self.dialog.set_title(title)
 
         f = gtk.FileFilter()
         f.set_name("Catalog files")
@@ -298,11 +305,43 @@ class ChooseDBFilename(object):
         response = self.dialog.run()
         if response == gtk.RESPONSE_OK:
             filename = self.dialog.get_filename()
-            print filename, ' do ',
-            if filename[-11:].lower() != '.sqlite.bz2' and \
-            filename[-7:].lower() != '.sqlite':
-                filename = filename + '.sqlite.bz2'
-            print filename
+            self.__class__.URI = self.dialog.get_current_folder_uri()
+            self.dialog.destroy()
+            return filename
+        else:
+            self.dialog.destroy()
+            return None
+    pass
+
+class ChooseDBFilename(ChooseFilename):
+    """Sepcific dialog for quering user for selecting filename for database"""
+
+    URI=None
+
+    def __init__(self, path=None):
+        ChooseFilename.__init__(self)
+        self.dialog.set_title('Save catalog as...')
+
+        f = gtk.FileFilter()
+        f.set_name("Catalog files")
+        f.add_pattern("*.sqlite")
+        f.add_pattern("*.sqlite.bz2")
+        self.dialog.add_filter(f)
+        f = gtk.FileFilter()
+        f.set_name("All files")
+        f.add_pattern("*.*")
+        self.dialog.add_filter(f)
+
+    def run(self):
+        if self.URI:
+            self.dialog.set_current_folder_uri(self.URI)
+        elif self.path and os.path.exists(self.path):
+            self.path = "file://"+os.path.abspath(self.path)
+            self.dialog.set_current_folder_uri(self.path)
+
+        response = self.dialog.run()
+        if response == gtk.RESPONSE_OK:
+            filename = self.dialog.get_filename()
             self.__class__.URI = self.dialog.get_current_folder_uri()
             self.dialog.destroy()
             return filename
@@ -488,10 +527,11 @@ class StatsDialog(object):
             entry.set_text(str(self.values['size']))
 
         result = dialog.run()
-        dialog.destroy()
+        retval = None
         if result == gtk.RESPONSE_OK:
-            return entry.get_text()
-        return None
+            retval = entry.get_text()
+        dialog.destroy()
+        return retval
 
 class TagsDialog(object):
     """Sepcific dialog for display stats"""
@@ -507,10 +547,11 @@ class TagsDialog(object):
 
         result = dialog.run()
 
-        dialog.destroy()
+        retval = None
         if result == gtk.RESPONSE_OK:
-            return entry.get_text()
-        return None
+            retval = entry.get_text()
+        dialog.destroy()
+        return retval
 
 class TagsRemoveDialog(object):
     """Sepcific dialog for display stats"""
@@ -572,14 +613,15 @@ class TagsRemoveDialog(object):
 
         result = dialog.run()
 
-        dialog.destroy()
+        retval = (None, None)
         if result == gtk.RESPONSE_OK:
             ids = []
             for i in model:
                 if i[2]:
                     ids.append(i[0])
-            return "ok", ids
-        return None, None
+            retval = ("ok", ids)
+        dialog.destroy()
+        return retval
 
 class EditDialog(object):
     """Sepcific dialog for display stats"""
