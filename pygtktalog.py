@@ -64,13 +64,17 @@ def check_requirements():
         pass
 
     try:
-        from pysqlite2 import dbapi2 as sqlite
+        import sqlite3 as sqlite
     except ImportError:
-        print "pyGTKtalog uses SQLite DB.\nYou'll need to get it and the",
-        print "python bindings as well.",
-        print "http://www.sqlite.org"
-        print "http://initd.org/tracker/pysqlite"
-        sys.exit(1)
+        try:
+            from pysqlite2 import dbapi2 as sqlite
+        except ImportError:
+            print "pyGTKtalog uses SQLite DB.\nYou'll need to get it and the",
+            print "python bindings as well.",
+            print "http://www.sqlite.org"
+            print "http://initd.org/tracker/pysqlite"
+            print "Alternatively install python 2.5 or higher"
+            sys.exit(1)
 
     if conf.confd['exportxls']:
         try:

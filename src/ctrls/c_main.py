@@ -22,9 +22,9 @@
 
 #  -------------------------------------------------------------------------
 
-__version__ = "1.0 RC2"
-LICENCE = open('LICENCE').read()
-
+__version__ = "1.0.1"
+#LICENCE = open('LICENCE').read()
+LICENCE = ''
 import os.path
 from os import popen
 from utils import deviceHelper
@@ -871,6 +871,25 @@ class MainController(Controller):
         self.view['discs'].expand_all()
         return
 
+    def on_export_activate(self, menu_item):
+        """export db file and coressponding images to tar.bz2 archive"""
+        dialog = Dialogs.ChooseFilename(None, "Choose export file")
+        filepath = dialog.run()
+
+        if not filepath:
+            return
+
+        list_of_paths = self.view['images'].get_selected_items()
+        model = self.view['images'].get_model()
+
+        count = 0
+
+        if len(list_of_paths) == 0:
+            # no picture was selected. default to save all of them
+            for image in model:
+                if self.model.save_image(image[0], filepath):
+                    count += 1
+
     def on_collapse_all1_activate(self, menu_item):
         self.view['discs'].collapse_all()
         return
@@ -1579,7 +1598,10 @@ class MainController(Controller):
             buf.insert_with_tags(buf.get_end_iter(), "Filename: ", tag)
         buf.insert(buf.get_end_iter(), set['filename'] + "\n")
         buf.insert_with_tags(buf.get_end_iter(), "Date: ", tag)
-        buf.insert(buf.get_end_iter(), str(set['fileinfo']['date']) + "\n")
+        try:
+            buf.insert(buf.get_end_iter(), str(set['fileinfo']['date']) + "\n")
+        except:
+            import ipdb; ipdb.set_trace()
         buf.insert_with_tags(buf.get_end_iter(), "Size: ", tag)
         buf.insert(buf.get_end_iter(), str(set['fileinfo']['size']) + "\n")
 

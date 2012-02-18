@@ -63,6 +63,27 @@
                       </widget>
                     </child>
                     <child>
+                      <widget class="GtkMenuItem" id="import">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Import</property>
+                        <property name="use_underline">True</property>
+                        <signal name="activate" handler="on_import_activate"/>
+                      </widget>
+                    </child>
+                    <child>
+                      <widget class="GtkMenuItem" id="export">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Export</property>
+                        <property name="use_underline">True</property>
+                        <signal name="activate" handler="on_export_activate"/>
+                      </widget>
+                    </child>
+                    <child>
+                      <widget class="GtkSeparatorMenuItem" id="separator13">
+                        <property name="visible">True</property>
+                      </widget>
+                    </child>
+                    <child>
                       <widget class="GtkMenuItem" id="recent_files1">
                         <property name="visible">True</property>
                         <property name="label" translatable="yes">Recent files</property>
