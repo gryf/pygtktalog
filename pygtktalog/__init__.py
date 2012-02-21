@@ -14,11 +14,14 @@ __web__ = "http://bitbucket.org/gryf"
 __logo_img__ = "views/pixmaps/Giant Worms.png"
 
 import os
+import sys
 import locale
 import gettext
 import __builtin__
 
 import gtk.glade
+
+from logger import get_logger
 
 
 __all__ = ['controllers',
@@ -54,3 +57,9 @@ for module in gtk.glade, gettext:
 
 # register the gettext function for the whole interpreter as "_"
 __builtin__._ = gettext.gettext
+
+# wrap errors into usefull message
+def log_exception(exc_type, exc_val, traceback):
+    get_logger(__name__).error(exc_val)
+
+sys.excepthook = log_exception

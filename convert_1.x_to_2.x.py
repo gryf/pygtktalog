@@ -19,6 +19,7 @@ from pygtktalog.dbobjects import File, Exif, Group, Gthumb
 from pygtktalog.dbobjects import Image, Tag, Thumbnail
 from pygtktalog.dbcommon import connect
 
+
 def create_schema(cur):
     pass
 
@@ -29,16 +30,18 @@ def create_temporary_db_file():
     os.close(fd)
     return fname
 
+
 def connect_to_db(filename):
     """initialize db connection and store it in class attributes"""
-    db_connection = sqlite.connect(filename, detect_types=sqlite.PARSE_DECLTYPES|sqlite.PARSE_COLNAMES)
+    db_connection = sqlite.connect(filename, \
+            detect_types=sqlite.PARSE_DECLTYPES | sqlite.PARSE_COLNAMES)
     db_cursor = db_connection.cursor()
     return db_connection, db_cursor
+
 
 def opendb(filename=None):
     """try to open db file"""
     db_tmp_path = create_temporary_db_file()
-    compressed = False
 
     try:
         test_file = open(filename).read(15)
@@ -57,7 +60,6 @@ def opendb(filename=None):
             curdb.write(open_file.read())
             curdb.close()
             open_file.close()
-            compressed = True
         except IOError:
             # file is not bz2
             os.unlink(db_tmp_path)

@@ -6,16 +6,15 @@
     Created: 2009-08-07
 """
 import os
-import errno
-import shutil
-import uuid
+from cStringIO import StringIO
+from hashlib import sha256
 
-from sqlalchemy import Column, Table, Integer, Text
-from sqlalchemy import DateTime, ForeignKey, Sequence
+from sqlalchemy import Column, Table, Integer, Text, Binary, \
+        DateTime, ForeignKey, Sequence
 from sqlalchemy.orm import relation, backref
 
 from pygtktalog.dbcommon import Base
-from pygtktalog import thumbnail
+from pygtktalog.thumbnail import ThumbCreator
 
 
 IMG_PATH = "/home/gryf/.pygtktalog/imgs/"  # FIXME: should be configurable
@@ -24,6 +23,7 @@ tags_files = Table("tags_files", Base.metadata,
                    Column("file_id", Integer, ForeignKey("files.id")),
                    Column("tag_id", Integer, ForeignKey("tags.id")))
 
+TYPE = {'root': 0, 'dir': 1, 'file': 2, 'link': 3}
 
 class File(Base):
     __tablename__ = "files"
@@ -37,13 +37,15 @@ class File(Base):
     source = Column(Integer)
     note = Column(Text)
     description = Column(Text)
+    checksum = Column(Text)
+    thumbnail = Column(Binary)
 
     children = relation('File',
                         backref=backref('parent', remote_side="File.id"),
                         order_by=[type, filename])
     tags = relation("Tag", secondary=tags_files, order_by="Tag.tag")
-    thumbnail = relation("Thumbnail", backref="file")
-    images = relation("Image", backref="file", order_by="Image.filename")
+    #thumbnail = relation("Thumbnail", backref="file")
+    images = relation("Image", backref="file")
 
     def __init__(self, filename=None, path=None, date=None, size=None,
                  ftype=None, src=None):
@@ -57,6 +59,35 @@ class File(Base):
 
     def __repr__(self):
         return "<File('%s', %s)>" % (str(self.filename), str(self.id))
+
+    def generate_checksum(self):
+        """
+        Generate checksum of first 10MB of the file
+        """
+        if self.type != TYPE['file']:
+            return
+
+        buf = open(os.path.join(self.filepath, self.filename)).read(10485760)
+        self.checksum = sha256(buf).hexdigest()
+
+    def get_all_children(self):
+        """
+        Return list of all node direct and indirect children
+        """
+        def _recursive(node):
+            children = []
+            if node.children:
+                for child in node.children:
+                    children += _recursive(child)
+            if node != self:
+                children.append(node)
+
+            return children
+
+        if self.children:
+            return _recursive(self)
+        else:
+            return []
 
 
 class Group(Base):
@@ -90,54 +121,66 @@ class Tag(Base):
         return "<Tag('%s', %s)>" % (str(self.tag), str(self.id))
 
 
-class Thumbnail(Base):
-    __tablename__ = "thumbnails"
-    id = Column(Integer, Sequence("thumbnail_id_seq"), primary_key=True)
-    file_id = Column(Integer, ForeignKey("files.id"))
-    filename = Column(Text)
-
-    def __init__(self, filename=None, file_obj=None):
-        self.filename = filename
-        self.file = file_obj
-        if self.filename:
-            self.save(self.filename)
-
-    def save(self, fname):
-        """
-        Create file related thumbnail, add it to the file object.
-        """
-        new_name = str(uuid.uuid1()).split("-")
-        try:
-            os.makedirs(os.path.join(IMG_PATH, *new_name[:-1]))
-        except OSError as exc:
-            if exc.errno != errno.EEXIST:
-                raise
-
-        ext = os.path.splitext(self.filename)[1]
-        if ext:
-            new_name.append("".join([new_name.pop(), ext]))
-
-        thumb = thumbnail.Thumbnail(self.filename).save()
-        name, ext = os.path.splitext(new_name.pop())
-        new_name.append("".join([name, "_t", ext]))
-        self.filename = os.path.sep.join(new_name)
-        shutil.move(thumb.save(), os.path.join(IMG_PATH, *new_name))
-
-    def __repr__(self):
-        return "<Thumbnail('%s', %s)>" % (str(self.filename), str(self.id))
-
+#class Thumbnail(Base):
+#    __tablename__ = "thumbnails"
+#    id = Column(Integer, Sequence("thumbnail_id_seq"), primary_key=True)
+#    file_id = Column(Integer, ForeignKey("files.id"))
+#    filename = Column(Text)
+#
+#    def __init__(self, filename=None, file_obj=None):
+#        self.filename = filename
+#        self.file = file_obj
+#        if self.filename:
+#            self.save(self.filename)
+#
+#    def save(self, fname):
+#        """
+#        Create file related thumbnail, add it to the file object.
+#        """
+#        new_name = sha1(str(uuid1())).hexdigest()
+#        new_name = [new_name[start:start+10] for start in range(0,
+#                                                                len(new_name),
+#                                                                10)]
+#        try:
+#            os.makedirs(os.path.join(IMG_PATH, *new_name[:-1]))
+#        except OSError as exc:
+#            if exc.errno != errno.EEXIST:
+#                raise
+#
+#        ext = os.path.splitext(self.filename)[1]
+#        if ext:
+#            new_name.append("".join([new_name.pop(), ext]))
+#
+#        thumb = thumbnail.Thumbnail(self.filename)
+#        thumb_tmp_name = thumb.save()
+#        name, ext = os.path.splitext(new_name.pop())
+#        new_name.append("".join([name, "_t", '.jpg']))
+#        self.filename = os.path.sep.join(new_name)
+#        shutil.move(thumb_tmp_name, os.path.join(IMG_PATH, *new_name))
+#
+#    def get_copy(self):
+#        """
+#        Create the very same object as self with exception of id field
+#        """
+#        thumb = Thumbnail()
+#        thumb.filename = self.filename
+#        return thumb
+#
+#    def __repr__(self):
+#        return "<Thumbnail('%s', %s)>" % (str(self.filename), str(self.id))
+#
 
 class Image(Base):
     __tablename__ = "images"
     id = Column(Integer, Sequence("images_id_seq"), primary_key=True)
     file_id = Column(Integer, ForeignKey("files.id"))
-    filename = Column(Text)
+    image = Column(Binary)
+    thumb = Column(Binary)
+    checksum = Column(Text)
 
     def __init__(self, filename=None, file_obj=None):
-        self.filename = None
         self.file = file_obj
         if filename:
-            self.filename = filename
             self.save(filename)
 
     def save(self, fname):
@@ -145,52 +188,60 @@ class Image(Base):
         Save and create coressponding thumbnail (note: it differs from file
         related thumbnail!)
         """
-        new_name = str(uuid.uuid1()).split("-")
-        try:
-            os.makedirs(os.path.join(IMG_PATH, *new_name[:-1]))
-        except OSError as exc:
-            if exc.errno != errno.EEXIST:
-                raise
+        file_buffer = StringIO()
 
-        ext = os.path.splitext(self.filename)[1]
-        if ext:
-            new_name.append("".join([new_name.pop(), ext]))
+        with open(fname) as f:
+            file_buffer.write(f.read())
 
-        shutil.move(self.filename, os.path.join(IMG_PATH, *new_name))
+        self.image = file_buffer.getvalue()
+        self.checksum = sha256(file_buffer.getvalue()).hexdigest()
 
-        self.filename = os.path.sep.join(new_name)
+        file_buffer.seek(0)
+        thumb = ThumbCreator(fname).generate()
+        if thumb:
+            self.thumb = thumb.getvalue()
+            thumb.close()
 
-        thumb = thumbnail.Thumbnail(os.path.join(IMG_PATH, self.filename))
-        name, ext = os.path.splitext(new_name.pop())
-        new_name.append("".join([name, "_t", ext]))
-        shutil.move(thumb.save(), os.path.join(IMG_PATH, *new_name))
+        file_buffer.close()
 
     def get_copy(self):
         """
         Create the very same object as self with exception of id field
         """
         img = Image()
-        img.filename = self.filename
+        img.image = self.image
+        img.thumb = self.thumb
+        img.checksum = self.checksum
         return img
 
     @property
-    def thumbpath(self):
+    def fthumb(self):
         """
-        Return full path to thumbnail of this image
+        Return file-like object with thumbnail
         """
-        path, fname = os.path.split(self.filename)
-        base, ext = os.path.splitext(fname)
-        return os.path.join(IMG_PATH, path, base + "_t" + ext)
+        if self.thumb:
+            buf = StringIO()
+            buf.write(self.thumb)
+            buf.seek(0)
+            return buf
+        else:
+            return None
 
     @property
-    def imagepath(self):
+    def fimage(self):
         """
-        Return full path to image
+        Return file-like object with image
         """
-        return os.path.join(IMG_PATH, self.filename)
+        if self.image:
+            buf = StringIO()
+            buf.write(self.image)
+            buf.seek(0)
+            return buf
+        else:
+            return None
 
     def __repr__(self):
-        return "<Image('%s', %s)>" % (str(self.filename), str(self.id))
+        return "<Image(%s)>" % str(self.id)
 
 
 class Exif(Base):

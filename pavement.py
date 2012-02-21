@@ -1,7 +1,7 @@
 """
     Project: pyGTKtalog
     Description: Makefile and setup.py replacement. Used python packages -
-    paver, nosetests. External commands - xgettext, intltool-extract, svn,
+    paver, nosetests. External commands - xgettext, intltool-extract, hg,
     grep.
     Type: management
     Author: Roman 'gryf' Dobosz, gryf73@gmail.com
@@ -37,7 +37,7 @@ msgstr ""
 "Content-Transfer-Encoding: utf-8\\n"
 """
 
-REV = os.popen("svn info 2>/dev/null|grep ^Revis|cut -d ' ' -f 2").readlines()
+REV = os.popen("hg sum 2>/dev/null|grep ^Revis|cut -d ' ' -f 2").readlines()
 if REV:
     REV = "r" + REV[0].strip()
 else:
@@ -77,7 +77,7 @@ setup(
       exclude_package_data={'': ['*.patch']},
       packages=["pygtktalog"],
       scripts=['bin/gtktalog.py'],
-      test_suite = 'nose.collector'
+      test_suite='nose.collector'
 )
 
 options(sphinx=Bunch(builddir="build", sourcedir="source"))
@@ -88,6 +88,7 @@ options(sphinx=Bunch(builddir="build", sourcedir="source"))
 def sdist():
     """sdist with message catalogs"""
     call_task("setuptools.command.sdist")
+
 
 @task
 @needs(['locale_gen'])
@@ -103,10 +104,12 @@ def clean():
     for root, dummy, files in os.walk("."):
         for fname in files:
             if fname.endswith(".pyc") or fname.endswith(".pyo") or \
-               fname.endswith("~") or fname.endswith(".h"):
+                    fname.endswith("~") or fname.endswith(".h") or \
+                    fname == '.coverage':
                 fdel = os.path.join(root, fname)
                 os.unlink(fdel)
                 print "deleted", fdel
+
 
 @task
 @needs(["clean"])
@@ -123,12 +126,14 @@ def distclean():
             os.unlink(filename)
             print "deleted", filename
 
+
 @task
 def run():
     """run application"""
     sh("PYTHONPATH=%s:$PYTHONPATH bin/gtktalog.py" % _setup_env())
     #import gtktalog
     #gtktalog.run()
+
 
 @task
 def pot():
@@ -150,7 +155,8 @@ def pot():
                 sh(cmd % (POTFILE, os.path.join(root, fname)))
             elif fname.endswith(".glade"):
                 sh(cmd_glade % os.path.join(root, fname))
-                sh(cmd % (POTFILE, os.path.join(root, fname+".h")))
+                sh(cmd % (POTFILE, os.path.join(root, fname + ".h")))
+
 
 @task
 @needs(['pot'])
@@ -164,6 +170,7 @@ def locale_merge():
             sh('msgmerge -U %s %s' % (msg_catalog, potfile))
         else:
             shutil.copy(potfile, msg_catalog)
+
 
 @task
 @needs(['locale_merge'])
@@ -183,12 +190,14 @@ def locale_gen():
         msg_catalog = os.path.join('locale', "%s.po" % lang)
         sh('msgfmt %s -o %s' % (msg_catalog, catalog_file))
 
+
 if HAVE_LINT:
     @task
     def pylint():
         '''Check the module you're building with pylint.'''
         pylintopts = ['pygtktalog']
         dry('pylint %s' % (" ".join(pylintopts)), lint.Run, pylintopts)
+
 
 @task
 @cmdopts([('coverage', 'c', 'display coverage information')])
@@ -198,6 +207,7 @@ def test(options):
     if hasattr(options.test, 'coverage'):
         cmd += " --with-coverage --cover-package pygtktalog"
     os.system(cmd)
+
 
 @task
 @needs(['locale_gen'])
@@ -216,4 +226,3 @@ def _setup_env():
         sys.path.insert(0, this_path)
 
     return this_path
-

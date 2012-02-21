@@ -1,14 +1,13 @@
 """
     Project: pyGTKtalog
-    Description: Create thumbnail for sepcified image
+    Description: Create thumbnail for sepcified image by its filename
     Type: lib
     Author: Roman 'gryf' Dobosz, gryf73@gmail.com
     Created: 2011-05-15
 """
-
 import os
 import sys
-import shutil
+from cStringIO import StringIO
 from tempfile import mkstemp
 
 import Image
@@ -20,7 +19,7 @@ from pygtktalog import EXIF
 LOG = get_logger(__name__)
 
 
-class Thumbnail(object):
+class ThumbCreator(object):
     """
     Class for generate/extract thumbnail from image file
     """
@@ -28,11 +27,12 @@ class Thumbnail(object):
     def __init__(self, filename):
         self.thumb_x = 160
         self.thumb_y = 160
-        self.filename = filename
+        self.filename = filename.decode(sys.getfilesystemencoding())
+        self.fobj = StringIO()
 
-    def save(self):
+    def generate(self):
         """
-        Save thumbnail into temporary file
+        Generate and return file-like object with thumbnail
         """
         exif = {}
         orientations = {2: Image.FLIP_LEFT_RIGHT,  # Mirrored horizontal
@@ -51,28 +51,30 @@ class Thumbnail(object):
         os.close(file_desc)
 
         if 'JPEGThumbnail' not in exif:
-            LOG.debug("no exif thumb")
+            LOG.debug("no exif thumb for file %s; creating." % self.filename)
             thumb = self._scale_image()
             if thumb:
-                thumb.save(thumb_fn, "JPEG")
+                thumb.save(self.fobj, "JPEG")
         else:
             LOG.debug("exif thumb for filename %s" % self.filename)
             exif_thumbnail = exif['JPEGThumbnail']
-            thumb = open(thumb_fn, 'wb')
-            thumb.write(exif_thumbnail)
-            thumb.close()
+            self.fobj.write(exif_thumbnail)
+            self.fobj.seek(0)
 
-            if 'Image Orientation' in exif:
-                orient = exif['Image Orientation'].values[0]
-                if orient > 1 and orient in orientations:
-                    thumb_image = Image.open(self.thumb_fn)
-                    tmp_thumb_img = thumb_image.transpose(orientations[orient])
+        if 'Image Orientation' in exif:
+            orient = exif['Image Orientation'].values[0]
+            if orient > 1 and orient in orientations:
+                thumb_image = Image.open(self.fobj)
+                tmp_thumb_img = thumb_image.transpose(orientations[orient])
 
-                    if orient in flips:
-                        tmp_thumb_img = tmp_thumb_img.transpose(flips[orient])
+                if orient in flips:
+                    tmp_thumb_img = tmp_thumb_img.transpose(flips[orient])
 
-                    tmp_thumb_img.save(thumb_fn, 'JPEG')
-        return thumb_fn
+                self.fobj.seek(0)
+                self.fobj.truncate()
+                tmp_thumb_img.save(self.fobj, 'JPEG')
+
+        return self.fobj
 
     def _get_exif(self):
         """
