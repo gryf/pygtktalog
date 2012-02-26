@@ -13,10 +13,12 @@ from pygtktalog.dbobjects import File
 from pygtktalog.dbcommon import connect, Session
 
 
+TEST_DIR = "/home/share/_test_/test_dir"
+TEST_DIR_PERMS = "/home/share/_test_/test_dir_permissions/"
 
 class TestScan(unittest.TestCase):
     """
-    Testcases for scan functionality
+    Test cases for scan functionality
 
     1. execution scan function:
     1.1 simple case - should pass
@@ -53,7 +55,7 @@ class TestScan(unittest.TestCase):
         """
         scanob = scan.Scan(os.path.abspath(os.path.join(__file__,
                                                         "../../../mocks")))
-        scanob = scan.Scan("/mnt/data/_test_/test_dir")
+        scanob = scan.Scan(TEST_DIR)
         result_list = scanob.add_files()
         self.assertEqual(len(result_list), 143)
         self.assertEqual(len(result_list[0].children), 8)
@@ -76,28 +78,28 @@ class TestScan(unittest.TestCase):
 
         # dir contains some non accessable items. Should just pass, and on
         # logs should be messages about it
-        scanobj.path = "/mnt/data/_test_/test_dir_permissions/"
+        scanobj.path = TEST_DIR_PERMS
         scanobj.add_files()
 
     def test_abort_functionality(self):
-        scanobj = scan.Scan("/mnt/data/_test_/test_dir")
+        scanobj = scan.Scan(TEST_DIR)
         scanobj.abort = True
         self.assertEqual(None, scanobj.add_files())
 
-    def test_rescan(self):
+    def test_double_scan(self):
         """
         Do the scan twice.
         """
         ses = Session()
         self.assertEqual(len(ses.query(File).all()), 1)
 
-        scanob = scan.Scan("/mnt/data/_test_/test_dir")
+        scanob = scan.Scan(TEST_DIR)
         scanob.add_files()
 
         # note: we have 144 elements in db, because of root element
         self.assertEqual(len(ses.query(File).all()), 144)
 
-        scanob2 = scan.Scan("/mnt/data/_test_/test_dir")
+        scanob2 = scan.Scan(TEST_DIR)
         scanob2.add_files()
         # it is perfectly ok, since we don't update collection, but just added
         # same directory twice.
@@ -106,14 +108,14 @@ class TestScan(unittest.TestCase):
         file2_ob = scanob2._files[2]
 
         # File objects are different
-        self.assertTrue(file_ob.id != file2_ob.id)
+        self.assertTrue(file_ob is not file2_ob)
 
         # While Image objects points to the same file
         self.assertTrue(file_ob.images[0].filename == \
                 file2_ob.images[0].filename)
 
         # they are different objects
-        self.assertTrue(file_ob.images[0].id != file2_ob.images[0].id)
+        self.assertTrue(file_ob.images[0] is not file2_ob.images[0])
 
         ses.close()
 

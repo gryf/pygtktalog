@@ -7,8 +7,6 @@
 """
 
 import os
-import sys
-import shutil
 from tempfile import mkstemp
 
 import Image
@@ -20,7 +18,7 @@ from pygtktalog import EXIF
 LOG = get_logger(__name__)
 
 
-class Thumbnail(object):
+class ThumbCreator(object):
     """
     Class for generate/extract thumbnail from image file
     """
@@ -30,7 +28,7 @@ class Thumbnail(object):
         self.thumb_y = 160
         self.filename = filename
 
-    def save(self):
+    def generate(self):
         """
         Save thumbnail into temporary file
         """
@@ -50,28 +48,29 @@ class Thumbnail(object):
         file_desc, thumb_fn = mkstemp(suffix=".jpg")
         os.close(file_desc)
 
-        if 'JPEGThumbnail' not in exif:
-            LOG.debug("no exif thumb")
-            thumb = self._scale_image()
-            if thumb:
-                thumb.save(thumb_fn, "JPEG")
-        else:
+        if exif and 'JPEGThumbnail' in exif and exif['JPEGThumbnail']:
             LOG.debug("exif thumb for filename %s" % self.filename)
             exif_thumbnail = exif['JPEGThumbnail']
             thumb = open(thumb_fn, 'wb')
             thumb.write(exif_thumbnail)
             thumb.close()
+        else:
+            LOG.debug("no exif thumb")
+            thumb = self._scale_image()
+            if thumb:
+                thumb.save(thumb_fn, "JPEG")
 
-            if 'Image Orientation' in exif:
-                orient = exif['Image Orientation'].values[0]
-                if orient > 1 and orient in orientations:
-                    thumb_image = Image.open(self.thumb_fn)
-                    tmp_thumb_img = thumb_image.transpose(orientations[orient])
+        if exif and 'Image Orientation' in exif:
+            orient = exif['Image Orientation'].values[0]
+            if orient > 1 and orient in orientations:
+                thumb_image = Image.open(self.thumb_fn)
+                tmp_thumb_img = thumb_image.transpose(orientations[orient])
 
-                    if orient in flips:
-                        tmp_thumb_img = tmp_thumb_img.transpose(flips[orient])
+                if orient in flips:
+                    tmp_thumb_img = tmp_thumb_img.transpose(flips[orient])
 
-                    tmp_thumb_img.save(thumb_fn, 'JPEG')
+                tmp_thumb_img.save(thumb_fn, 'JPEG')
+
         return thumb_fn
 
     def _get_exif(self):

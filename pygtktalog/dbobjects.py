@@ -8,21 +8,45 @@
 import os
 import errno
 import shutil
-import uuid
+from hashlib import sha256
+from zlib import crc32
 
 from sqlalchemy import Column, Table, Integer, Text
 from sqlalchemy import DateTime, ForeignKey, Sequence
 from sqlalchemy.orm import relation, backref
 
 from pygtktalog.dbcommon import Base
-from pygtktalog import thumbnail
+from pygtktalog.thumbnail import ThumbCreator
+from pygtktalog.logger import get_logger
 
 
-IMG_PATH = "/home/gryf/.pygtktalog/imgs/"  # FIXME: should be configurable
+LOG = get_logger(__name__)
+
+IMG_PATH = "/home/gryf/.pygtktalog/imgs2/"  # FIXME: should be configurable
 
 tags_files = Table("tags_files", Base.metadata,
                    Column("file_id", Integer, ForeignKey("files.id")),
                    Column("tag_id", Integer, ForeignKey("tags.id")))
+
+TYPE = {'root': 0, 'dir': 1, 'file': 2, 'link': 3}
+
+
+def mk_paths(fname):
+    #new_name = str(uuid.uuid1()).split("-")
+    fd = open(fname)
+    new_path = "%x" % (crc32(fd.read(10*1024*1024)) & 0xffffffff)
+    fd.close()
+
+    new_path = [new_path[i:i + 2] for i in range(0, len(new_path), 2)]
+    full_path = os.path.join(IMG_PATH, *new_path[:-1])
+
+    try:
+        os.makedirs(full_path)
+    except OSError as exc:
+        if exc.errno != errno.EEXIST:
+            LOG.debug("Directory %s already exists." % full_path)
+
+    return new_path
 
 
 class File(Base):
@@ -37,6 +61,7 @@ class File(Base):
     source = Column(Integer)
     note = Column(Text)
     description = Column(Text)
+    checksum = Column(Text)
 
     children = relation('File',
                         backref=backref('parent', remote_side="File.id"),
@@ -58,6 +83,35 @@ class File(Base):
     def __repr__(self):
         return "<File('%s', %s)>" % (str(self.filename), str(self.id))
 
+    def get_all_children(self):
+        """
+        Return list of all node direct and indirect children
+        """
+        def _recursive(node):
+            children = []
+            if node.children:
+                for child in node.children:
+                    children += _recursive(child)
+            if node != self:
+                children.append(node)
+
+            return children
+
+        if self.children:
+            return _recursive(self)
+        else:
+            return []
+
+    def mk_checksum(self):
+        if not (self.filename and self.filepath):
+            return
+
+        full_name = os.path.join(self.filepath, self.filename)
+
+        if os.path.isfile(full_name):
+            fd = open(full_name)
+            self.checksum = sha256(fd.read(10*1024*1024)).hexdigest()
+            fd.close()
 
 class Group(Base):
     __tablename__ = "groups"
@@ -99,29 +153,28 @@ class Thumbnail(Base):
     def __init__(self, filename=None, file_obj=None):
         self.filename = filename
         self.file = file_obj
-        if self.filename:
+        if filename and file_obj:
             self.save(self.filename)
 
     def save(self, fname):
         """
         Create file related thumbnail, add it to the file object.
         """
-        new_name = str(uuid.uuid1()).split("-")
-        try:
-            os.makedirs(os.path.join(IMG_PATH, *new_name[:-1]))
-        except OSError as exc:
-            if exc.errno != errno.EEXIST:
-                raise
-
+        new_name = mk_paths(fname)
         ext = os.path.splitext(self.filename)[1]
         if ext:
             new_name.append("".join([new_name.pop(), ext]))
 
-        thumb = thumbnail.Thumbnail(self.filename).save()
+        thumb = ThumbCreator(self.filename).generate()
         name, ext = os.path.splitext(new_name.pop())
         new_name.append("".join([name, "_t", ext]))
         self.filename = os.path.sep.join(new_name)
-        shutil.move(thumb.save(), os.path.join(IMG_PATH, *new_name))
+        if not os.path.exists(os.path.join(IMG_PATH, *new_name)):
+            shutil.move(thumb, os.path.join(IMG_PATH, *new_name))
+        else:
+            LOG.info("Thumbnail already exists (%s: %s)" % \
+                    (fname, "/".join(new_name)))
+            os.unlink(thumb)
 
     def __repr__(self):
         return "<Thumbnail('%s', %s)>" % (str(self.filename), str(self.id))
@@ -133,37 +186,44 @@ class Image(Base):
     file_id = Column(Integer, ForeignKey("files.id"))
     filename = Column(Text)
 
-    def __init__(self, filename=None, file_obj=None):
+    def __init__(self, filename=None, file_obj=None, move=True):
         self.filename = None
         self.file = file_obj
         if filename:
             self.filename = filename
-            self.save(filename)
+            self.save(filename, move)
 
-    def save(self, fname):
+    def save(self, fname, move=True):
         """
         Save and create coressponding thumbnail (note: it differs from file
         related thumbnail!)
         """
-        new_name = str(uuid.uuid1()).split("-")
-        try:
-            os.makedirs(os.path.join(IMG_PATH, *new_name[:-1]))
-        except OSError as exc:
-            if exc.errno != errno.EEXIST:
-                raise
-
+        new_name = mk_paths(fname)
         ext = os.path.splitext(self.filename)[1]
+
         if ext:
             new_name.append("".join([new_name.pop(), ext]))
 
-        shutil.move(self.filename, os.path.join(IMG_PATH, *new_name))
+        if not os.path.exists(os.path.join(IMG_PATH, *new_name)):
+            if move:
+                shutil.move(self.filename, os.path.join(IMG_PATH, *new_name))
+            else:
+                shutil.copy(self.filename, os.path.join(IMG_PATH, *new_name))
+        else:
+            LOG.warning("Image with same CRC already exists "
+                        "('%s', '%s')" % (self.filename, "/".join(new_name)))
 
         self.filename = os.path.sep.join(new_name)
 
-        thumb = thumbnail.Thumbnail(os.path.join(IMG_PATH, self.filename))
         name, ext = os.path.splitext(new_name.pop())
         new_name.append("".join([name, "_t", ext]))
-        shutil.move(thumb.save(), os.path.join(IMG_PATH, *new_name))
+
+        if not os.path.exists(os.path.join(IMG_PATH, *new_name)):
+            thumb = ThumbCreator(os.path.join(IMG_PATH, self.filename))
+            shutil.move(thumb.generate(), os.path.join(IMG_PATH, *new_name))
+        else:
+            LOG.info("Thumbnail already generated %s" % "/".join(new_name))
+
 
     def get_copy(self):
         """

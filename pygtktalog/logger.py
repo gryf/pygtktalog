@@ -9,23 +9,17 @@ import os
 import sys
 import logging
 
+LEVEL = {'DEBUG': logging.DEBUG,
+         'INFO': logging.INFO,
+         'WARN': logging.WARN,
+         'ERROR': logging.ERROR,
+         'CRITICAL': logging.CRITICAL}
+
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 
-# The background is set with 40 plus the number of the color, and the
-# foreground with 30
-
-#These are the sequences need to get colored ouput
 RESET_SEQ = "\033[0m"
 COLOR_SEQ = "\033[1;%dm"
 BOLD_SEQ = "\033[1m"
-
-def formatter_message(message, use_color = True):
-    if use_color:
-        message = message.replace("$RESET", RESET_SEQ).replace("$BOLD",
-                                                               BOLD_SEQ)
-    else:
-        message = message.replace("$RESET", "").replace("$BOLD", "")
-    return message
 
 COLORS = {'WARNING': YELLOW,
           'INFO': GREEN,
@@ -33,8 +27,9 @@ COLORS = {'WARNING': YELLOW,
           'CRITICAL': WHITE,
           'ERROR': RED}
 
+
 class ColoredFormatter(logging.Formatter):
-    def __init__(self, msg, use_color = True):
+    def __init__(self, msg, use_color=True):
         logging.Formatter.__init__(self, msg)
         self.use_color = use_color
 
@@ -45,45 +40,43 @@ class ColoredFormatter(logging.Formatter):
                     + levelname + RESET_SEQ
             record.levelname = levelname_color
         return logging.Formatter.format(self, record)
-LEVEL = {'DEBUG': logging.DEBUG,
-         'INFO': logging.INFO,
-         'WARN': logging.WARN,
-         'ERROR': logging.ERROR,
-         'CRITICAL': logging.CRITICAL}
 
-#def get_logger(module_name, level=None, to_file=True):
-def get_logger(module_name, level=None, to_file=False):
+
+#def get_logger(module_name, level='INFO', to_file=False):
+def get_logger(module_name, level='DEBUG', to_file=True):
+#def get_logger(module_name, level='INFO', to_file=True):
+#def get_logger(module_name, level='DEBUG', to_file=False):
     """
     Prepare and return log object. Standard formatting is used for all logs.
     Arguments:
         @module_name - String name for Logger object.
         @level - Log level (as string), one of DEBUG, INFO, WARN, ERROR and
                  CRITICAL.
-        @to_file - If True, stores log in file inside .pygtktalog config
-                   directory, otherwise log is redirected to stderr.
+        @to_file - If True, additionally stores full log in file inside
+                   .pygtktalog config directory and to stderr, otherwise log
+                   is only redirected to stderr.
     Returns: object of logging.Logger class
     """
 
     path = os.path.join(os.path.expanduser("~"), ".pygtktalog", "app.log")
-    path = "/dev/null"
+    #path = "/dev/null"
     log = logging.getLogger(module_name)
+    log.setLevel(LEVEL[level])
 
-    if not level:
-        #log.setLevel(LEVEL['WARN'])
-        log.setLevel(LEVEL['DEBUG'])
-    else:
-        log.setLevel(LEVEL[level])
+    console_handler = logging.StreamHandler(sys.stderr)
+    console_formatter = ColoredFormatter("%(filename)s:%(lineno)s - "
+                                  "%(levelname)s - %(message)s")
+    console_handler.setFormatter(console_formatter)
+
+    log.addHandler(console_handler)
 
     if to_file:
-        log_handler = logging.FileHandler(path)
-        formatter = logging.Formatter("%(asctime)s %(filename)s:%(lineno)s - "
-                                      "%(levelname)s - %(message)s")
-    else:
-        log_handler = logging.StreamHandler(sys.stderr)
-        formatter = ColoredFormatter("%(filename)s:%(lineno)s - "
-                                      "%(levelname)s - %(message)s")
+        file_handler = logging.FileHandler(path)
+        file_formatter = logging.Formatter("%(asctime)s %(levelname)6s "
+                                           "%(filename)s: %(lineno)s - "
+                                           "%(message)s")
+        file_handler.setFormatter(file_formatter)
+        file_handler.setLevel(LEVEL[level])
+        log.addHandler(file_handler)
 
-    log_handler.setFormatter(formatter)
-    log.addHandler(log_handler)
     return log
-

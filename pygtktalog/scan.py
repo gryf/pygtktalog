@@ -7,16 +7,29 @@
 """
 import os
 import sys
+import re
 from datetime import datetime
 import mimetypes
 
-from pygtktalog.dbobjects import File, Image
+from pygtktalog.dbobjects import File, Image, Thumbnail, TYPE
 from pygtktalog.dbcommon import Session
 from pygtktalog.logger import get_logger
 from pygtktalog.video import Video
 
 
 LOG = get_logger(__name__)
+PAT = re.compile("(\[[^\]]*\]"
+                 ".*\(\d\d\d\d\))"
+                 "\s[^\[]*\[.{8}\]"
+                 ".[a-zA-Z0-9]*$")
+
+#PAT = re.compile(r'(?P<group>\[[^\]]*\]\s)?'
+#                 r'(?P<title>.*)\s'
+#                 r'(?P<year>\(\d{4}\))\s'
+#                 r'(?P<kind>.*)'
+#                 r'(?P<checksum>\[[A-Z0-9]{8}\])'
+#                 r'\.(?P<extension>(avi|asf|mpeg|mpg|mp4|ogm|ogv|mkv|mov|wmv'
+#                 r'|rm|rmvb|flv|jpg|png|gif|nfo))\.?(conf)?$')
 
 
 class NoAccessError(Exception):
@@ -36,8 +49,11 @@ class Scan(object):
         self.abort = False
         self.path = path.rstrip(os.path.sep)
         self._files = []
-        self._existing_files = []
+        self._existing_files = []  # for re-use purpose in adding
+        self._existing_branch = []  # for branch storage, mainly for updating
         self._session = Session()
+        self.files_count = self._get_files_count()
+        self.current_count = 0
 
     def add_files(self):
         """
@@ -45,6 +61,7 @@ class Scan(object):
         size.
         """
         self._files = []
+        self._existing_branch = []
         LOG.debug("given path: %s" % self.path)
 
         # See, if file exists. If not it would raise OSError exception
@@ -56,12 +73,62 @@ class Scan(object):
 
         directory = os.path.basename(self.path)
         path = os.path.dirname(self.path)
-        if not self._recursive(None, directory, path, 0, 0, 1):
+
+        if not self._recursive(None, directory, path, 0):
             return None
 
         # add only first item from _files, because it is a root of the other,
         # so other will be automatically added aswell.
         self._session.add(self._files[0])
+        self._session.commit()
+        return self._files
+
+    def update_files(self, node_id):
+        """
+        Updtate DB contents of provided node.
+        """
+        self.current_count = 0
+        old_node = self._session.query(File).get(node_id)
+        if old_node is None:
+            LOG.warning("No such object in db: %s", node_id)
+            return
+        parent = old_node.parent
+
+        self._files = []
+        self._existing_branch = old_node.get_all_children()
+        self._existing_branch.insert(0, old_node)
+
+        # Break the chain of parent-children relations
+        for fobj in self._existing_branch:
+            fobj.parent = None
+
+        update_path = os.path.join(old_node.filepath, old_node.filename)
+
+        # refresh objects
+        self._get_all_files()
+
+        LOG.debug("path for update: %s" % update_path)
+
+        # See, if file exists. If not it would raise OSError exception
+        os.stat(update_path)
+
+        if not os.access(update_path, os.R_OK | os.X_OK) \
+                or not os.path.isdir(update_path):
+            LOG.error("Access to %s is forbidden" % update_path)
+            raise NoAccessError("Access to %s is forbidden" % update_path)
+
+        directory = os.path.basename(update_path)
+        path = os.path.dirname(update_path)
+
+        if not self._recursive(parent, directory, path, 0):
+            return None
+
+        # update branch
+        #self._session.merge(self._files[0])
+        LOG.debug("Deleting objects whitout parent: %s" % \
+                str(self._session.query(File).filter(File.parent==None).all()))
+        self._session.query(File).filter(File.parent==None).delete()
+
         self._session.commit()
         return self._files
 
@@ -77,8 +144,8 @@ class Scan(object):
                 try:
                     size += os.stat(os.path.join(root, fname)).st_size
                 except OSError:
-                    LOG.info("Cannot access file %s" % \
-                            os.path.join(root, fname))
+                    LOG.warning("Cannot access file "
+                                "%s" % os.path.join(root, fname))
 
         return size
 
@@ -89,14 +156,26 @@ class Scan(object):
         mimedict = {'audio': self._audio,
                     'video': self._video,
                     'image': self._image}
+        extdict = {'.mkv': 'video',  # TODO: move this to config/plugin(?)
+                   '.rmvb': 'video',
+                   '.ogm': 'video',
+                   '.ogv': 'video'}
+
         fp = os.path.join(fobj.filepath.encode(sys.getfilesystemencoding()),
                           fobj.filename.encode(sys.getfilesystemencoding()))
 
         mimeinfo = mimetypes.guess_type(fp)
-        if mimeinfo[0] and mimeinfo[0].split("/")[0] in mimedict.keys():
-            mimedict[mimeinfo[0].split("/")[0]](fobj, fp)
+        if mimeinfo[0]:
+            mimeinfo = mimeinfo[0].split("/")[0]
+
+        ext = os.path.splitext(fp)[1]
+
+        if mimeinfo and mimeinfo in mimedict.keys():
+            mimedict[mimeinfo](fobj, fp)
+        elif ext and ext in extdict:
+            mimedict[extdict[ext]](fobj, fp)
         else:
-            #LOG.info("Filetype not supported " + str(mimeinfo) + " " +  fp)
+            LOG.debug("Filetype not supported " + str(mimeinfo) + " " +  fp)
             pass
 
     def _audio(self, fobj, filepath):
@@ -111,15 +190,61 @@ class Scan(object):
         """
         Make captures for a movie. Save it under uniq name.
         """
+        result = PAT.search(fobj.filename)
+        if result:
+            self._check_related(fobj, result.groups()[0])
+
         vid = Video(filepath)
 
+        fobj.description = vid.get_formatted_tags()
+
         preview_fn = vid.capture()
-        Image(preview_fn, fobj)
+        if preview_fn:
+            Image(preview_fn, fobj)
+
+    def _check_related(self, fobj, pattern):
+        """
+        Try to search for related files which belongs to specified File
+        object and pattern. If found, additional objects are created.
+        """
+        for filen in os.listdir(fobj.filepath):
+            if pattern in filen and \
+                    os.path.splitext(filen)[1] in (".jpg", ".png", ".gif"):
+                full_fname = os.path.join(fobj.filepath, filen)
+                LOG.debug('found cover file: %s' % full_fname)
+
+                Image(full_fname, fobj, False)
+
+                if not fobj.thumbnail:
+                    Thumbnail(full_fname, fobj)
+
+    def _name_matcher(self, fpath, fname, media=False):
+        """
+        Try to match special pattern to filename which may be looks like this:
+            [aXXo] Batman (1989) [D3ADBEEF].avi
+            [aXXo] Batman (1989) [D3ADBEEF].avi.conf
+            [aXXo] Batman (1989) cover [BEEFD00D].jpg
+            [aXXo] Batman (1989) cover2 [FEEDD00D].jpg
+            [aXXo] Batman (1989) trailer [B00B1337].avi
+        or
+            Batman (1989) [D3ADBEEF].avi (and so on)
+
+        For media=False it will return True for filename, that matches
+        pattern, and there are at least one corresponding media files (avi,
+        mpg, mov and so on) _in case the filename differs from media_. This is
+        usfull for not storing covers, nfo, conf files in the db.
+
+        For kind == 2 it will return all images and other files that should be
+        gather due to video file examinig as a dict of list (conf, nfo and
+        images).
+        """
+        # TODO: dokonczyc to na podstawie tego cudowanego patternu u gory.
+        return
 
     def _get_all_files(self):
         self._existing_files = self._session.query(File).all()
 
-    def _mk_file(self, fname, path, parent):
+    def _mk_file(self, fname, path, parent, ftype=TYPE['file']):
         """
         Create and return File object
         """
@@ -127,19 +252,42 @@ class Scan(object):
 
         fname = fname.decode(sys.getfilesystemencoding())
         path = path.decode(sys.getfilesystemencoding())
-        fob = File(filename=fname, path=path)
-        fob.date = datetime.fromtimestamp(os.stat(fullpath).st_mtime)
-        fob.size = os.stat(fullpath).st_size
-        fob.parent = parent
-        fob.type = 2
+
+        if ftype == TYPE['link']:
+            fname = fname + " -> " + os.readlink(fullpath)
+
+        fob = {'filename': fname,
+               'path': path,
+               'ftype': ftype}
+        try:
+            fob['date'] = datetime.fromtimestamp(os.stat(fullpath).st_mtime)
+            fob['size'] = os.stat(fullpath).st_size
+        except OSError:
+            # in case of dead softlink, we will have no time and size
+            fob['date'] = None
+            fob['size'] = 0
+
+        fobj = self._get_old_file(fob, ftype)
+
+        if fobj:
+            LOG.debug("found existing file in db: %s" % str(fobj))
+            fobj.size = fob['size']  # TODO: update whole tree sizes (for directories/discs)
+            fobj.filepath = fob['path']
+            fobj.type = fob['ftype']
+        else:
+            fobj = File(**fob)
+            fobj.mk_checksum()
 
         if parent is None:
-            fob.parent_id = 1
+            fobj.parent_id = 1
+        else:
+            fobj.parent = parent
 
-        self._files.append(fob)
-        return fob
+        self._files.append(fobj)
 
-    def _recursive(self, parent, fname, path, date, size, ftype):
+        return fobj
+
+    def _recursive(self, parent, fname, path, size):
         """
         Do the walk through the file system
         @Arguments:
@@ -147,41 +295,59 @@ class Scan(object):
                       scope
             @fname - string that hold filename
             @path - full path for further scanning
-            @date -
             @size - size of the object
-            @ftype -
         """
         if self.abort:
             return False
 
-        LOG.debug("args: fname: %s, path: %s" % (fname, path))
         fullpath = os.path.join(path, fname)
 
-        parent = self._mk_file(fname, path, parent)
-        parent.size = self._get_dirsize(fullpath)
-        parent.type = 1
+        parent = self._mk_file(fname, path, parent, TYPE['dir'])
 
-        self._get_all_files()
+        parent.size = self._get_dirsize(fullpath)
+        parent.type = TYPE['dir']
+
         root, dirs, files = os.walk(fullpath).next()
         for fname in files:
             fpath = os.path.join(root, fname)
-            fob = self._mk_file(fname, root, parent)
+            self.current_count += 1
+            LOG.debug("Processing %s [%s/%s]", fname, self.current_count,
+                      self.files_count)
+
+            result = PAT.search(fname)
+            test_ = False
+
+            if result and os.path.splitext(fpath)[1] in ('.jpg', '.gif',
+                                                         '.png'):
+                newpat = result.groups()[0]
+                matching_files = []
+                for fn_ in os.listdir(root):
+                    if newpat in fn_:
+                        matching_files.append(fn_)
+
+                if len(matching_files) > 1:
+                    LOG.debug('found cover "%s" in group: %s, skipping', fname,
+                              str(matching_files))
+                    test_ = True
+            if test_:
+                continue
+
             if os.path.islink(fpath):
-                fob.filename = fob.filename + " -> " + os.readlink(fpath)
-                fob.type = 3
+                fob = self._mk_file(fname, root, parent, TYPE['link'])
             else:
+                fob = self._mk_file(fname, root, parent)
                 existing_obj = self._object_exists(fob)
+
                 if existing_obj:
-                    fob.tags = existing_obj.tags
-                    fob.thumbnail = [th.get_copy \
-                            for th in existing_obj.thumbnail]
-                    fob.images = [img.get_copy() \
-                            for img in existing_obj.images]
+                    existing_obj.parent = fob.parent
+                    fob = existing_obj
                 else:
-                    LOG.debug("gather information")
+                    LOG.debug("gather information for %s",
+                              os.path.join(root, fname))
                     self._gather_information(fob)
                 size += fob.size
-            self._existing_files.append(fob)
+            if fob not in self._existing_files:
+                self._existing_files.append(fob)
 
         for dirname in dirs:
             dirpath = os.path.join(root, dirname)
@@ -191,15 +357,35 @@ class Scan(object):
                 continue
 
             if os.path.islink(dirpath):
-                fob = self._mk_file(dirname, root, parent)
-                fob.filename = fob.filename + " -> " + os.readlink(dirpath)
-                fob.type = 3
+                fob = self._mk_file(dirname, root, parent, TYPE['link'])
             else:
-                LOG.debug("going into %s" % dirname)
-                self._recursive(parent, dirname, fullpath, date, size, ftype)
+                LOG.debug("going into %s" % os.path.join(root, dirname))
+                self._recursive(parent, dirname, fullpath, size)
 
         LOG.debug("size of items: %s" % parent.size)
         return True
+
+    def _get_old_file(self, fdict, ftype):
+        """
+        Search for object with provided data in dictionary in stored branch
+        (which is updating). Return such object on success, remove it from
+        list.
+        """
+        for index, obj in enumerate(self._existing_branch):
+            if ftype == TYPE['link'] and fdict['filename'] == obj.filename:
+                return self._existing_branch.pop(index)
+            elif fdict['filename'] == obj.filename and \
+                    fdict['date'] == obj.date and \
+                    ftype == TYPE['file'] and \
+                    fdict['size'] in (obj.size, 0):
+                obj = self._existing_branch.pop(index)
+                obj.size = fdict['size']
+                return obj
+            elif fdict['filename'] == obj.filename:
+                obj = self._existing_branch.pop(index)
+                obj.size = fdict['date']
+                return obj
+        return False
 
     def _object_exists(self, fobj):
         """
@@ -209,16 +395,24 @@ class Scan(object):
         for efobj in self._existing_files:
             if efobj.size == fobj.size \
                     and efobj.type == fobj.type \
-                    and efobj.date == fobj.date:
+                    and efobj.date == fobj.date \
+                    and efobj.filename == fobj.filename:
                 return efobj
         return None
+
+    def _get_files_count(self):
+        count = 0
+        for root, dirs, files in os.walk(self.path):
+            count += len(files)
+        LOG.debug("count of files: %s", count)
+        return count
+
 
 class asdScan(object):
     """
     Retrieve and identify all files recursively on given path
     """
     def __init__(self, path, tree_model):
-        LOG.debug("initialization")
         self.path = path
         self.abort = False
         self.label = None
@@ -232,7 +426,7 @@ class asdScan(object):
         self.busy = True
 
         # count files in directory tree
-        LOG.info("Calculating number of files in directory tree...")
+        LOG.debug("Calculating number of files in directory tree...")
 
         step = 0
         try:
@@ -276,7 +470,7 @@ class asdScan(object):
             try:
                 root, dirs, files = os.walk(path).next()
             except:
-                LOG.debug("cannot access ", path)
+                LOG.warning("Cannot access ", path)
                 return 0
 
             #############

@@ -13,6 +13,10 @@ import math
 
 import Image
 from pygtktalog.misc import float_to_string
+from pygtktalog.logger import get_logger
+
+
+LOG = get_logger("Video")
 
 
 class Video(object):
@@ -38,12 +42,13 @@ class Video(object):
                  'ID_VIDEO_HEIGHT': ['height', int],
                  # length is in seconds
                  'ID_LENGTH': ['length', lambda x: int(x.split(".")[0])],
+                 'ID_START_TIME': ['start', self._get_start_pos],
                  'ID_DEMUXER': ['container', self._return_lower],
                  'ID_VIDEO_FORMAT': ['video_format', self._return_lower],
                  'ID_VIDEO_CODEC': ['video_codec', self._return_lower],
                  'ID_AUDIO_CODEC': ['audio_codec', self._return_lower],
                  'ID_AUDIO_FORMAT': ['audio_format', self._return_lower],
-                 'ID_AUDIO_NCH':  ['audio_no_channels', int],}
+                 'ID_AUDIO_NCH': ['audio_no_channels', int]}
                  # TODO: what about audio/subtitle language/existence?
 
         for key in output:
@@ -51,8 +56,10 @@ class Video(object):
                 self.tags[attrs[key][0]] = attrs[key][1](output[key])
 
         if 'length' in self.tags and self.tags['length'] > 0:
-            hours = self.tags['length'] / 3600
-            seconds = self.tags['length'] - hours * 3600
+            start = self.tags.get('start', 0)
+            length = self.tags['length'] - start
+            hours = length / 3600
+            seconds = length - hours * 3600
             minutes = seconds / 60
             seconds -= minutes * 60
             length_str = "%02d:%02d:%02d" % (hours, minutes, seconds)
@@ -70,11 +77,11 @@ class Video(object):
         other place, otherwise it stays in filesystem.
         """
 
-        if not (self.tags.has_key('length') and self.tags.has_key('width')):
+        if not ('length' in self.tags and 'width' in self.tags):
             # no length or width
             return None
 
-        if not (self.tags['length'] >0 and self.tags['width'] >0):
+        if not (self.tags['length'] > 0 and self.tags['width'] > 0):
             # zero length or wight
             return None
 
@@ -88,7 +95,7 @@ class Video(object):
         no_pictures = self.tags['length'] / scale
 
         if no_pictures > 8:
-            no_pictures = (no_pictures / 8 ) * 8 # only multiple of 8, please.
+            no_pictures = (no_pictures / 8) * 8  # only multiple of 8, please.
         else:
             # for really short movies
             no_pictures = 4
@@ -101,6 +108,38 @@ class Video(object):
 
         shutil.rmtree(tempdir)
         return image_fn
+
+    def get_formatted_tags(self):
+        """
+        Return formatted tags as a string
+        """
+        out_tags = u''
+        if 'container' in self.tags:
+            out_tags += u"Container: %s\n" % self.tags['container']
+
+        if 'width' in self.tags and 'height' in self.tags:
+            out_tags += u"Resolution: %sx%s\n" % (self.tags['width'],
+                                                  self.tags['height'])
+
+        if 'duration' in self.tags:
+            out_tags += u"Duration: %s\n" % self.tags['duration']
+
+        if 'video_codec' in self.tags:
+            out_tags += "Video codec: %s\n" % self.tags['video_codec']
+
+        if 'video_format' in self.tags:
+            out_tags += "Video format: %s\n" % self.tags['video_format']
+
+        if 'audio_codec' in self.tags:
+            out_tags += "Audio codec: %s\n" % self.tags['audio_codec']
+
+        if 'audio_format' in self.tags:
+            out_tags += "Audio format: %s\n" % self.tags['audio_format']
+
+        if 'audio_no_channels' in self.tags:
+            out_tags += "Audio channels: %s\n" % self.tags['audio_no_channels']
+
+        return out_tags
 
     def _get_movie_info(self):
         """
@@ -139,18 +178,23 @@ class Video(object):
             @directory - full output directory name
             @no_pictures - number of pictures to take
         """
-        step = float(self.tags['length']/(no_pictures + 1))
+        step = float(self.tags['length'] / (no_pictures + 1))
         current_time = 0
         for dummy in range(1, no_pictures + 1):
             current_time += step
             time = float_to_string(current_time)
-            cmd  = "mplayer \"%s\" -ao null -brightness 0 -hue 0 " \
-            "-saturation 0 -contrast 0 -vf-clr -vo jpeg:outdir=\"%s\" -ss %s" \
+            cmd = "mplayer \"%s\" -ao null -brightness 0 -hue 0 " \
+            "-saturation 0 -contrast 0 -mc 0 -vf-clr -vo jpeg:outdir=\"%s\" -ss %s" \
             " -frames 1 2>/dev/null"
             os.popen(cmd % (self.filename, directory, time)).readlines()
 
-            shutil.move(os.path.join(directory, "00000001.jpg"),
-                        os.path.join(directory, "picture_%s.jpg" % time))
+            try:
+                shutil.move(os.path.join(directory, "00000001.jpg"),
+                            os.path.join(directory, "picture_%s.jpg" % time))
+            except IOError, (errno, strerror):
+                LOG.error('error capturing file from movie "%s" at position '
+                          '%s. Errors: %s, %s', self.filename, time, errno,
+                          strerror)
 
     def _make_montage(self, directory, image_fn, no_pictures):
         """
@@ -199,7 +243,7 @@ class Video(object):
 
         for irow in range(no_pictures * row_length):
             for icol in range(row_length):
-                left = 1 + icol*(dim[0] + 1)
+                left = 1 + icol * (dim[0] + 1)
                 right = left + dim[0]
                 upper = 1 + irow * (dim[1] + 1)
                 lower = upper + dim[1]
@@ -221,9 +265,17 @@ class Video(object):
         """
         return str(chain).lower()
 
+    def _get_start_pos(self, chain):
+        """
+        Return integer for starting point of the movie
+        """
+        try:
+            return int(chain.split(".")[0])
+        except:
+            return 0
+
     def __str__(self):
         str_out = ''
         for key in self.tags:
             str_out += "%20s: %s\n" % (key, self.tags[key])
         return str_out
-
