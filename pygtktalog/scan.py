@@ -55,7 +55,7 @@ class Scan(object):
         self.files_count = self._get_files_count()
         self.current_count = 0
 
-    def add_files(self):
+    def add_files(self, engine=None):
         """
         Returns list, which contain object, modification date and file
         size.
@@ -83,7 +83,41 @@ class Scan(object):
         self._session.commit()
         return self._files
 
-    def update_files(self, node_id):
+    def get_all_children(self, node_id, engine):
+        """
+        Get children by pure SQL
+
+        Starting from sqlite 3.8.3 it is possile to do this operation as a
+        one query using WITH statement. For now on it has to be done in
+        application.
+        """
+        SQL = "select id from files where parent_id=? and type=1"
+        SQL2 = "select id from files where parent_id in (%s)"
+
+        row = ((node_id,),)
+        all_ids = []
+        def req(obj):
+            for line in obj:
+                all_ids.append(line[0])
+                res = engine.execute(SQL, (line[0],)).fetchall()
+                if res:
+                    req(res)
+
+        req(row)
+
+        sql = SQL2 % ",".join("?" * len(all_ids))
+        res = engine.execute(sql, tuple(all_ids)).fetchall()
+
+        all_obj = []
+        for row in res:
+            all_obj.append(self._session
+                           .query(File)
+                           .filter(File.id == row[0])
+                           .first())
+
+        return all_obj
+
+    def update_files(self, node_id, engine=None):
         """
         Updtate DB contents of provided node.
         """
@@ -95,16 +129,30 @@ class Scan(object):
         parent = old_node.parent
 
         self._files = []
-        self._existing_branch = old_node.get_all_children()
+
+        if engine:
+            LOG.debug("Getting all File objects via SQL")
+            self._existing_branch = self.get_all_children(node_id, engine)
+        else:
+            LOG.debug("Getting all File objects via ORM (yeah, it SLOW)")
+            self._existing_branch = old_node.get_all_children()
+
         self._existing_branch.insert(0, old_node)
 
         # Break the chain of parent-children relations
+        LOG.debug("Make them orphans")
         for fobj in self._existing_branch:
             fobj.parent = None
 
         update_path = os.path.join(old_node.filepath, old_node.filename)
+        # gimme a string. unicode can't handle strange filenames in paths, so
+        # in case of such, better get me a byte string. It is not perfect
+        # though, since it WILL crash if the update_path would contain some
+        # unconvertable characters.
+        update_path = update_path.encode("utf-8")
 
         # refresh objects
+        LOG.debug("Refreshing objects")
         self._get_all_files()
 
         LOG.debug("path for update: %s" % update_path)
@@ -142,11 +190,11 @@ class Scan(object):
         for root, dirs, files in os.walk(path):
             for fname in files:
                 try:
-                    size += os.stat(os.path.join(root, fname)).st_size
+                    size += os.lstat(os.path.join(root, fname)).st_size
                 except OSError:
                     LOG.warning("Cannot access file "
                                 "%s" % os.path.join(root, fname))
-
+        LOG.debug("_get_dirsize, %s: %d", path, size)
         return size
 
     def _gather_information(self, fobj):
@@ -175,7 +223,7 @@ class Scan(object):
         elif ext and ext in extdict:
             mimedict[extdict[ext]](fobj, fp)
         else:
-            LOG.debug("Filetype not supported " + str(mimeinfo) + " " +  fp)
+            LOG.debug("Filetype not supported %s %s", str(mimeinfo), fp)
             pass
 
     def _audio(self, fobj, filepath):
@@ -250,8 +298,10 @@ class Scan(object):
         """
         fullpath = os.path.join(path, fname)
 
-        fname = fname.decode(sys.getfilesystemencoding())
-        path = path.decode(sys.getfilesystemencoding())
+        fname = fname.decode(sys.getfilesystemencoding(),
+                             errors="replace")
+        path = path.decode(sys.getfilesystemencoding(),
+                           errors="replace")
 
         if ftype == TYPE['link']:
             fname = fname + " -> " + os.readlink(fullpath)
@@ -276,7 +326,8 @@ class Scan(object):
             fobj.type = fob['ftype']
         else:
             fobj = File(**fob)
-            fobj.mk_checksum()
+            # SLOW. Don;t do this. Checksums has no value eventually
+            # fobj.mk_checksum()
 
         if parent is None:
             fobj.parent_id = 1
@@ -286,6 +337,33 @@ class Scan(object):
         self._files.append(fobj)
 
         return fobj
+
+    def _non_recursive(self, parent, fname, path, size):
+        """
+        Do the walk through the file system. Non recursively, since it's
+        slow as hell.
+        @Arguments:
+            @parent - directory File object which is parent for the current
+                      scope
+            @fname - string that hold filename
+            @path - full path for further scanning
+            @size - size of the object
+        """
+        fullpath = os.path.join(path, fname)
+        parent = self._mk_file(fname, path, parent, TYPE['dir'])
+        parent.size = 0
+        parent.type = TYPE['dir']
+
+        for root, dirs, files in os.walk(fullpath):
+            for dir_ in dirs:
+                pass
+
+            for file_ in files:
+                self.current_count += 1
+                stat = os.lstat(os.path.join(root, file_))
+                parent.size += stat.st_size
+
+        # TODO: finish that up
 
     def _recursive(self, parent, fname, path, size):
         """
@@ -306,6 +384,9 @@ class Scan(object):
 
         parent.size = self._get_dirsize(fullpath)
         parent.type = TYPE['dir']
+
+        LOG.info("Scanning `%s' [%s/%s]", fullpath, self.current_count,
+                 self.files_count)
 
         root, dirs, files = os.walk(fullpath).next()
         for fname in files:
@@ -402,7 +483,7 @@ class Scan(object):
 
     def _get_files_count(self):
         count = 0
-        for root, dirs, files in os.walk(self.path):
+        for root, dirs, files in os.walk(str(self.path)):
             count += len(files)
         LOG.debug("count of files: %s", count)
         return count
@@ -470,7 +551,7 @@ class asdScan(object):
             try:
                 root, dirs, files = os.walk(path).next()
             except:
-                LOG.warning("Cannot access ", path)
+                LOG.warning("Cannot access %s", path)
                 return 0
 
             #############

@@ -21,7 +21,7 @@ import __builtin__
 
 import gtk.glade
 
-from logger import get_logger
+from pygtktalog.logger import get_logger
 
 
 __all__ = ['controllers',
@@ -59,7 +59,7 @@ for module in gtk.glade, gettext:
 __builtin__._ = gettext.gettext
 
 # wrap errors into usefull message
-def log_exception(exc_type, exc_val, traceback):
-    get_logger(__name__).error(exc_val)
-
-sys.excepthook = log_exception
+#def log_exception(exc_type, exc_val, traceback):
+#    get_logger(__name__).error(exc_val)
+#
+#sys.excepthook = log_exception

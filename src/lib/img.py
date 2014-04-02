@@ -26,7 +26,8 @@ from shutil import copy
 from os import path
 from hashlib import sha512
 
-import Image
+from PIL import Image
+
 
 class Img(object):
 
@@ -46,7 +47,7 @@ class Img(object):
 
         image_filename = path.join(self.base, self.sha512)
         thumbnail = path.join(self.base, self.sha512 + "_t")
-        
+
         # check wheter image already exists
         if path.exists(image_filename) and path.exists(thumbnail):
             if __debug__:

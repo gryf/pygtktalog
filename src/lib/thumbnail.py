@@ -28,8 +28,10 @@ from shutil import move
 from os import path
 import sys
 
+from PIL import Image
+
 from lib import EXIF
-import Image
+
 
 class Thumbnail(object):
     """Class for generate/extract thumbnail from image file"""

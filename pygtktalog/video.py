@@ -11,7 +11,7 @@ import shutil
 from tempfile import mkdtemp, mkstemp
 import math
 
-import Image
+from PIL import Image
 from pygtktalog.misc import float_to_string
 from pygtktalog.logger import get_logger
 

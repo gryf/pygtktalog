@@ -9,7 +9,7 @@
 import os
 from tempfile import mkstemp
 
-import Image
+from PIL import Image
 
 from pygtktalog.logger import get_logger
 from pygtktalog import EXIF

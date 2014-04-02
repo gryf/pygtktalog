@@ -42,4 +42,4 @@ def connect(filename=None):
     engine = create_engine(connect_string)
     Meta.bind = engine
     Meta.create_all(checkfirst=True)
-
+    return engine

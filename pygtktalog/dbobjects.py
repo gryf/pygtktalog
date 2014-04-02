@@ -52,16 +52,16 @@ def mk_paths(fname):
 class File(Base):
     __tablename__ = "files"
     id = Column(Integer, Sequence("file_id_seq"), primary_key=True)
-    parent_id = Column(Integer, ForeignKey("files.id"))
+    parent_id = Column(Integer, ForeignKey("files.id"), index=True)
     filename = Column(Text)
     filepath = Column(Text)
     date = Column(DateTime)
     size = Column(Integer)
-    type = Column(Integer)
+    type = Column(Integer, index=True)
     source = Column(Integer)
     note = Column(Text)
     description = Column(Text)
-    checksum = Column(Text)
+    # checksum = Column(Text)
 
     children = relation('File',
                         backref=backref('parent', remote_side="File.id"),
@@ -102,16 +102,17 @@ class File(Base):
         else:
             return []
 
-    def mk_checksum(self):
-        if not (self.filename and self.filepath):
-            return
+    # def mk_checksum(self):
+        # if not (self.filename and self.filepath):
+            # return
 
-        full_name = os.path.join(self.filepath, self.filename)
+        # full_name = os.path.join(self.filepath, self.filename)
 
-        if os.path.isfile(full_name):
-            fd = open(full_name)
-            self.checksum = sha256(fd.read(10*1024*1024)).hexdigest()
-            fd.close()
+        # SLOW!
+        # if os.path.isfile(full_name):
+            # fd = open(full_name)
+            # self.checksum = sha256(fd.read(10*1024*1024)).hexdigest()
+            # fd.close()
 
 class Group(Base):
     __tablename__ = "groups"
@@ -130,7 +131,7 @@ class Group(Base):
 class Tag(Base):
     __tablename__ = "tags"
     id = Column(Integer, Sequence("tags_id_seq"), primary_key=True)
-    group_id = Column(Integer, ForeignKey("groups.id"))
+    group_id = Column(Integer, ForeignKey("groups.id"), index=True)
     tag = Column(Text)
     group = relation('Group', backref=backref('tags', remote_side="Group.id"))
 
@@ -147,7 +148,7 @@ class Tag(Base):
 class Thumbnail(Base):
     __tablename__ = "thumbnails"
     id = Column(Integer, Sequence("thumbnail_id_seq"), primary_key=True)
-    file_id = Column(Integer, ForeignKey("files.id"))
+    file_id = Column(Integer, ForeignKey("files.id"), index=True)
     filename = Column(Text)
 
     def __init__(self, filename=None, file_obj=None):
@@ -183,7 +184,7 @@ class Thumbnail(Base):
 class Image(Base):
     __tablename__ = "images"
     id = Column(Integer, Sequence("images_id_seq"), primary_key=True)
-    file_id = Column(Integer, ForeignKey("files.id"))
+    file_id = Column(Integer, ForeignKey("files.id"), index=True)
     filename = Column(Text)
 
     def __init__(self, filename=None, file_obj=None, move=True):
@@ -256,7 +257,7 @@ class Image(Base):
 class Exif(Base):
     __tablename__ = "exif"
     id = Column(Integer, Sequence("exif_id_seq"), primary_key=True)
-    file_id = Column(Integer, ForeignKey("files.id"))
+    file_id = Column(Integer, ForeignKey("files.id"), index=True)
     camera = Column(Text)
     date = Column(Text)
     aperture = Column(Text)
@@ -293,7 +294,7 @@ class Exif(Base):
 class Gthumb(Base):
     __tablename__ = "gthumb"
     id = Column(Integer, Sequence("gthumb_id_seq"), primary_key=True)
-    file_id = Column(Integer, ForeignKey("files.id"))
+    file_id = Column(Integer, ForeignKey("files.id"), index=True)
     note = Column(Text)
     place = Column(Text)
     date = Column(DateTime)

@@ -27,6 +27,23 @@ COLORS = {'WARNING': YELLOW,
           'CRITICAL': WHITE,
           'ERROR': RED}
 
+def cprint(txt, color):
+    color_map = {"black": BLACK,
+                 "red": RED,
+                 "green": GREEN,
+                 "yellow": YELLOW,
+                 "blue": BLUE,
+                 "magenta": MAGENTA,
+                 "cyan": CYAN,
+                 "white": WHITE}
+    print COLOR_SEQ % (30 + color_map[color]) + txt + RESET_SEQ
+
+
+class DummyFormater(logging.Formatter):
+    """Just don't output anything"""
+    def format(self, record):
+        return ""
+
 
 class ColoredFormatter(logging.Formatter):
     def __init__(self, msg, use_color=True):
@@ -41,10 +58,12 @@ class ColoredFormatter(logging.Formatter):
             record.levelname = levelname_color
         return logging.Formatter.format(self, record)
 
+log_obj = None
 
 #def get_logger(module_name, level='INFO', to_file=False):
-def get_logger(module_name, level='DEBUG', to_file=True):
-#def get_logger(module_name, level='INFO', to_file=True):
+#def get_logger(module_name, level='DEBUG', to_file=True):
+def get_logger(module_name, level='INFO', to_file=True, to_console=True):
+# def get_logger(module_name, level='DEBUG', to_file=True, to_console=True):
 #def get_logger(module_name, level='DEBUG', to_file=False):
     """
     Prepare and return log object. Standard formatting is used for all logs.
@@ -59,18 +78,21 @@ def get_logger(module_name, level='DEBUG', to_file=True):
     """
 
     path = os.path.join(os.path.expanduser("~"), ".pygtktalog", "app.log")
-    #path = "/dev/null"
+
     log = logging.getLogger(module_name)
     log.setLevel(LEVEL[level])
 
-    console_handler = logging.StreamHandler(sys.stderr)
-    console_formatter = ColoredFormatter("%(filename)s:%(lineno)s - "
-                                  "%(levelname)s - %(message)s")
-    console_handler.setFormatter(console_formatter)
+    if to_console:
+        #path = "/dev/null"
 
-    log.addHandler(console_handler)
+        console_handler = logging.StreamHandler(sys.stderr)
+        console_formatter = ColoredFormatter("%(filename)s:%(lineno)s - "
+                                      "%(levelname)s - %(message)s")
+        console_handler.setFormatter(console_formatter)
 
-    if to_file:
+        log.addHandler(console_handler)
+
+    elif to_file:
         file_handler = logging.FileHandler(path)
         file_formatter = logging.Formatter("%(asctime)s %(levelname)6s "
                                            "%(filename)s: %(lineno)s - "
@@ -78,5 +100,11 @@ def get_logger(module_name, level='DEBUG', to_file=True):
         file_handler.setFormatter(file_formatter)
         file_handler.setLevel(LEVEL[level])
         log.addHandler(file_handler)
+    else:
+        devnull = open(os.devnull, "w")
+        dummy_handler = logging.StreamHandler(devnull)
+        dummy_formatter = DummyFormater("")
+        dummy_handler.setFormatter(dummy_formatter)
+        log.addHandler(dummy_handler)
 
     return log
