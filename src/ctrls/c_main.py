@@ -27,7 +27,7 @@ __version__ = "1.0.1"
 LICENCE = ''
 import os.path
 from os import popen
-from utils import deviceHelper
+from utils import device_helper
 from gtkmvc import Controller
 
 from c_config import ConfigController
@@ -526,9 +526,9 @@ class MainController(Controller):
 
     def on_add_cd_activate(self, widget, label=None, current_id=None):
         """Add directory structure from cd/dvd disc"""
-        mount = deviceHelper.volmount(self.model.config.confd['cd'])
+        mount = device_helper.volmount(self.model.config.confd['cd'])
         if mount == 'ok':
-            guessed_label = deviceHelper.volname(self.model.config.confd['cd'])
+            guessed_label = device_helper.volname(self.model.config.confd['cd'])
             if not label:
                 label = Dialogs.InputDiskLabel(guessed_label).run()
             if label:
@@ -541,7 +541,7 @@ class MainController(Controller):
                 self.model.unsaved_project = True
                 self.__set_title(filepath=self.model.filename, modified=True)
             else:
-                deviceHelper.volumount(self.model.config.confd['cd'])
+                device_helper.volumount(self.model.config.confd['cd'])
             return True
         else:
             Dialogs.Wrn("Error mounting device - pyGTKtalog",
@@ -1373,7 +1373,7 @@ class MainController(Controller):
                 # umount/eject cd
                 ejectapp = self.model.config.confd['ejectapp']
                 if self.model.config.confd['eject'] and ejectapp:
-                    msg = deviceHelper.eject_cd(ejectapp,
+                    msg = device_helper.eject_cd(ejectapp,
                                                 self.model.config.confd['cd'])
                     if msg != 'ok':
                         Dialogs.Wrn("error ejecting device - pyGTKtalog",
@@ -1381,7 +1381,7 @@ class MainController(Controller):
                                     self.model.config.confd['cd'],
                                     "Last eject message:\n%s" % msg)
                 else:
-                    msg = deviceHelper.volumount(self.model.config.confd['cd'])
+                    msg = device_helper.volumount(self.model.config.confd['cd'])
                     if msg != 'ok':
                         Dialogs.Wrn("error unmounting device - pyGTKtalog",
                                     "Cannot unmount device pointed to %s" %

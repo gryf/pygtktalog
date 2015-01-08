@@ -4,15 +4,15 @@ pyGTKtalog 1.0
 pyGTKtalog is Linux/FreeBSD program for indexing CD/DVD or directories on
 filesystem. It is similar to gtktalog <http://www.nongnu.org/gtktalog/> or
 gwhere <http://www.gwhere.org/home.php3>. There is no coincidence in name of
-application, because it's ment to be replacement (in some way) for gtktalog,
+application, because it's meant to be replacement (in some way) for gtktalog,
 which seems to be dead project for years.
 
 FEATURES
 ========
 
 - scan for files in selected media
-- get/generate thumbnails from exif and other images
-- most important exif tags
+- get/generate thumbnails from EXIF and other images
+- most important EXIF tags
 - add/edit description and notes
 - fetch comments for images made in gThumb <http://gthumb.sourceforge.net>
 - add/remove unlimited images to any file or directory
@@ -30,19 +30,20 @@ pyGTKtalog is written in python with following dependencies:
 
 Optional modules:
 
-- PIL <http://www.pythonware.com/products/pil/index.htm> for image manipulation
+- PIL <http://www.pythonware.com/products/pil/index.htm> for image 
+  manipulation
 
-Additional pyGTKtalog uses pygtkmvc <http://pygtkmvc.sourceforge.net> by Roberto
-Cavada and EXIF module by Gene Cash (slightly updatetd to EXIF 2.2 by me) which
-are included in sources.
+Additional pyGTKtalog uses pygtkmvc <http://pygtkmvc.sourceforge.net> by 
+Roberto Cavada and EXIF module by Gene Cash (slightly updatetd to EXIF 2.2 by 
+me) which are included in sources.
 
-pyGTKtalog extensivly uses external programs in unix spirit, however there is
-small possibility of using it Windows (probably with limitations) and quite big
-possiblity to run it on other sofisticated unix-like systems (i.e.
+pyGTKtalog extensively uses external programs in unix spirit, however there is 
+small possibility of using it Windows (probably with limitations) and quite 
+big possibility to run it on other sophisticated unix-like systems (i.e.  
 BeOS/ZETA/Haiku, QNX or MacOSX).
 
-INSTALATION
-===========
+INSTALLATION
+============
 
 You don't have to install it if you don't want to. You can just change current
 directory to pyGTKtalog and simply run:
@@ -80,11 +81,12 @@ For version 2.0:
 - command line support: query, adding media to collection etc
 - internationalization
 - export to XLS
-- user definied group of tags (represented by color in cloud tag)
-- hiding specified files - configurable, like dot prefixed, cfg and manualy
-  selected
+- user defined group of tags (represented by color in cloud tag)
+- hiding specified files - configurable, like dot prefixed, config files and
+  manually selected
 - tests
 - warning about existing image in media directory
+
 Removed:
 - filetypes handling (movies, images, archives, documents etc). Now it have
   common, unified external "plugin" system - simple text output from command
@@ -126,4 +128,3 @@ BUGS
 ====
 
 All bugs please report to Roman 'gryf' Dobosz <roman.dobosz@gmail.com>
-

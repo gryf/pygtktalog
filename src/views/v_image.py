@@ -34,9 +34,8 @@ class ImageView(object):
         image = gtk.Image()
         image.set_from_file(image_filename)
 
-        pixbuf = image.get_pixbuf()
-        pic_width = pixbuf.get_width() + 23
-        pic_height = pixbuf.get_height() + 23
+        pic_width = image.size_request()[0] + 23
+        pic_height = image.size_request()[1] + 23
 
         screen_width = gtk.gdk.screen_width()
         screen_height = gtk.gdk.screen_height()

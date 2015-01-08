@@ -26,7 +26,8 @@ from shutil import copy
 from os import path
 from hashlib import sha512
 
-import Image
+from PIL import Image
+
 
 class Img(object):
 

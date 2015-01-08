@@ -34,7 +34,11 @@ import gobject
 
 from gtkmvc.model_mt import ModelMT
 
-from pysqlite2 import dbapi2 as sqlite
+try:
+    import sqlite3 as sqlite
+except ImportError:
+    from pysqlite2 import dbapi2 as sqlite
+
 from datetime import datetime
 
 import threading as _threading
@@ -49,6 +53,20 @@ from utils.parse_exif import ParseExif
 from utils.gthumb import GthumbCommentParser
 
 from utils.no_thumb import no_thumb as no_thumb_img
+
+def mangle_date(date):
+    """Return date object depending on the record type."""
+
+    if date:
+        try:
+            dateobj = datetime.fromtimestamp(date)
+        except TypeError:
+            dateobj = datetime.strptime(date, "%Y-%m-%d %H:%M:%S.%f")
+    else:
+        dateobj = datetime.fromtimestamp(0)
+
+    return dateobj
+
 
 class MainModel(ModelMT):
     """Create, load, save, manipulate db file which is container for data"""
@@ -168,7 +186,6 @@ class MainModel(ModelMT):
                 path
         else:
             os.mkdir(path)
-
 
         if os.path.exists(imgpath):
             if not os.path.isdir(imgpath):
@@ -360,8 +377,6 @@ class MainModel(ModelMT):
             res = self.db_cursor.fetchone()
             if res and res[0]:
                 # there is such an image. going back.
-                if __debug__:
-                    print res[0]
                 return
 
             # check if file have have thumbnail. if not, make it with first
@@ -556,8 +571,6 @@ class MainModel(ModelMT):
         try:
             os.unlink(self.db_tmp_path)
         except:
-            if __debug__:
-                print "Exception in removing temporary db file!"
             pass
 
         #if self.internal_dirname != None:
@@ -573,6 +586,7 @@ class MainModel(ModelMT):
         self.filename = None
         self.__create_temporary_db_file()
         self.__connect_to_db()
+        self._set_image_path()
         self.__create_database()
         self.__clear_trees()
         self.clear_search_tree()
@@ -592,6 +606,14 @@ class MainModel(ModelMT):
             return
 
         if filename:
+            if not '.sqlite' in filename:
+                filename += '.sqlite'
+            else:
+                filename = filename[:filename.rindex('.sqlite')] + '.sqlite'
+
+            if self.config.confd['compress']:
+                filename += '.bz2'
+
             self.filename = filename
         val, err = self.__compress_and_save()
         if not val:
@@ -683,6 +705,7 @@ class MainModel(ModelMT):
         #tar.close()
 
         self.__connect_to_db()
+        self._set_image_path()
         self.__fetch_db_into_treestore()
         self.config.add_recent(filename)
         self.get_tags()
@@ -758,8 +781,9 @@ class MainModel(ModelMT):
                 self.search_list.set_value(myiter, 3,
                                            self.__get_file_path(row[0]))
                 self.search_list.set_value(myiter, 4, row[2])
-                self.search_list.set_value(myiter, 5,
-                                           datetime.fromtimestamp(row[3]))
+
+                self.search_list.set_value(myiter, 5, mangle_date(row[3]))
+
                 self.search_list.set_value(myiter, 6, 1)
                 self.search_list.set_value(myiter, 7, gtk.STOCK_DIRECTORY)
 
@@ -794,8 +818,7 @@ class MainModel(ModelMT):
                 self.search_list.set_value(myiter, 3,
                                            self.__get_file_path(row[0]))
                 self.search_list.set_value(myiter, 4, row[2])
-                self.search_list.set_value(myiter, 5,
-                                           datetime.fromtimestamp(row[3]))
+                self.search_list.set_value(myiter, 5, mangle_date(row[3]))
                 self.search_list.set_value(myiter, 6, row[4])
                 if row[4] == self.FIL:
                     self.search_list.set_value(myiter, 7, gtk.STOCK_FILE)
@@ -825,9 +848,7 @@ class MainModel(ModelMT):
 
             #self.__fetch_db_into_treestore()
             self.unsaved_project = True
-        else:
-            if __debug__:
-                print "m_main.py: rename(): no label defined"
+
         return
 
     def refresh_discs_tree(self):
@@ -879,8 +900,7 @@ class MainModel(ModelMT):
             self.files_list.set_value(myiter, 2, row[1])
             self.files_list.set_value(myiter, 3, self.__get_file_path(row[0]))
             self.files_list.set_value(myiter, 4, row[2])
-            self.files_list.set_value(myiter, 5,
-                                      datetime.fromtimestamp(row[3]))
+            self.files_list.set_value(myiter, 5, mangle_date(row[3]))
             self.files_list.set_value(myiter, 6, 1)
             self.files_list.set_value(myiter, 7, gtk.STOCK_DIRECTORY)
 
@@ -923,8 +943,7 @@ class MainModel(ModelMT):
             self.files_list.set_value(myiter, 2, row[1])
             self.files_list.set_value(myiter, 3, self.__get_file_path(row[0]))
             self.files_list.set_value(myiter, 4, row[2])
-            self.files_list.set_value(myiter, 5,
-                                      datetime.fromtimestamp(row[3]))
+            self.files_list.set_value(myiter, 5, mangle_date(row[3]))
             self.files_list.set_value(myiter, 6, row[4])
             if row[4] == self.FIL:
                 self.files_list.set_value(myiter, 7, gtk.STOCK_FILE)
@@ -954,11 +973,10 @@ class MainModel(ModelMT):
         res = self.db_cursor.fetchone()
         if res:
             retval['fileinfo'] = {'id': file_id,
-            'date': datetime.fromtimestamp(res[1]),
-            'size': res[2], 'type': res[3]}
-
-            retval['fileinfo']['disc'] = self.__get_file_root(file_id)
-
+                                  'size': res[2],
+                                  'type': res[3],
+                                  'date': mangle_date(res[1]),
+                                  'disc': self.__get_file_root(file_id)}
             retval['filename'] = res[0]
 
             if res[4]:
@@ -969,9 +987,13 @@ class MainModel(ModelMT):
 
             if res[6]:
                 thumbfile = os.path.join(self.image_path, res[6] + "_t")
+                thumb2 = os.path.join(self.image_path, res[6])
                 if os.path.exists(thumbfile):
                     pix = gtk.gdk.pixbuf_new_from_file(thumbfile)
                     retval['thumbnail'] = thumbfile
+                elif os.path.exists(thumb2):
+                    pix = gtk.gdk.pixbuf_new_from_file(thumb2)
+                    retval['thumbnail'] = thumb2
 
         sql = """SELECT id, filename FROM images
                 WHERE file_id = ?"""
@@ -981,8 +1003,13 @@ class MainModel(ModelMT):
             self.images_store = gtk.ListStore(gobject.TYPE_INT, gtk.gdk.Pixbuf)
             for im_id, filename in res:
                 thumbfile = os.path.join(self.image_path, filename + "_t")
+                file_, ext_ = os.path.splitext(filename)
+                thumb2 = os.path.join(self.image_path,
+                                      "".join([file_, "_t", ext_]))
                 if os.path.exists(thumbfile):
                     pix = gtk.gdk.pixbuf_new_from_file(thumbfile)
+                elif os.path.exists(thumb2):
+                    pix = gtk.gdk.pixbuf_new_from_file(thumb2)
                 else:
                     pix = gtk.gdk.pixbuf_new_from_inline(len(no_thumb_img),
                                                          no_thumb_img, False)
@@ -1083,13 +1110,10 @@ class MainModel(ModelMT):
         sql = """DELETE FROM tags_files WHERE file_id = ?"""
         db_cursor.executemany(sql, generator())
 
-        if __debug__:
-            print "m_main.py: delete(): deleting:", fids
-
-        if len(fids) == 1:
-            arg = "(%d)" % fids[0]
-        else:
-            arg = str(tuple(fids))
+        #if len(fids) == 1:
+        #    arg = "(%d)" % fids[0]
+        #else:
+        #    arg = str(tuple(fids))
 
         # remove thumbnails
         #sql = """SELECT filename FROM thumbnails WHERE file_id IN %s""" % arg
@@ -1258,12 +1282,15 @@ class MainModel(ModelMT):
             path = os.path.join(self.image_path, res[0])
             if os.path.exists(path):
                 return path
+            path = os.path.join('/home/gryf/.pygtktalog/imgs2/', res[0])
+            if os.path.exists(path):
+                return path
         return None
 
     def update_desc_and_note(self, file_id, desc='', note=''):
         """update note and description"""
         sql = """UPDATE files SET description=?, note=? WHERE id=?"""
-        self.db_cursor.execute(sql, (desc, note, file_id))
+        self.db_cursor.execute(sql, (unicode(desc), unicode(note), file_id))
         self.db_connection.commit()
         return
 
@@ -1378,6 +1405,34 @@ class MainModel(ModelMT):
         self.db_cursor = self.db_connection.cursor()
         return
 
+    def _set_image_path(self):
+        """hack, hack, hack!"""
+        if not self.filename:
+            return
+
+        sql = ("select name from sqlite_master where name='config' and "
+               "type='table'")
+        if not self.db_cursor.execute(sql).fetchone():
+            return
+
+        sql = "SELECT value FROM config WHERE key = ?"
+        res = self.db_cursor.execute(sql, ("image_path", )).fetchone()
+        if not res:
+            return
+
+        if res[0] == ":same_as_db:":
+            dir_, file_ = (os.path.dirname(self.filename),
+                           os.path.basename(self.filename))
+            file_base, dummy = os.path.splitext(file_)
+            self.image_path = os.path.abspath(os.path.join(dir_, file_base +
+                                                           "_images"))
+        else:
+            self.image_path = res[0]
+            if "~" in self.image_path:
+                self.images_dir = os.path.expanduser(self.image_path)
+            if "$" in self.image_path:
+                self.images_dir = os.path.expandvars(self.image_path)
+
     def __close_db_connection(self):
         """close db conection"""
 
@@ -1407,8 +1462,6 @@ class MainModel(ModelMT):
                 output_file = bz2.BZ2File(self.filename, "w")
             else:
                 output_file = open(self.filename, "w")
-            if __debug__:
-                print "m_main.py: __compress_and_save(): tar open successed"
 
         except IOError, (errno, strerror):
             return False, strerror
@@ -1597,8 +1650,6 @@ class MainModel(ModelMT):
             for root, dirs, files in os.walk(self.path):
                 count += len(files)
         except:
-            if __debug__:
-                print 'm_main.py: os.walk in %s' % self.path
             pass
 
         if count > 0:
@@ -1630,14 +1681,14 @@ class MainModel(ModelMT):
                             files(parent_id, filename, filepath, date,
                                   size, type, source)
                         VALUES(?,?,?,?,?,?,?)"""
-                db_cursor.execute(sql, (parent_id, name, path, date, size,
-                                        filetype, self.source))
+                db_cursor.execute(sql, (parent_id, name, path.decode("utf-8"),
+                                        date, size, filetype, self.source))
             else:
                 self.discs_tree.set_value(myit, 2, gtk.STOCK_DIRECTORY)
                 sql = """INSERT INTO
                 files(parent_id, filename, filepath, date, size, type)
                 VALUES(?,?,?,?,?,?)"""
-                db_cursor.execute(sql, (parent_id, name, path,
+                db_cursor.execute(sql, (parent_id, name, path.decode("utf-8"),
                                         date, size, filetype))
 
             sql = """SELECT seq FROM sqlite_sequence WHERE name='files'"""
@@ -1645,14 +1696,13 @@ class MainModel(ModelMT):
             currentid = db_cursor.fetchone()[0]
 
             self.discs_tree.set_value(myit, 0, currentid)
+
             self.discs_tree.set_value(myit, 1, name)
             self.discs_tree.set_value(myit, 3, parent_id)
 
             try:
                 root, dirs, files = os.walk(path).next()
             except:
-                if __debug__:
-                    print "m_main.py: cannot access ", path
                 #return -1
                 return 0
 
@@ -1721,8 +1771,12 @@ class MainModel(ModelMT):
                     sql = """INSERT INTO
                     files(parent_id, filename, filepath, date, size, type)
                     VALUES(?,?,?,?,?,?)"""
-                    db_cursor.execute(sql, (currentid, j, current_file,
-                                            st_mtime, st_size, self.FIL))
+                    try:
+                        db_cursor.execute(sql, (currentid, unicode(j),
+                                                unicode(current_file),
+                                                st_mtime, st_size, self.FIL))
+                    except:
+                        raise
 
                     if self.count % 32 == 0:
                         update = True
@@ -1812,7 +1866,10 @@ class MainModel(ModelMT):
 
                             sql = """UPDATE files SET description=?
                                     WHERE id=?"""
-                            db_cursor.execute(sql, (desc, fileid))
+                            db_cursor.execute(sql,
+                                             (unicode(desc.decode("utf8",
+                                                                  "ignore")),
+                                              fileid))
 
                         ### end of scan
                 if update:
@@ -1827,18 +1884,11 @@ class MainModel(ModelMT):
                 return _size
 
         if __recurse(1, self.label, self.path, 0, 0, self.DIR) == -1:
-            if __debug__:
-                print "m_main.py: __scan() __recurse()",
-                print "interrupted self.abort = True"
             self.discs_tree.remove(self.fresh_disk_iter)
             db_cursor.close()
             db_connection.rollback()
         else:
-            if __debug__:
-                print "m_main.py: __scan() __recurse() goes without interrupt"
             if self.currentid:
-                if __debug__:
-                    print "m_main.py: __scan() removing old branch"
                 self.statusmsg = "Removing old branch..."
                 self.delete(self.currentid, db_cursor, db_connection)
 
@@ -1847,8 +1897,6 @@ class MainModel(ModelMT):
             db_cursor.close()
             db_connection.commit()
         db_connection.close()
-        if __debug__:
-            print "m_main.py: __scan() time: ", (datetime.now() - timestamp)
 
         self.busy = False
 
@@ -1903,13 +1951,8 @@ class MainModel(ModelMT):
                                                   gtk.STOCK_DIRECTORY)
             return
 
-        if __debug__:
-            start_date = datetime.now()
         # launch scanning.
         get_children()
-        if __debug__:
-            print "m_main.py: __fetch_db_into_treestore()",
-            print "tree generation time: ", (datetime.now() - start_date)
         db_connection.close()
         return
 
@@ -1944,13 +1987,8 @@ class MainModel(ModelMT):
                                                   gtk.STOCK_DIRECTORY)
             return
 
-        if __debug__:
-            start_date = datetime.now()
         # launch scanning.
         get_children()
-        if __debug__:
-            print "m_main.py: __append_added_volume() tree generation time: ",
-            print datetime.now() - start_date
         db_connection.close()
         return
 
