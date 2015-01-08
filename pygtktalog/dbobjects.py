@@ -6,10 +6,7 @@
     Created: 2009-08-07
 """
 import os
-import errno
 import shutil
-from hashlib import sha256
-from zlib import crc32
 
 from sqlalchemy import Column, Table, Integer, Text
 from sqlalchemy import DateTime, ForeignKey, Sequence
@@ -18,11 +15,10 @@ from sqlalchemy.orm import relation, backref
 from pygtktalog.dbcommon import Base
 from pygtktalog.thumbnail import ThumbCreator
 from pygtktalog.logger import get_logger
+from pygtktalog.misc import mk_paths
 
 
 LOG = get_logger(__name__)
-
-IMG_PATH = "/home/gryf/.pygtktalog/imgs2/"  # FIXME: should be configurable
 
 tags_files = Table("tags_files", Base.metadata,
                    Column("file_id", Integer, ForeignKey("files.id")),
@@ -31,25 +27,11 @@ tags_files = Table("tags_files", Base.metadata,
 TYPE = {'root': 0, 'dir': 1, 'file': 2, 'link': 3}
 
 
-def mk_paths(fname):
-    #new_name = str(uuid.uuid1()).split("-")
-    fd = open(fname)
-    new_path = "%x" % (crc32(fd.read(10*1024*1024)) & 0xffffffff)
-    fd.close()
-
-    new_path = [new_path[i:i + 2] for i in range(0, len(new_path), 2)]
-    full_path = os.path.join(IMG_PATH, *new_path[:-1])
-
-    try:
-        os.makedirs(full_path)
-    except OSError as exc:
-        if exc.errno != errno.EEXIST:
-            LOG.debug("Directory %s already exists." % full_path)
-
-    return new_path
-
-
 class File(Base):
+    """
+    File mapping. Instances of this object can reference other File object
+    which make the structure to be tree-like
+    """
     __tablename__ = "files"
     id = Column(Integer, Sequence("file_id_seq"), primary_key=True)
     parent_id = Column(Integer, ForeignKey("files.id"), index=True)
@@ -102,19 +84,9 @@ class File(Base):
         else:
             return []
 
-    # def mk_checksum(self):
-        # if not (self.filename and self.filepath):
-            # return
-
-        # full_name = os.path.join(self.filepath, self.filename)
-
-        # SLOW!
-        # if os.path.isfile(full_name):
-            # fd = open(full_name)
-            # self.checksum = sha256(fd.read(10*1024*1024)).hexdigest()
-            # fd.close()
 
 class Group(Base):
+    """TODO: what is this class for?"""
     __tablename__ = "groups"
     id = Column(Integer, Sequence("group_id_seq"), primary_key=True)
     name = Column(Text)
@@ -129,6 +101,7 @@ class Group(Base):
 
 
 class Tag(Base):
+    """Tag mapping"""
     __tablename__ = "tags"
     id = Column(Integer, Sequence("tags_id_seq"), primary_key=True)
     group_id = Column(Integer, ForeignKey("groups.id"), index=True)
@@ -146,22 +119,24 @@ class Tag(Base):
 
 
 class Thumbnail(Base):
+    """Thumbnail for the file"""
     __tablename__ = "thumbnails"
     id = Column(Integer, Sequence("thumbnail_id_seq"), primary_key=True)
     file_id = Column(Integer, ForeignKey("files.id"), index=True)
     filename = Column(Text)
 
-    def __init__(self, filename=None, file_obj=None):
+    def __init__(self, filename=None, img_path=None, file_obj=None):
         self.filename = filename
         self.file = file_obj
-        if filename and file_obj:
-            self.save(self.filename)
+        self.img_path = img_path
+        if filename and file_obj and img_path:
+            self.save(self.filename, img_path)
 
-    def save(self, fname):
+    def save(self, fname, img_path):
         """
         Create file related thumbnail, add it to the file object.
         """
-        new_name = mk_paths(fname)
+        new_name = mk_paths(fname, img_path)
         ext = os.path.splitext(self.filename)[1]
         if ext:
             new_name.append("".join([new_name.pop(), ext]))
@@ -170,8 +145,8 @@ class Thumbnail(Base):
         name, ext = os.path.splitext(new_name.pop())
         new_name.append("".join([name, "_t", ext]))
         self.filename = os.path.sep.join(new_name)
-        if not os.path.exists(os.path.join(IMG_PATH, *new_name)):
-            shutil.move(thumb, os.path.join(IMG_PATH, *new_name))
+        if not os.path.exists(os.path.join(img_path, *new_name)):
+            shutil.move(thumb, os.path.join(img_path, *new_name))
         else:
             LOG.info("Thumbnail already exists (%s: %s)" % \
                     (fname, "/".join(new_name)))
@@ -182,34 +157,36 @@ class Thumbnail(Base):
 
 
 class Image(Base):
+    """Images and their thumbnails"""
     __tablename__ = "images"
     id = Column(Integer, Sequence("images_id_seq"), primary_key=True)
     file_id = Column(Integer, ForeignKey("files.id"), index=True)
     filename = Column(Text)
 
-    def __init__(self, filename=None, file_obj=None, move=True):
+    def __init__(self, filename=None, img_path=None, file_obj=None, move=True):
         self.filename = None
         self.file = file_obj
-        if filename:
+        self.img_path = img_path
+        if filename and img_path:
             self.filename = filename
-            self.save(filename, move)
+            self.save(filename, img_path, move)
 
-    def save(self, fname, move=True):
+    def save(self, fname, img_path, move=True):
         """
         Save and create coressponding thumbnail (note: it differs from file
         related thumbnail!)
         """
-        new_name = mk_paths(fname)
+        new_name = mk_paths(fname, img_path)
         ext = os.path.splitext(self.filename)[1]
 
         if ext:
             new_name.append("".join([new_name.pop(), ext]))
 
-        if not os.path.exists(os.path.join(IMG_PATH, *new_name)):
+        if not os.path.exists(os.path.join(img_path, *new_name)):
             if move:
-                shutil.move(self.filename, os.path.join(IMG_PATH, *new_name))
+                shutil.move(self.filename, os.path.join(img_path, *new_name))
             else:
-                shutil.copy(self.filename, os.path.join(IMG_PATH, *new_name))
+                shutil.copy(self.filename, os.path.join(img_path, *new_name))
         else:
             LOG.warning("Image with same CRC already exists "
                         "('%s', '%s')" % (self.filename, "/".join(new_name)))
@@ -219,9 +196,9 @@ class Image(Base):
         name, ext = os.path.splitext(new_name.pop())
         new_name.append("".join([name, "_t", ext]))
 
-        if not os.path.exists(os.path.join(IMG_PATH, *new_name)):
-            thumb = ThumbCreator(os.path.join(IMG_PATH, self.filename))
-            shutil.move(thumb.generate(), os.path.join(IMG_PATH, *new_name))
+        if not os.path.exists(os.path.join(img_path, *new_name)):
+            thumb = ThumbCreator(os.path.join(img_path, self.filename))
+            shutil.move(thumb.generate(), os.path.join(img_path, *new_name))
         else:
             LOG.info("Thumbnail already generated %s" % "/".join(new_name))
 
@@ -241,20 +218,21 @@ class Image(Base):
         """
         path, fname = os.path.split(self.filename)
         base, ext = os.path.splitext(fname)
-        return os.path.join(IMG_PATH, path, base + "_t" + ext)
+        return os.path.join(self.img_path, path, base + "_t" + ext)
 
     @property
     def imagepath(self):
         """
         Return full path to image
         """
-        return os.path.join(IMG_PATH, self.filename)
+        return os.path.join(self.img_path, self.filename)
 
     def __repr__(self):
         return "<Image('%s', %s)>" % (str(self.filename), str(self.id))
 
 
 class Exif(Base):
+    """Selected EXIF information"""
     __tablename__ = "exif"
     id = Column(Integer, Sequence("exif_id_seq"), primary_key=True)
     file_id = Column(Integer, ForeignKey("files.id"), index=True)
@@ -292,6 +270,7 @@ class Exif(Base):
 
 
 class Gthumb(Base):
+    """Gthumb information"""
     __tablename__ = "gthumb"
     id = Column(Integer, Sequence("gthumb_id_seq"), primary_key=True)
     file_id = Column(Integer, ForeignKey("files.id"), index=True)
@@ -307,3 +286,18 @@ class Gthumb(Base):
     def __repr__(self):
         return "<Gthumb('%s', '%s', %s)>" % (str(self.date), str(self.place),
                                              str(self.id))
+
+
+class Config(Base):
+    """Per-database configuration"""
+    __tablename__ = "config"
+    id = Column(Integer, Sequence("config_id_seq"), primary_key=True)
+    key = Column(Text)
+    value = Column(Text)
+
+    def __init__(self, key=None, value=None):
+        self.key = key
+        self.value = value
+
+    def __repr__(self):
+        return "<Config('%s', '%s')>" % (str(self.key), str(self.value))

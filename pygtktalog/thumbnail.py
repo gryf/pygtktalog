@@ -8,6 +8,7 @@
 
 import os
 from tempfile import mkstemp
+import shutil
 
 from PIL import Image
 
@@ -56,14 +57,17 @@ class ThumbCreator(object):
             thumb.close()
         else:
             LOG.debug("no exif thumb")
-            thumb = self._scale_image()
-            if thumb:
-                thumb.save(thumb_fn, "JPEG")
+            if self.is_image_smaller():
+                shutil.copyfile(self.filename, thumb_fn)
+            else:
+                thumb = self._scale_image()
+                if thumb:
+                    thumb.save(thumb_fn, "JPEG")
 
         if exif and 'Image Orientation' in exif:
             orient = exif['Image Orientation'].values[0]
             if orient > 1 and orient in orientations:
-                thumb_image = Image.open(self.thumb_fn)
+                thumb_image = Image.open(thumb_fn)
                 tmp_thumb_img = thumb_image.transpose(orientations[orient])
 
                 if orient in flips:
@@ -72,6 +76,13 @@ class ThumbCreator(object):
                 tmp_thumb_img.save(thumb_fn, 'JPEG')
 
         return thumb_fn
+
+    def is_image_smaller(self):
+        """Check if image is smaller than desired dimention, return boolean"""
+        image = Image.open(self.filename)
+        im_x, im_y = image.size
+        image.close()
+        return im_x <= self.thumb_x and im_y <= self.thumb_y
 
     def _get_exif(self):
         """

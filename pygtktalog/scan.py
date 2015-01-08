@@ -11,7 +11,8 @@ import re
 from datetime import datetime
 import mimetypes
 
-from pygtktalog.dbobjects import File, Image, Thumbnail, TYPE
+import pygtktalog.misc
+from pygtktalog.dbobjects import File, Image, Thumbnail, Config, TYPE
 from pygtktalog.dbcommon import Session
 from pygtktalog.logger import get_logger
 from pygtktalog.video import Video
@@ -44,7 +45,7 @@ class Scan(object):
         """
         Initialize
         @Arguments:
-            @path - string with initial root directory to scan
+            @path - string with path to be added to topmost node (root)
         """
         self.abort = False
         self.path = path.rstrip(os.path.sep)
@@ -54,6 +55,8 @@ class Scan(object):
         self._session = Session()
         self.files_count = self._get_files_count()
         self.current_count = 0
+
+        self._set_image_path()
 
     def add_files(self, engine=None):
         """
@@ -106,15 +109,21 @@ class Scan(object):
         req(row)
 
         sql = SQL2 % ",".join("?" * len(all_ids))
-        res = engine.execute(sql, tuple(all_ids)).fetchall()
+        all_ids = [row_[0] for row_ in engine
+                   .execute(sql, tuple(all_ids))
+                   .fetchall()]
 
         all_obj = []
-        for row in res:
-            all_obj.append(self._session
+        # number of objects to retrieve at once. Limit is 999. Let's do a
+        # little bit below.
+        no = 900
+        steps = len(all_ids) / no + 1
+        for step in range(steps):
+            all_obj.extend(self._session
                            .query(File)
-                           .filter(File.id == row[0])
-                           .first())
-
+                           .filter(File.id
+                                   .in_(all_ids[step * no:step * no + no]))
+                           .all())
         return all_obj
 
     def update_files(self, node_id, engine=None):
@@ -248,7 +257,7 @@ class Scan(object):
 
         preview_fn = vid.capture()
         if preview_fn:
-            Image(preview_fn, fobj)
+            Image(preview_fn, self.img_path, fobj)
 
     def _check_related(self, fobj, pattern):
         """
@@ -261,10 +270,10 @@ class Scan(object):
                 full_fname = os.path.join(fobj.filepath, filen)
                 LOG.debug('found cover file: %s' % full_fname)
 
-                Image(full_fname, fobj, False)
+                Image(full_fname, self.img_path, fobj, False)
 
                 if not fobj.thumbnail:
-                    Thumbnail(full_fname, fobj)
+                    Thumbnail(full_fname, self.img_path, fobj)
 
     def _name_matcher(self, fpath, fname, media=False):
         """
@@ -326,7 +335,7 @@ class Scan(object):
             fobj.type = fob['ftype']
         else:
             fobj = File(**fob)
-            # SLOW. Don;t do this. Checksums has no value eventually
+            # SLOW. Don't do this. Checksums has no value eventually
             # fobj.mk_checksum()
 
         if parent is None:
@@ -482,11 +491,23 @@ class Scan(object):
         return None
 
     def _get_files_count(self):
+        """return size in bytes"""
         count = 0
-        for root, dirs, files in os.walk(str(self.path)):
+        for _, _, files in os.walk(str(self.path)):
             count += len(files)
         LOG.debug("count of files: %s", count)
         return count
+
+    def _set_image_path(self):
+        """Get or calculate the images path"""
+        image_path = self._session.query(Config) \
+                .filter(Config.key=="image_path").one()
+        if image_path.value == ":same_as_db:":
+            image_path = pygtktalog.misc.calculate_image_path()
+        else:
+            image_path = pygtktalog.misc.calculate_image_path(image_path.value)
+
+        self.img_path = image_path
 
 
 class asdScan(object):
@@ -561,7 +582,7 @@ class asdScan(object):
                 current_dir = os.path.join(root, i)
 
                 try:
-                    st = os.stat(current_dir)
+                    st = os.lstat(current_dir)
                     st_mtime = st.st_mtime
                 except OSError:
                     st_mtime = 0
@@ -597,7 +618,7 @@ class asdScan(object):
                 current_file = os.path.join(root, i)
 
                 try:
-                    st = os.stat(current_file)
+                    st = os.lstat(current_file)
                     st_mtime = st.st_mtime
                     st_size = st.st_size
                 except OSError:

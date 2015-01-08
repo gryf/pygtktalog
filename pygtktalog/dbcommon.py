@@ -21,6 +21,7 @@ from pygtktalog.logger import get_logger
 Meta = MetaData()
 Base = declarative_base(metadata=Meta)
 Session = sessionmaker()
+DbFilename = None
 
 LOG = get_logger("dbcommon")
 
@@ -32,11 +33,13 @@ def connect(filename=None):
         @filename - string with absolute or relative path to sqlite database
                     file. If None, db in-memory will be created
     """
+    global DbFilename
 
     if not filename:
         filename = ':memory:'
 
     LOG.info("db filename: %s" % filename)
+    DbFilename = filename
 
     connect_string = "sqlite:///%s" % filename
     engine = create_engine(connect_string)
