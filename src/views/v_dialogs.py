@@ -44,10 +44,7 @@ class Qst(object):
         self.dialog.format_secondary_text(secondarymsg)
 
     def run(self):
-        retval = self.dialog.run()
-        retval = False
-        if retval == gtk.RESPONSE_OK:
-            retval = True
+        retval = self.dialog.run() == gtk.RESPONSE_OK
         self.dialog.destroy()
         return retval
 
