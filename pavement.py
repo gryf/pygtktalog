@@ -121,7 +121,7 @@ def distclean():
             shutil.rmtree(dirname, ignore_errors=True)
             print "removed directory", dirname
 
-    for filename in ['paver-minilib.zip', 'setup.py', 'test/.coverage']:
+    for filename in ['paver-minilib.zip', 'setup.py', 'tests/.coverage']:
         if os.path.exists(filename):
             os.unlink(filename)
             print "deleted", filename
@@ -203,7 +203,7 @@ if HAVE_LINT:
 @cmdopts([('coverage', 'c', 'display coverage information')])
 def test(options):
     """run unit tests"""
-    cmd = "PYTHONPATH=%s:$PYTHONPATH nosetests -w test" % _setup_env()
+    cmd = "PYTHONPATH=%s:$PYTHONPATH nosetests -w tests" % _setup_env()
     if hasattr(options.test, 'coverage'):
         cmd += " --with-coverage --cover-package pygtktalog"
     os.system(cmd)
