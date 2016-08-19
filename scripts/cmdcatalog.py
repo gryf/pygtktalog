@@ -2,10 +2,13 @@
 """
 Fast and ugly CLI interface for pyGTKtalog
 """
-import os
-import sys
-import errno
 from argparse import ArgumentParser
+import errno
+import os
+import re
+import sys
+
+from sqlalchemy import or_
 
 from pygtktalog import scan
 from pygtktalog import misc
@@ -62,6 +65,17 @@ class Iface(object):
                 raise AttributeError("No such path: %s" % path)
 
         return last_node
+
+    def _get_full_path(self, file_object):
+        """given the file object, return string with full path to it"""
+        parent = file_object.parent
+        path = [file_object.filename]
+
+        while parent.type:
+            path.insert(0, parent.filename)
+            parent = parent.parent
+
+        return u"/" + u"/".join(path)
 
     def _make_path(self, node):
         """Make the path to the item in the DB"""
@@ -193,6 +207,54 @@ class Iface(object):
             scanob = scan.Scan(dir_to_add)
             scanob.add_files()
 
+    def _annotate(self, item, search_words):
+        """
+        Find ranges to be highlighted in item, provide them and return result
+        string
+        """
+        indexes = []
+        for word in search_words:
+            for match in re.finditer(re.escape(word.lower()), item.lower()):
+                for index in range(match.start(), match.end()):
+                    indexes.append(index)
+
+        highlight = False
+        result = []
+
+        for idx, char in enumerate(item):
+            if idx in indexes:
+                if not highlight:
+                    highlight = True
+                    result.append(COLOR_SEQ % WHITE)
+                result.append(char)
+            else:
+                if highlight:
+                    highlight = False
+                    result.append(RESET_SEQ)
+                result.append(char)
+
+        return "".join(result)
+
+    def find(self, search_words):
+        query = self.sess.query(File).filter(or_(File.type == 2,
+                                                 File.type == 3))
+        result = []
+
+        for word in search_words:
+            phrase = u"%%%s%%" % word.decode('utf-8')
+            query = query.filter(File.filename.like(phrase))
+
+        for item in query.all():
+            result.append(self._get_full_path(item))
+
+        if not result:
+            print "No results for `%s'" % " ".join(search_words)
+            return
+
+        result.sort()
+        for item in result:
+            print self._annotate(item, search_words)
+
 
 def list_db(args):
     """List"""
@@ -234,6 +296,15 @@ def create_db(args):
 
     obj = Iface(args.db, args.pretend, args.debug)
     obj.create(args.dir_to_add, args.imagedir)
+    obj.close()
+
+def search(args):
+    if not os.path.exists(args.db):
+        print colorize("File `%s' does not exists!" % args.db, "red")
+        sys.exit(1)
+
+    obj = Iface(args.db, False, args.debug)
+    obj.find(args.search_words)
     obj.close()
 
 
@@ -287,6 +358,13 @@ def main():
     add.add_argument("-d", "--debug", help="Turn on debug",
                      action="store_true", default=False)
     add.set_defaults(func=add_dir)
+
+    find = subparser.add_parser("find")
+    find.add_argument("db")
+    find.add_argument("search_words", nargs="+")
+    find.add_argument("-d", "--debug", help="Turn on debug",
+                      action="store_true", default=False)
+    find.set_defaults(func=search)
 
     args = parser.parse_args()
     args.func(args)
