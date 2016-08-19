@@ -7,12 +7,33 @@ gwhere <http://www.gwhere.org/home.php3>. There is no coincidence in name of
 application, because it's meant to be replacement (in some way) for gtktalog,
 which seems to be dead project for years.
 
+WARNING!
+========
+
+This version is mostly outdated, full of bugs, and may eat your data! First
+usable version (this is what you are looking at right now) was completed around
+2009 year, but implementation was done much earlier. During that time GTK2 was
+changed significantly several times, because of that couple of pyGTKtalog
+functionalities goes bad.
+
+The reason for keeping this branch is for history and for GUI to the new engine
+which was rewritten couple of years ago and have only cli tool to manipulate
+DBs.
+
+In other words - pyGTKtalog version on this branch is safe for **view only**
+your catalog database, while it may corrupt database or other files while trying
+to create/update your databases in any way.
+
+You have been warned.
+
+The rest of the README file:
+
 FEATURES
 ========
 
 - scan for files in selected media
 - get/generate thumbnails from EXIF and other images
-- most important EXIF tags
+- stores selected EXIF tags
 - add/edit description and notes
 - fetch comments for images made in gThumb <http://gthumb.sourceforge.net>
 - add/remove unlimited images to any file or directory
@@ -30,16 +51,16 @@ pyGTKtalog is written in python with following dependencies:
 
 Optional modules:
 
-- PIL <http://www.pythonware.com/products/pil/index.htm> for image 
+- PIL <http://www.pythonware.com/products/pil/index.htm> for image
   manipulation
 
-Additional pyGTKtalog uses pygtkmvc <http://pygtkmvc.sourceforge.net> by 
-Roberto Cavada and EXIF module by Gene Cash (slightly updatetd to EXIF 2.2 by 
+Additional pyGTKtalog uses pygtkmvc <http://pygtkmvc.sourceforge.net> by
+Roberto Cavada and EXIF module by Gene Cash (slightly updatetd to EXIF 2.2 by
 me) which are included in sources.
 
-pyGTKtalog extensively uses external programs in unix spirit, however there is 
-small possibility of using it Windows (probably with limitations) and quite 
-big possibility to run it on other sophisticated unix-like systems (i.e.  
+pyGTKtalog extensively uses external programs in unix spirit, however there is
+small possibility of using it Windows (probably with limitations) and quite
+big possibility to run it on other sophisticated unix-like systems (i.e.
 BeOS/ZETA/Haiku, QNX or MacOSX).
 
 INSTALLATION
@@ -60,7 +81,7 @@ you have to do is:
 - then modify pyGTKtalog line 6 to match right pygtktalog.py directory
 
 Then, just run pyGTKtalog script.
-  
+
 TODO
 ====
 
@@ -124,7 +145,8 @@ design prevent from deleting any file from media directory (placed in
 ~/.pygtktalog/images). Functionality for exporting images and corresponding db
 file is planned.
 
-BUGS
-====
+LICENSE
+=======
 
-All bugs please report to Roman 'gryf' Dobosz <roman.dobosz@gmail.com>
+This work is licensed under the terms of the GNU GPL, version 3. See the LICENCE
+file in top-level directory.
