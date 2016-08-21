@@ -2,10 +2,9 @@ pyGTKtalog 1.0
 ==============
 
 pyGTKtalog is Linux/FreeBSD program for indexing CD/DVD or directories on
-filesystem. It is similar to gtktalog <http://www.nongnu.org/gtktalog/> or
-gwhere <http://www.gwhere.org/home.php3>. There is no coincidence in name of
-application, because it's meant to be replacement (in some way) for gtktalog,
-which seems to be dead project for years.
+filesystem. It is similar to `gtktalog`_ or `gwhere`_ . There is no coincidence
+in name of application, because it's meant to be replacement (in some way) for
+gtktalog, which seems to be dead project for years.
 
 .. image:: /example/main.png
     :alt: pyGTKtalog main screen
@@ -13,7 +12,7 @@ which seems to be dead project for years.
 WARNING!
 ========
 
-This version is mostly outdated, full of bugs, and may eat your data! First
+**This version is mostly outdated, full of bugs, and may eat your data!** First
 usable version (this is what you are looking at right now) was completed around
 2009 year, but implementation was done much earlier. During that time GTK2 was
 changed significantly several times, because of that couple of pyGTKtalog
@@ -38,9 +37,9 @@ FEATURES
 * get/generate thumbnails from EXIF and other images
 * stores selected EXIF tags
 * add/edit description and notes
-* fetch comments for images made in gThumb <http://gthumb.sourceforge.net>
+* fetch comments for images made in `gThumb`_
 * add/remove unlimited images to any file or directory
-* tagging files <http://en.wikipedia.org/wiki/Tag_%28metadata%29>
+* `tagging files`_
 * and more :)
 
 Couple of screens showing how it looks like:
@@ -54,23 +53,24 @@ Couple of screens showing how it looks like:
 .. image:: /example/search.png
     :alt: Search window and image view
 
+Also, in ``example`` directory you'll find a database ``example.sqlite`` to play
+with.
+
 REQUIREMENTS
 ============
 
 pyGTKtalog is written in python with following dependencies:
 
-- python 2.4 or higher
-- pygtk 2.10 or higher <http://www.pygtk.org>
-- pysqlite2 <http://pysqlite.org/> (unnecessary, if python 2.5 is used)
+* python 2.4 or higher
+* `pygtk 2.10`_ or higher
+* `pysqlite2`_ (unnecessary, if python 2.5 is used)
 
 Optional modules:
 
-- PIL <http://www.pythonware.com/products/pil/index.htm> for image
-  manipulation
+* `PIL`_ for image manipulation
 
-Additional pyGTKtalog uses pygtkmvc <http://pygtkmvc.sourceforge.net> by
-Roberto Cavada and EXIF module by Gene Cash (slightly updatetd to EXIF 2.2 by
-me) which are included in sources.
+Additional pyGTKtalog uses `pygtkmvc`_ by Roberto Cavada and EXIF module by Gene
+Cash (slightly updatetd to EXIF 2.2 by me) which are included in sources.
 
 pyGTKtalog extensively uses external programs in unix spirit, however there is
 small possibility of using it Windows (probably with limitations) and quite
@@ -88,11 +88,11 @@ directory to pyGTKtalog and simply run:
 That's it. Alternatively, if you like to put it in more system wide place, all
 you have to do is:
 
-- put pyGTKtalog directory into your destination of choice (/usr/local/share,
+* put pyGTKtalog directory into your destination of choice (/usr/local/share,
   /opt or ~/ is typical bet)
-- copy pyGTKtalog shell script to /usr/bin, /usr/local/bin or in
+* copy pyGTKtalog shell script to /usr/bin, /usr/local/bin or in
   other place, where PATH variable is pointing or you feel like.
-- then modify pyGTKtalog line 6 to match right pygtktalog.py directory
+* then modify pyGTKtalog line 6 to match right ``pygtktalog.py`` directory
 
 Then, just run pyGTKtalog script.
 
@@ -164,3 +164,12 @@ LICENSE
 
 This work is licensed under the terms of the GNU GPL, version 3. See the LICENCE
 file in top-level directory.
+
+.. _gtktalog: http://www.nongnu.org/gtktalog/
+.. _gwhere: http://www.gwhere.org/home.php3
+.. _PIL: http://www.pythonware.com/products/pil/index.htm
+.. _pygtk 2.10: http://www.pygtk.org
+.. _pysqlite2: http://pysqlite.org/
+.. _pygtkmvc: http://pygtkmvc.sourceforge.net
+.. _gThumb: http://gthumb.sourceforge.net
+.. _tagging files: http://en.wikipedia.org/wiki/Tag_%28metadata%29
