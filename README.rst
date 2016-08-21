@@ -7,6 +7,9 @@ gwhere <http://www.gwhere.org/home.php3>. There is no coincidence in name of
 application, because it's meant to be replacement (in some way) for gtktalog,
 which seems to be dead project for years.
 
+.. image:: /example/main.png
+    :alt: pyGTKtalog main screen
+
 WARNING!
 ========
 
@@ -31,14 +34,25 @@ The rest of the README file:
 FEATURES
 ========
 
-- scan for files in selected media
-- get/generate thumbnails from EXIF and other images
-- stores selected EXIF tags
-- add/edit description and notes
-- fetch comments for images made in gThumb <http://gthumb.sourceforge.net>
-- add/remove unlimited images to any file or directory
-- tagging files <http://en.wikipedia.org/wiki/Tag_%28metadata%29>
-- and more :)
+* scan for files in selected media
+* get/generate thumbnails from EXIF and other images
+* stores selected EXIF tags
+* add/edit description and notes
+* fetch comments for images made in gThumb <http://gthumb.sourceforge.net>
+* add/remove unlimited images to any file or directory
+* tagging files <http://en.wikipedia.org/wiki/Tag_%28metadata%29>
+* and more :)
+
+Couple of screens showing how it looks like:
+
+.. image:: /example/tags_images.png
+    :alt: Other tabs - tags and images
+
+.. image:: /example/tags_selected.png
+    :alt: Narrow down the files by tags
+
+.. image:: /example/search.png
+    :alt: Search window and image view
 
 REQUIREMENTS
 ============
