@@ -19,18 +19,12 @@ from pygtktalog.video import Video
 
 
 LOG = get_logger(__name__)
-PAT = re.compile("(\[[^\]]*\]"
-                 ".*\(\d\d\d\d\))"
-                 "\s[^\[]*\[.{8}\]"
-                 ".[a-zA-Z0-9]*$")
+RE_FN_START = re.compile(r'(?P<fname_start>'
+                         r'(\[[^\]]*\]\s)?'
+                         r'(.*)\s'
+                         r'((\(\d{4}\))\s)?).*'
+                         r'(\[[A-Z0-9]{8}\])\..*')
 
-#PAT = re.compile(r'(?P<group>\[[^\]]*\]\s)?'
-#                 r'(?P<title>.*)\s'
-#                 r'(?P<year>\(\d{4}\))\s'
-#                 r'(?P<kind>.*)'
-#                 r'(?P<checksum>\[[A-Z0-9]{8}\])'
-#                 r'\.(?P<extension>(avi|asf|mpeg|mpg|mp4|ogm|ogv|mkv|mov|wmv'
-#                 r'|rm|rmvb|flv|jpg|png|gif|nfo))\.?(conf)?$')
 
 
 class NoAccessError(Exception):
@@ -234,9 +228,9 @@ class Scan(object):
         """
         Make captures for a movie. Save it under uniq name.
         """
-        result = PAT.search(fobj.filename)
+        result = RE_FN_START.match(fobj.filename)
         if result:
-            self._check_related(fobj, result.groups()[0])
+            self._check_related(fobj, result.groupdict()['fname_start'])
 
         vid = Video(filepath)
 
@@ -246,46 +240,45 @@ class Scan(object):
         if preview_fn:
             Image(preview_fn, self.img_path, fobj)
 
-    def _check_related(self, fobj, pattern):
+    def _check_related(self, fobj, filename_start):
         """
         Try to search for related files which belongs to specified File
-        object and pattern. If found, additional objects are created.
+        object and pattern. If found, additional File objects are created.
+
+        For example, if we have movie file named like:
+            [aXXo] Batman (1989) [D3ADBEEF].avi
+            [aXXo] Batman (1989) trailer [B00B1337].avi
+            Batman (1989) [D3ADBEEF].avi
+            Batman [D3ADBEEF].avi
+
+        And for example file '[aXXo] Batman (1989) [D3ADBEEF].avi' might have
+        some other accompanied files, like:
+
+            [aXXo] Batman (1989) [D3ADBEEF].avi.conf
+            [aXXo] Batman (1989) [DEADC0DE].nfo
+            [aXXo] Batman (1989) cover [BEEFD00D].jpg
+            [aXXo] Batman (1989) poster [FEEDD00D].jpg
+
+        Which can be atuomatically asociated with the movie.
+
+        This method find such files, and for some of them (currently images)
+        will perform extra actions - like creating corresponding Image objects.
+
         """
-        for filen in os.listdir(fobj.filepath):
-            if pattern in filen and \
-                    os.path.splitext(filen)[1] in (".jpg", ".png", ".gif"):
-                full_fname = os.path.join(fobj.filepath, filen)
-                LOG.debug('found cover file: %s', full_fname)
+        for fname in os.listdir(fobj.filepath):
+            extension = os.path.splitext(fname)[1]
+            if fname.startswith(filename_start) and \
+               extension in ('.jpg', '.gif', '.png'):
+                full_fname = os.path.join(fobj.filepath, fname)
+                LOG.debug('found corresponding image file: %s', full_fname)
 
                 Image(full_fname, self.img_path, fobj, False)
 
                 if not fobj.thumbnail:
                     Thumbnail(full_fname, self.img_path, fobj)
 
-    def _name_matcher(self, fpath, fname, media=False):
-        """
-        Try to match special pattern to filename which may be looks like this:
-            [aXXo] Batman (1989) [D3ADBEEF].avi
-            [aXXo] Batman (1989) [D3ADBEEF].avi.conf
-            [aXXo] Batman (1989) cover [BEEFD00D].jpg
-            [aXXo] Batman (1989) cover2 [FEEDD00D].jpg
-            [aXXo] Batman (1989) trailer [B00B1337].avi
-        or
-            Batman (1989) [D3ADBEEF].avi (and so on)
-
-        For media=False it will return True for filename, that matches
-        pattern, and there are at least one corresponding media files (avi,
-        mpg, mov and so on) _in case the filename differs from media_. This is
-        usfull for not storing covers, nfo, conf files in the db.
-
-        For kind == 2 it will return all images and other files that should be
-        gather due to video file examinig as a dict of list (conf, nfo and
-        images).
-        """
-        # TODO: dokonczyc to na podstawie tego cudowanego patternu u gory.
-        return
-
     def _get_all_files(self):
+        """Gather all File objects"""
         self._existing_files = self._session.query(File).all()
 
     def _mk_file(self, fname, path, parent, ftype=TYPE['file']):
@@ -388,23 +381,23 @@ class Scan(object):
         root, dirs, files = os.walk(fullpath).next()
         for fname in files:
             fpath = os.path.join(root, fname)
+            extension = os.path.splitext(fname)[1]
             self.current_count += 1
             LOG.debug("Processing %s [%s/%s]", fname, self.current_count,
                       self.files_count)
 
-            result = PAT.search(fname)
+            result = RE_FN_START.match(fname)
             test_ = False
 
-            if result and os.path.splitext(fpath)[1] in ('.jpg', '.gif',
-                                                         '.png'):
-                newpat = result.groups()[0]
+            if result and extension in ('jpg', 'gif', 'png'):
+                startfrom = result.groupdict()['fname_start']
                 matching_files = []
                 for fn_ in os.listdir(root):
-                    if newpat in fn_:
+                    if fn_.startswith(startfrom):
                         matching_files.append(fn_)
 
                 if len(matching_files) > 1:
-                    LOG.debug('found cover "%s" in group: %s, skipping', fname,
+                    LOG.debug('found image "%s" in group: %s, skipping', fname,
                               str(matching_files))
                     test_ = True
             if test_:
