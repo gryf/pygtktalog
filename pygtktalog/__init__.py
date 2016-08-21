@@ -6,12 +6,11 @@
     Created: 2009-05-05
 """
 
-__version__ = "1.9.0"
+__version__ = "2.0.0"
 __appname__ = "pyGTKtalog"
 __copyright__ = u"\u00A9 Roman 'gryf' Dobosz"
 __summary__ = "%s is simple tool for managing file collections." % __appname__
-__web__ = "http://bitbucket.org/gryf"
-__logo_img__ = "views/pixmaps/Giant Worms.png"
+__web__ = "http://github.com/gryf/pygtktalog"
 
 import os
 import sys
@@ -19,15 +18,10 @@ import locale
 import gettext
 import __builtin__
 
-import gtk.glade
-
 from pygtktalog.logger import get_logger
 
 
-__all__ = ['controllers',
-           'models',
-           'views',
-           'EXIF',
+__all__ = ['EXIF',
            'dbcommon',
            'dbobjects',
            'dialogs',
@@ -48,12 +42,12 @@ except locale.Error:
     # unknown locale string, fallback to C
     locale.setlocale(locale.LC_ALL, 'C')
 
-for module in gtk.glade, gettext:
-    if os.path.exists(LOCALE_PATH):
-        module.bindtextdomain(GETTEXT_DOMAIN, LOCALE_PATH)
-    else:
-        module.bindtextdomain(GETTEXT_DOMAIN)
-    module.textdomain(GETTEXT_DOMAIN)
+# for module in gtk.glade, gettext:
+#     if os.path.exists(LOCALE_PATH):
+#         module.bindtextdomain(GETTEXT_DOMAIN, LOCALE_PATH)
+#     else:
+#         module.bindtextdomain(GETTEXT_DOMAIN)
+#     module.textdomain(GETTEXT_DOMAIN)
 
 # register the gettext function for the whole interpreter as "_"
 __builtin__._ = gettext.gettext
