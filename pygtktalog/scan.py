@@ -34,6 +34,7 @@ PAT = re.compile("(\[[^\]]*\]"
 
 
 class NoAccessError(Exception):
+    """No access exception"""
     pass
 
 
@@ -94,21 +95,23 @@ class Scan(object):
         one query using WITH statement. For now on it has to be done in
         application.
         """
-        SQL = "select id from files where parent_id=? and type=1"
-        SQL2 = "select id from files where parent_id in (%s)"
+        query = "select id from files where parent_id=? and type=1"
+        query2 = "select id from files where parent_id in (%s)"
 
         row = ((node_id,),)
         all_ids = []
+
         def req(obj):
+            """Requrisve function for gathering all child ids for given node"""
             for line in obj:
                 all_ids.append(line[0])
-                res = engine.execute(SQL, (line[0],)).fetchall()
+                res = engine.execute(query, (line[0],)).fetchall()
                 if res:
                     req(res)
 
         req(row)
 
-        sql = SQL2 % ",".join("?" * len(all_ids))
+        sql = query2 % ",".join("?" * len(all_ids))
         all_ids = [row_[0] for row_ in engine
                    .execute(sql, tuple(all_ids))
                    .fetchall()]
@@ -116,13 +119,13 @@ class Scan(object):
         all_obj = []
         # number of objects to retrieve at once. Limit is 999. Let's do a
         # little bit below.
-        no = 900
-        steps = len(all_ids) / no + 1
+        num = 900
+        steps = len(all_ids) / num + 1
         for step in range(steps):
             all_obj.extend(self._session
                            .query(File)
                            .filter(File.id
-                                   .in_(all_ids[step * no:step * no + no]))
+                                   .in_(all_ids[step * num:step * num + num]))
                            .all())
         return all_obj
 
@@ -172,7 +175,7 @@ class Scan(object):
         if not os.access(update_path, os.R_OK | os.X_OK) \
                 or not os.path.isdir(update_path):
             LOG.error("Access to %s is forbidden", update_path)
-            raise NoAccessError("Access to %s is forbidden", update_path)
+            raise NoAccessError("Access to %s is forbidden" % update_path)
 
         directory = os.path.basename(update_path)
         path = os.path.dirname(update_path)
@@ -181,7 +184,7 @@ class Scan(object):
             return None
 
         # update branch
-        #self._session.merge(self._files[0])
+        # self._session.merge(self._files[0])
         LOG.debug("Deleting objects whitout parent: %s",
                   str(self._session.query(File)
                       .filter(File.parent==None).all()))
@@ -189,23 +192,6 @@ class Scan(object):
 
         self._session.commit()
         return self._files
-
-    def _get_dirsize(self, path):
-        """
-        Returns sum of all files under specified path (also in subdirs)
-        """
-
-        size = 0
-
-        for root, dirs, files in os.walk(path):
-            for fname in files:
-                try:
-                    size += os.lstat(os.path.join(root, fname)).st_size
-                except OSError:
-                    LOG.warning("Cannot access file %s",
-                                os.path.join(root, fname))
-        LOG.debug("_get_dirsize, %s: %d", path, size)
-        return size
 
     def _gather_information(self, fobj):
         """
@@ -237,11 +223,11 @@ class Scan(object):
             pass
 
     def _audio(self, fobj, filepath):
-        #LOG.warning('audio')
+        # LOG.warning('audio')
         return
 
     def _image(self, fobj, filepath):
-        #LOG.warning('image')
+        # LOG.warning('image')
         return
 
     def _video(self, fobj, filepath):
@@ -331,7 +317,8 @@ class Scan(object):
 
         if fobj:
             LOG.debug("found existing file in db: %s", str(fobj))
-            fobj.size = fob['size']  # TODO: update whole tree sizes (for directories/discs)
+            # TODO: update whole tree sizes (for directories/discs)
+            fobj.size = fob['size']
             fobj.filepath = fob['path']
             fobj.type = fob['ftype']
         else:
@@ -392,7 +379,7 @@ class Scan(object):
 
         parent = self._mk_file(fname, path, parent, TYPE['dir'])
 
-        parent.size = self._get_dirsize(fullpath)
+        parent.size = _get_dirsize(fullpath)
         parent.type = TYPE['dir']
 
         LOG.info("Scanning `%s' [%s/%s]", fullpath, self.current_count,
@@ -509,3 +496,22 @@ class Scan(object):
             image_path = pygtktalog.misc.calculate_image_path(image_path.value)
 
         self.img_path = image_path
+
+
+def _get_dirsize(path):
+    """
+    Returns sum of all files under specified path (also in subdirs)
+    """
+
+    size = 0
+
+    for root, _, files in os.walk(path):
+        for fname in files:
+            try:
+                size += os.lstat(os.path.join(root, fname)).st_size
+            except OSError:
+                LOG.warning("Cannot access file %s",
+                            os.path.join(root, fname))
+    LOG.debug("_get_dirsize, %s: %d", path, size)
+    return size
+
