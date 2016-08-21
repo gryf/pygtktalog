@@ -65,7 +65,7 @@ class Scan(object):
         """
         self._files = []
         self._existing_branch = []
-        LOG.debug("given path: %s" % self.path)
+        LOG.debug("given path: %s", self.path)
 
         # See, if file exists. If not it would raise OSError exception
         os.stat(self.path)
@@ -164,15 +164,15 @@ class Scan(object):
         LOG.debug("Refreshing objects")
         self._get_all_files()
 
-        LOG.debug("path for update: %s" % update_path)
+        LOG.debug("path for update: %s", update_path)
 
         # See, if file exists. If not it would raise OSError exception
         os.stat(update_path)
 
         if not os.access(update_path, os.R_OK | os.X_OK) \
                 or not os.path.isdir(update_path):
-            LOG.error("Access to %s is forbidden" % update_path)
-            raise NoAccessError("Access to %s is forbidden" % update_path)
+            LOG.error("Access to %s is forbidden", update_path)
+            raise NoAccessError("Access to %s is forbidden", update_path)
 
         directory = os.path.basename(update_path)
         path = os.path.dirname(update_path)
@@ -182,8 +182,9 @@ class Scan(object):
 
         # update branch
         #self._session.merge(self._files[0])
-        LOG.debug("Deleting objects whitout parent: %s" % \
-                str(self._session.query(File).filter(File.parent==None).all()))
+        LOG.debug("Deleting objects whitout parent: %s",
+                  str(self._session.query(File)
+                      .filter(File.parent==None).all()))
         self._session.query(File).filter(File.parent==None).delete()
 
         self._session.commit()
@@ -201,8 +202,8 @@ class Scan(object):
                 try:
                     size += os.lstat(os.path.join(root, fname)).st_size
                 except OSError:
-                    LOG.warning("Cannot access file "
-                                "%s" % os.path.join(root, fname))
+                    LOG.warning("Cannot access file %s",
+                                os.path.join(root, fname))
         LOG.debug("_get_dirsize, %s: %d", path, size)
         return size
 
@@ -268,7 +269,7 @@ class Scan(object):
             if pattern in filen and \
                     os.path.splitext(filen)[1] in (".jpg", ".png", ".gif"):
                 full_fname = os.path.join(fobj.filepath, filen)
-                LOG.debug('found cover file: %s' % full_fname)
+                LOG.debug('found cover file: %s', full_fname)
 
                 Image(full_fname, self.img_path, fobj, False)
 
@@ -329,7 +330,7 @@ class Scan(object):
         fobj = self._get_old_file(fob, ftype)
 
         if fobj:
-            LOG.debug("found existing file in db: %s" % str(fobj))
+            LOG.debug("found existing file in db: %s", str(fobj))
             fobj.size = fob['size']  # TODO: update whole tree sizes (for directories/discs)
             fobj.filepath = fob['path']
             fobj.type = fob['ftype']
@@ -443,16 +444,16 @@ class Scan(object):
             dirpath = os.path.join(root, dirname)
 
             if not os.access(dirpath, os.R_OK|os.X_OK):
-                LOG.info("Cannot access directory %s" % dirpath)
+                LOG.info("Cannot access directory %s", dirpath)
                 continue
 
             if os.path.islink(dirpath):
                 fob = self._mk_file(dirname, root, parent, TYPE['link'])
             else:
-                LOG.debug("going into %s" % os.path.join(root, dirname))
+                LOG.debug("going into %s", os.path.join(root, dirname))
                 self._recursive(parent, dirname, fullpath, size)
 
-        LOG.debug("size of items: %s" % parent.size)
+        LOG.debug("size of items: %s", parent.size)
         return True
 
     def _get_old_file(self, fdict, ftype):
