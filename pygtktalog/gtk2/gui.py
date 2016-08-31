@@ -2,112 +2,245 @@
 
 import gtk
 
+from pygtktalog import logger
+
+UI = """
+<ui>
+
+<menubar name="MenuBar">
+    <menu action="File">
+        <menuitem action="New"/>
+        <menuitem action="Open"/>
+        <menuitem action="Save"/>
+        <menuitem action="Save As"/>
+        <separator/>
+        <menuitem action="Import"/>
+        <menuitem action="Export"/>
+        <separator/>
+        <menuitem action="Recent"/>
+        <separator/>
+        <menuitem action="Quit"/>
+    </menu>
+    <menu action="Edit">
+        <menuitem action="Delete"/>
+        <separator/>
+        <menuitem action="Find"/>
+        <separator/>
+        <menuitem action="Preferences"/>
+    </menu>
+    <menu action="Catalog">
+        <menuitem action="Add_CD"/>
+        <menuitem action="Add_Dir"/>
+        <separator/>
+        <menuitem action="Delete_all_images"/>
+        <menuitem action="Delete_all_thumbnails"/>
+        <menuitem action="Save_all_images"/>
+        <separator/>
+        <menuitem action="Catalog_statistics"/>
+        <separator/>
+        <menuitem action="Cancel"/>
+    </menu>
+    <menu action="View">
+        <menuitem action="Toolbar"/>
+        <menuitem action="Statusbar"/>
+    </menu>
+    <menu action="Help">
+        <menuitem action="About"/>
+    </menu>
+</menubar>
+
+<toolbar name="ToolBar">
+    <toolitem action="New"/>
+    <toolitem action="Open"/>
+    <toolitem action="Save"/>
+    <separator/>
+    <toolitem action="Add_CD"/>
+    <toolitem action="Add_Dir"/>
+    <toolitem action="Find"/>
+    <separator/>
+    <toolitem action="Cancel"/>
+    <toolitem action="Quit"/>
+    <toolitem action="Debug"/>
+</toolbar>
+
+</ui>
+"""
+LOG = logger.get_logger(__name__)
+LOG.setLevel(2)
+
+
+class ConnectedWidgets(object):
+    """grouped widgets"""
+    def __init__(self, toolbar, menu):
+        super(ConnectedWidgets, self).__init__()
+        self.toolbar = toolbar
+        self.menu = menu
+
+    def hide(self):
+        self.toolbar.hide()
+        self.menu.hide()
+
+    def show(self):
+        self.toolbar.show()
+        self.menu.show()
+
+    def set_sensitive(self, state):
+        self.toolbar.set_sensitive(state)
+        self.menu.set_sensitive(state)
+
 
 class MainWindow(object):
-    def __init__(self):
+
+    def __init__(self, debug=False):
+        """Initialize window"""
+        LOG.debug("initialize")
         self.window = gtk.Window()
+        self.window.set_default_size(650, -1)
         self.window.set_title("pygtktalog")
-        self.window.connect("delete-event", gtk.main_quit)
+        self.window.connect("delete-event", self.on_quit)
 
         self.recent = None
+        self.toolbar = None
+        self.statusbar = None
+        self.cancel = None
+        self.debug = None
 
-        box = gtk.VBox(False, 0)
+        vbox = gtk.VBox(False, 0)
 
-        vpaned = gtk.VPaned()
+        self._setup_menu_toolbar(vbox)
 
-        menubar = self.get_main_menu()
-        box.pack_start(menubar, False, True, 0)
+        # TODO:
+        # 1. toolbar with selected tags
+        # 2. main view (splitter)
+        # 3. treeview with tag cloud (left split)
+        # 4. splitter (right split)
+        # 5. file list (upper split)
+        # 6. details w images and thumb (lower split)
+        # 7. status bar (if needed…)
 
-        box.pack_start(vpaned, True, True, 0)
+        hbox = gtk.HBox(False, 0)
+        vbox.add(hbox)
 
-        self.window.add(box)
-        self.window.add(vpaned)
+        self.window.add(vbox)
         self.window.show_all()
-
-    def menu(self):
-        return(gtk.MenuBar())
+        self.debug.hide()
 
     def fake_recent(self):
         recent_menu = gtk.Menu()
         for i in "one two techno foo bar baz".split():
             item = gtk.MenuItem(i)
-            item.connect_object("activate", self.on_recent_activate,
+            item.connect_object("activate", self.on_recent,
                                 "/some/fake/path/" + i)
             recent_menu.append(item)
             item.show()
         self.recent.set_submenu(recent_menu)
 
-    def get_main_menu(self):
-        menu_items = (("/_File", None, None, 0, "<Branch>"),
-                      ("/File/_New", "<control>N", self.on_menu_callback,
-                       0, '<StockItem>', gtk.STOCK_NEW),
-                      ("/File/_Open", "<control>O", self.on_menu_callback,
-                       0, '<StockItem>', gtk.STOCK_OPEN),
-                      ("/File/_Save", "<control>S", self.on_menu_callback,
-                       0, '<StockItem>', gtk.STOCK_SAVE),
-                      ("/File/Save _As", None, self.on_menu_callback, 0,
-                       '<StockItem>', gtk.STOCK_SAVE_AS),
-                      ("/File/sep1", None, None, 0, "<Separator>"),
-                      ("/File/Import", None, None, 0, None),
-                      ("/File/Export", None, None, 0, None),
-                      ("/File/sep2", None, None, 0, "<Separator>"),
-                      ("/File/Recent files", None, None, 0, None),
-                      ("/File/sep3", None, None, 0, "<Separator>"),
-                      ("/File/_Quit", "<control>Q", gtk.main_quit, 0,
-                       '<StockItem>', gtk.STOCK_QUIT),
-                      ("/_Edit", None, None, 0, "<Branch>"),
-                      ("/Edit/_Delete", "Delete", None, 0, '<StockItem>',
-                       gtk.STOCK_DELETE),
-                      ("/Edit/sep4", None, None, 0, "<Separator>"),
-                      ("/Edit/_Find", "<control>F", None, 0,
-                       '<StockItem>', gtk.STOCK_FIND),
-                      ("/Edit/sep5", None, None, 0, "<Separator>"),
-                      ("/Edit/_Preferences", None, None, 0,
-                       '<StockItem>', gtk.STOCK_PREFERENCES),
-                      ("/_Catalog", None, None, 0, "<Branch>"),
-                      ("/Catalog/Add CD\/DVD", "<control>E", None, 0, None),
-                      ("/Catalog/Add Directory", "<control>D", None, 0, None),
-                      ("/Catalog/sep6", None, None, 0, "<Separator>"),
-                      ("/Catalog/Delete all images", None, None, 0, None),
-                      ("/Catalog/Delete all thumbnals", None, None, 0, None),
-                      ("/Catalog/Save all images…", None, None, 0, None),
-                      ("/Catalog/sep7", None, None, 0, "<Separator>"),
-                      ("/Catalog/Catalog _statistics", None, None, 0, None),
-                      ("/Catalog/sep8", None, None, 0, "<Separator>"),
-                      ("/Catalog/Cancel", None, None, 0, '<StockItem>',
-                       gtk.STOCK_CANCEL),
-                      ("/_View", None, None, 0, "<Branch>"),
-                      ("/View/Toolbar", None, None, 0, '<ToggleItem>'),
-                      ("/View/Status bar", None, None, 0, '<ToggleItem>'),
-                      ("/_Help", None, None, 0, "<LastBranch>"),
-                      ("/_Help/About", None, self.on_about_activate, 0,
-                       '<StockItem>', gtk.STOCK_ABOUT))
+    def _setup_menu_toolbar(self, vbox):
+        """Create menu/toolbar using uimanager."""
+        actions = [('File', None, '_File'),
+                   ('New', gtk.STOCK_NEW, '_New', None, 'Create new catalog', self.on_new),
+                   ('Open', gtk.STOCK_OPEN, '_Open', None, 'Open catalog file', self.on_open),
+                   ('Save', gtk.STOCK_SAVE, '_Save', None, 'Save catalog file', self.on_save),
+                   ('Save As', gtk.STOCK_SAVE_AS, '_Save As', None, None, self.on_save),
+                   ('Import', None, '_Import', None, None, self.on_import),
+                   ('Export', None, '_Export', None, None, self.on_export),
+                   ('Recent', None, '_Recent files'),
+                   ('Quit', gtk.STOCK_QUIT, '_Quit', None, 'Quit the Program', self.on_quit),
+                   ('Edit', None, '_Edit'),
+                   ('Delete', gtk.STOCK_DELETE, '_Delete', None, None, self.on_delete),
+                   ('Find', gtk.STOCK_FIND, '_Find', None, 'Find file', self.on_find),
+                   ('Preferences', gtk.STOCK_PREFERENCES, '_Preferences'),
+                   ('Catalog', None, '_Catalog'),
+                   ('Add_CD', gtk.STOCK_CDROM, '_Add CD', None, 'Add CD/DVD/BR to catalog'),
+                   ('Add_Dir', gtk.STOCK_DIRECTORY, '_Add Dir', None, 'Add directory to catalog'),
+                   ('Delete_all_images', None, '_Delete all images'),
+                   ('Delete_all_thumbnails', None, '_Delete all thumbnails'),
+                   ('Save_all_images', None, '_Save all images…'),
+                   ('Catalog_statistics', None, '_Catalog statistics'),
+                   ('Cancel', gtk.STOCK_CANCEL, '_Cancel'),
+                   ('View', None, '_View'),
+                   ('Help', None, '_Help'),
+                   ('About', gtk.STOCK_ABOUT, '_About'),
+                   ('Debug', gtk.STOCK_DIALOG_INFO, 'Debug')]
 
-        accel_group = gtk.AccelGroup()
-        item_factory = gtk.ItemFactory(gtk.MenuBar, "<main>", accel_group)
-        item_factory.create_items(menu_items)
+        toggles = [('Toolbar', None, '_Toolbar'),
+                   ('Statusbar', None, '_Statusbar')]
 
-        # get recent menu item, and build recent submenu
-        self.recent = item_factory.get_item('/File/Recent files')
+        mgr = gtk.UIManager()
+        accelgrp = mgr.get_accel_group()
+        self.window.add_accel_group(accelgrp)
+
+        agrp = gtk.ActionGroup("Actions")
+        agrp.add_actions(actions)
+        agrp.add_toggle_actions(toggles)
+
+        mgr.insert_action_group(agrp, 0)
+        mgr.add_ui_from_string(UI)
+
+        help_widget = mgr.get_widget("/MenuBar/Help")
+        help_widget.set_right_justified(True)
+
+        self.recent = mgr.get_widget("/MenuBar/File/Recent")
         self.fake_recent()
 
-        self.menu_cancel = item_factory.get_item('/Catalog/Cancel')
-        self.menu_cancel.set_sensitive(False)
+        menubar = mgr.get_widget("/MenuBar")
+        vbox.pack_start(menubar)
+        self.toolbar = mgr.get_widget("/ToolBar")
+        vbox.pack_start(self.toolbar)
 
+        menu_cancel = mgr.get_widget('/MenuBar/Catalog/Cancel')
+        toolbar_cancel = mgr.get_widget('/ToolBar/Cancel')
+        self.cancel = ConnectedWidgets(toolbar_cancel, menu_cancel)
+        self.cancel.set_sensitive(False)
 
-        self.window.add_accel_group(accel_group)
-        # Finally, return the actual menu bar created by the item factory.
-        return item_factory.get_widget("<main>")
+        self.debug = mgr.get_widget('/ToolBar/Debug')
 
-    def on_menu_callback(self, *args, **kwargs):
+        self.toolbar = mgr.get_widget('/MenuBar/View/Toolbar')
+        self.statusbar = mgr.get_widget('/MenuBar/View/Statusbar')
+
+    def on_new(self, *args, **kwargs):
+        LOG.debug("On new")
         return
 
-    def on_about_activate(self, event, menuitem):
-        print "about", event, menuitem
+    def on_open(self, *args, **kwargs):
+        LOG.debug("On open")
         return
 
-    def on_recent_activate(self, *args, **kwargs):
+    def on_save(self, *args, **kwargs):
+        LOG.debug("On save")
+        return
+
+    def on_save_as(self, *args, **kwargs):
+        LOG.debug("On save as")
+        return
+
+    def on_import(self, *args, **kwargs):
+        LOG.debug("On import")
+        return
+
+    def on_export(self, *args, **kwargs):
+        LOG.debug("On export")
+        return
+
+    def on_recent(self, *args, **kwargs):
+        LOG.debug("On recent")
         print args, kwargs
+
+    def on_quit(self, *args, **kwargs):
+        LOG.debug("on quit")
+        gtk.main_quit()
+
+    def on_delete(self, *args, **kwargs):
+        LOG.debug("On delete")
+        return
+
+    def on_find(self, *args, **kwargs):
+        LOG.debug("On find")
+        return
+
+    def on_about(self, event, menuitem):
+        LOG.debug("about", event, menuitem)
+        return
 
 
 def run():
