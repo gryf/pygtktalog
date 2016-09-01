@@ -1,56 +1,47 @@
 pyGTKtalog
 ==========
 
-pyGTKtalog is Linux/FreeBSD program for indexing CD/DVD or directories on
+Pygtktalog is Linux/FreeBSD program for indexing CD, DVD, BR or directories on
 filesystem. It is similar to `gtktalog <http://www.nongnu.org/gtktalog/>`_ or
 `gwhere <http://www.gwhere.org/home.php3>`_. There is no coincidence in name of
 application, because it's meant to be replacement (in some way) for gtktalog,
 which seems to be dead project for years.
 
-Current version is 1.9.
+Current version is 2.0.
 
 FEATURES
 --------
 
-* scan for files in selected media
-* get/generate thumbnails from exif and other images
-* most important exif tags
-* add/edit description and notes
-* fetch comments for images made in `gThumb <http://gthumb.sourceforge.net>`_
-* add/remove unlimited images to any file or directory
+* Scan for files in selected media
+* Support for grouping files depending on file name (expected patterns in file
+  names)
+* Get/generate thumbnails from EXIF and other images
+* Store selected EXIF tags
+* Add/edit description and notes
+* Fetch comments for images made in `gThumb <http://gthumb.sourceforge.net>`_
+* Add/remove unlimited images to any file or directory
 * `tagging files <http://en.wikipedia.org/wiki/Tag_%28metadata%29>`_
-* and more :)
+* And more :)
 
 REQUIREMENTS
 ------------
 
 pyGTKtalog requires python and following libraries:
 
-* `python 2.6 <http://www.python.org/>`_
-* `pygtk 2.16 <http://www.pygtk.org>`_
-* `pygtkmvc 1.99 <http://sourceforge.net/apps/trac/pygtkmvc/wiki>`_
+* `python 2.7 <http://www.python.org/>`_
+* `pygtk 2.24 <http://www.pygtk.org>`_
 * `sqlalchemy 0.6 <http://www.sqlalchemy.org>`_
 
 It may work on other (lower) version of libraries, and it should work with
-higher versions of libraries.
-
-.. note::
-
-    Although pygtkmvc is `listed on pypi
-    <http://pypi.python.org/pypi/python-gtkmvc/>`_ it may happen that you
-    have to download it directly from
-    `sourceforge <http://sourceforge.net/apps/trac/pygtkmvc/wiki>`_ page and
-    install manually. I don't know about pygtk (I've installed it by my
-    system package manager), but all the others python libraries (sqlalchemy,
-    paver, nose, coverage) should be installable via `pip
-    <http://pypi.python.org/pypi/pip>`_
+higher versions of libraries, although it will not work on Python 3 yet.
 
 Optional modules
 ^^^^^^^^^^^^^^^^
 
-* `PIL <http://www.pythonware.com/products/pil/index.htm>`_ for image manipulation
+* `PIL <http://www.pythonware.com/products/pil/index.htm>`_ for image
+  manipulation
 
-Additional pyGTKtalog uses EXIF module by Gene Cash (slightly updated to EXIF
+Additional pyGTKtalog uses `EXIF`_ module by Gene Cash (slightly updated to EXIF
 2.2 by me) which is included in sources.
 
 pyGTKtalog extensively uses external programs in unix spirit, however there is
@@ -59,8 +50,8 @@ possibility to run it on other sophisticated unix-like systems (i.e.
 BeOS/ZETA/Haiku, QNX or MacOSX).
 
 Programs that are used:
-* mencoder (provided by mplayer package)
-* montage, convert from ImageMagick
+* ``mencoder`` (provided by `mplayer`_ package)
+* ``montage``, ``convert`` from `ImageMagick`_
 
 For development process following programs are used:
 
@@ -91,58 +82,13 @@ you have to do is:
 
 Then, just run pyGTKtalog script.
 
-TODO
-----
-
-PyGTKtalog is still under heavy development, however there is small chance to
-change structure of catalogs (and if it'll change, there will be transparent
-function to update DB schema).
-
-For version 1.0 there are no features to be done, just bug fixes.
-
-There are still minor aims for versions 1.x to be done:
-
-* consolidate popup-menus with edit menu
-* add popup menu for directly removing tag from tag cloud
-* implement advanced search
-
-For version 2.0:
-
-* Export/Import
-* Icon grid in files view
-* command line support: query, adding media to collection etc
-* internationalization
-* export to XLS
-* user defined group of tags (represented by color in cloud tag)
-* hiding specified files - configurable, like dot prefixed, config and
-  manually selected
-* tests
-* warning about existing image in media directory
-
-Removed:
-
-* filetypes handling (movies, images, archives, documents etc). Now it have
-  common, unified external "plugin" system - simple text output from command
-  line programs.
-* anime/movie
-    * title
-    * alt title
-    * type (anime movie, movie, anime oav, anime tv series, tv series, etc)
-    * cover/images
-    * genre
-    * lang
-    * sub lang
-    * release date (from - to)
-    * anidb link/imdb link
-
-Maybe in future versions. Now text file descriptions/notes and tags have to
-be enough for good and fast information search.
-
-NOTES
------
+Technical details
+-----------------
 
 Catalog file is plain sqlite database (optionally compressed with bzip2). All
-images are stored in ``~/.pygtktalog/images`` directory. Names for images are
+images are stored in location pointed by db entry in ``config`` table - it is
+assumed, that images directory will be placed within the root directory, where
+the main db lies.
 generated sha512 hash from image file itself. There is small possibility for two
 identical hash for different image files. However, no images are overwritten.
 Thumbnail filename for each image is simply concatenation of image filename in
