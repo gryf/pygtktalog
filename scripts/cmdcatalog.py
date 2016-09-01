@@ -2,7 +2,7 @@
 """
 Fast and ugly CLI interface for pyGTKtalog
 """
-from argparse import ArgumentParser
+import argparse
 import errno
 import os
 import re
@@ -12,7 +12,7 @@ from sqlalchemy import or_
 
 from pygtktalog import scan
 from pygtktalog import misc
-from pygtktalog.dbobjects import File, Config
+from pygtktalog import dbobjects as dbo
 from pygtktalog.dbcommon import connect, Session
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(30, 38)
@@ -33,6 +33,8 @@ def colorize(txt, color):
                  "cyan": CYAN,
                  "white": WHITE}
     return COLOR_SEQ % color_map[color] + txt + RESET_SEQ
+
+TYPE_MAP = {0: "d", 1: "d", 2: "f", 3: "l"}
 
 
 class Iface(object):
@@ -79,11 +81,12 @@ class Iface(object):
 
     def _make_path(self, node):
         """Make the path to the item in the DB"""
+        orig_node = node
         if node.parent == node:
-            return "/"
+            return {u"/": (u' ', 0, u' ')}
 
         ext = ""
-        if node.parent.type == 0:
+        if node.parent.type == dbo.TYPE['root']:
             ext = colorize(" (%s)" % node.filepath, "white")
 
         path = []
@@ -92,28 +95,31 @@ class Iface(object):
             path.append(node.parent.filename)
             node = node.parent
 
-        return "/".join([""] + path[::-1]) + ext
+        path = "/".join([""] + path[::-1]) + ext
+
+        return {path: (TYPE_MAP[orig_node.type],
+                       orig_node.size,
+                       orig_node.date)}
 
     def _walk(self, dirnode):
         """Recursively go through the leaves of the node"""
-        items = []
+        items = {}
+
         for node in dirnode.children:
-            if node.type == 1:
-                items += self._walk(node)
+            if node.type == dbo.TYPE['dir']:
+                items.update(self._walk(node))
 
-            items.append(" " + self._make_path(node))
+            items.update(self._make_path(node))
 
-        items.sort()
         return items
 
     def _list(self, node):
         """List only current node content"""
-        items = []
+        items = {}
         for node in node.children:
             if node != self.root:
-                items.append(" " + self._make_path(node))
+                items.update(self._make_path(node))
 
-        items.sort()
         return items
 
     def close(self):
@@ -121,9 +127,10 @@ class Iface(object):
         self.sess.commit()
         self.sess.close()
 
-    def list(self, path=None, recursive=False):
+    def list(self, path=None, recursive=False, long_=False):
         """Simulate ls command for the provided item path"""
-        self.root = self.sess.query(File).filter(File.type==0).first()
+        self.root = self.sess.query(dbo.File)
+        self.root = self.root.filter(dbo.File.type == dbo.TYPE['root']).first()
         if path:
             node = self._resolve_path(path)
             msg = "Content of path `%s':" % path
@@ -138,14 +145,25 @@ class Iface(object):
         else:
             items = self._list(node)
 
-        print "\n".join(items)
+        if long_:
+            filenames = []
+            format_str = (u'{} {:>%d,} {} {}' %
+                          _get_highest_size_length(items))
+            for fname in sorted(items.keys()):
+                type_, size, date = items[fname]
+                filenames.append(format_str.format(type_, size, date, fname))
+        else:
+            filenames = sorted(items.keys())
+
+        print "\n".join(filenames)
 
     def update(self, path, dir_to_update=None):
         """
         Update the DB against provided path and optionally directory on the
         real filesystem
         """
-        self.root = self.sess.query(File).filter(File.type==0).first()
+        self.root = self.sess.query(dbo.File)
+        self.root = self.root.filter(dbo.File.type == dbo.TYPE['root']).first()
         node = self._resolve_path(path)
         if node == self.root:
             print colorize("Cannot update entire db, since root was provided "
@@ -167,7 +185,7 @@ class Iface(object):
 
     def create(self, dir_to_add, data_dir):
         """Create new database"""
-        self.root = File()
+        self.root = dbo.File()
         self.root.id = 1
         self.root.filename = 'root'
         self.root.size = 0
@@ -175,7 +193,7 @@ class Iface(object):
         self.root.type = 0
         self.root.parent_id = 1
 
-        config = Config()
+        config = dbo.Config()
         config.key = "image_path"
         config.value = data_dir
 
@@ -197,7 +215,8 @@ class Iface(object):
 
     def add(self, dir_to_add):
         """Add new directory to the db"""
-        self.root = self.sess.query(File).filter(File.type==0).first()
+        self.root = self.sess.query(dbo.File)
+        self.root = self.root.filter(dbo.File.type == 0).first()
 
         if not os.path.exists(dir_to_add):
             raise OSError("Path to add doesn't exists: %s", dir_to_add)
@@ -236,13 +255,13 @@ class Iface(object):
         return "".join(result)
 
     def find(self, search_words):
-        query = self.sess.query(File).filter(or_(File.type == 2,
-                                                 File.type == 3))
+        query = self.sess.query(dbo.File).filter(or_(dbo.File.type == 2,
+                                                     dbo.File.type == 3))
         result = []
 
         for word in search_words:
             phrase = u"%%%s%%" % word.decode('utf-8')
-            query = query.filter(File.filename.like(phrase))
+            query = query.filter(dbo.File.filename.like(phrase))
 
         for item in query.all():
             result.append(self._get_full_path(item))
@@ -256,6 +275,11 @@ class Iface(object):
             print self._annotate(item, search_words)
 
 
+def _get_highest_size_length(item_dict):
+    highest = len(str(sorted([i[1] for i in item_dict.values()])[-1]))
+    return highest + highest / 3
+
+
 def list_db(args):
     """List"""
     if not os.path.exists(args.db):
@@ -263,7 +287,7 @@ def list_db(args):
         sys.exit(1)
 
     obj = Iface(args.db, False, args.debug)
-    obj.list(path=args.path, recursive=args.recursive)
+    obj.list(path=args.path, recursive=args.recursive, long_=args.long)
     obj.close()
 
 
@@ -310,12 +334,14 @@ def search(args):
 
 def main():
     """Main"""
-    parser = ArgumentParser()
+    parser = argparse.ArgumentParser()
 
     subparser = parser.add_subparsers()
     list_ = subparser.add_parser("list")
     list_.add_argument("db")
     list_.add_argument("path", nargs="?")
+    list_.add_argument("-l", "--long", help="Show size, date and type",
+                       action="store_true", default=False)
     list_.add_argument("-r", "--recursive", help="list items in "
                        "subdirectories", action="store_true", default=False)
     list_.add_argument("-d", "--debug", help="Turn on debug",
