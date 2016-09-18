@@ -63,7 +63,8 @@ class File(Base):
         self.source = src
 
     def __repr__(self):
-        return "<File('%s', %s)>" % (str(self.filename), str(self.id))
+        return "<File('%s', %s)>" % (self.filename.encode('utf-8'),
+                                     str(self.id))
 
     def get_all_children(self):
         """

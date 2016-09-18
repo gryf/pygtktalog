@@ -21,9 +21,9 @@ from pygtktalog.video import Video
 LOG = get_logger(__name__)
 RE_FN_START = re.compile(r'(?P<fname_start>'
                          r'(\[[^\]]*\]\s)?'
-                         r'(.*)\s'
+                         r'([^(]*)\s'
                          r'((\(\d{4}\))\s)?).*'
-                         r'(\[[A-Z0-9]{8}\])\..*')
+                         r'(\[[A-Fa-f0-9]{8}\])\..*')
 
 
 
@@ -293,7 +293,7 @@ class Scan(object):
                            errors="replace")
 
         if ftype == TYPE['link']:
-            fname = fname + " -> " + os.readlink(fullpath)
+            fname = fname + " -> " + os.readlink(fullpath).decode('utf-8')
 
         fob = {'filename': fname,
                'path': path,
@@ -389,7 +389,7 @@ class Scan(object):
             result = RE_FN_START.match(fname)
             test_ = False
 
-            if result and extension in ('jpg', 'gif', 'png'):
+            if result and extension in ('.jpg', '.gif', '.png'):
                 startfrom = result.groupdict()['fname_start']
                 matching_files = []
                 for fn_ in os.listdir(root):
