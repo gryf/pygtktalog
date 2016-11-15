@@ -3,7 +3,7 @@
 
 # change path to pygtktalog.py file full path, then you can move this shell
 # script to desired place (like /usr/bin, /usr/local/bin, ~/bin and so on)
-path_to_gtktalog_directory="."
+path_to_gtktalog_directory=$(readlink -e $(dirname $0))
 
 # python interpreter
 python_intrpreter="/usr/bin/python"
