@@ -143,11 +143,16 @@ NOTES
 =====
 
 Catalog file is plain sqlite database (optionally compressed with bzip2). All
-images are stored in ~/.pygtktalog/images directory. Names for images are
-generated sha512 hash from image file itself. There is small possibility for two
-identical hash for different image files. However, no images are overwritten.
-Thumbnail filename for each image is simply concatenation of image filename in
-images directory and '_t' string.
+images are stored in ``[CONFIG_PATH]/images`` directory, where ``[CONFIG_PATH]``
+is one of the following location:
+
+- ``$XDG_CONFIG_HOME/pygtktalog``
+- ``$HOME/.pytgtktalog``
+
+Names for images are generated sha512 hash from image file itself. There is
+small possibility for two identical hash for different image files. However, no
+images are overwritten. Thumbnail filename for each image is simply
+concatenation of image filename in images directory and ``_t`` string.
 
 There is also converter from old database to new for internal use only. In
 public release there will be no other formats so it will be useless, and
@@ -156,8 +161,8 @@ images without big image will be lost. There are serious changes with
 application design, and I decided, that is better to keep media unpacked on
 disk, instead of pack it every time with save and unpack with open methods. New
 design prevent from deleting any file from media directory (placed in
-~/.pygtktalog/images). Functionality for exporting images and corresponding db
-file is planned.
+``[CONFIG_PATH]/images``). Functionality for exporting images and corresponding
+db file is planned.
 
 LICENSE
 =======

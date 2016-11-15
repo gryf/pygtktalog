@@ -174,11 +174,8 @@ class MainModel(ModelMT):
         # - #rrggbb
         self.tag_cloud = []
 
-        try:
-            path = os.path.join(os.environ['HOME'], ".pygtktalog")
-            imgpath = os.path.join(path, "images")
-        except KeyError:
-            raise KeyError, "Cannot stat path for current user home!"
+        path = os.path.dirname(self.config.path)
+        imgpath = os.path.join(path, "images")
 
         if os.path.exists(path):
             if not os.path.isdir(path):
@@ -2012,4 +2009,3 @@ class MainModel(ModelMT):
         #name = name.replace('?','_')
 
         return name
-

@@ -156,15 +156,10 @@ class ConfigModel(Model):
 
     dstring = ('cd','ejectapp','imgprog')
 
-    try:
-        path = os.path.join(os.environ['HOME'], ".pygtktalog")
-    except KeyError:
-        raise KeyError, "Cannot stat path for current user home!"
-
-    path = os.path.join(path, "config.ini")
 
     def __init__(self):
         Model.__init__(self)
+        self._set_config_path()
         self.category_tree = gtk.ListStore(gobject.TYPE_STRING)
 
         self.refresh_ext()
@@ -331,6 +326,36 @@ class ConfigModel(Model):
         if len(self.search_history) > self.HISTORY_MAX:
             self.search_history = self.search_history[:self.HISTORY_MAX]
         return
+
+    def _set_config_path(self):
+        """
+        Look for configuration files in following location:
+            ~/.config/pygtktalog/config.ini
+            ~/.pygtktalog/config.ini
+
+        Note, that ~/.config is the default XDG defined location for the
+        configuration. Apropriate XDG variable wil be checked first, in order
+        to locate configuration directory.
+        """
+        xdg_path = os.getenv('XDG_CONFIG_HOME',
+                             os.path.expanduser("~/.config"))
+        # Default config file location
+        cfg_file = os.path.join(xdg_path, "pygtktalog/config.ini")
+
+        # Check for other possibilities
+        for path in (os.path.join(xdg_path, "pygtktalog/config.ini"),
+                     os.path.expanduser("~/.pygtktalog/config.ini")):
+            if os.path.exists(path):
+                cfg_file = path
+                break
+
+        if not os.path.exists(cfg_file):
+            try:
+                os.makedirs(os.path.dirname(cfg_file))
+            except OSError:
+                pass
+
+        self.path = cfg_file
 
     def __str__(self):
         """show prefs in string way"""
