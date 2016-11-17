@@ -213,20 +213,13 @@ class Image(Base):
         return img
 
     @property
-    def thumbpath(self):
+    def thumbnail(self):
         """
-        Return full path to thumbnail of this image
+        Return path to thumbnail for this image
         """
         path, fname = os.path.split(self.filename)
         base, ext = os.path.splitext(fname)
-        return os.path.join(self.img_path, path, base + "_t" + ext)
-
-    @property
-    def imagepath(self):
-        """
-        Return full path to image
-        """
-        return os.path.join(self.img_path, self.filename)
+        return os.path.join(path, base + "_t" + ext)
 
     def __repr__(self):
         return "<Image('%s', %s)>" % (str(self.filename), str(self.id))
