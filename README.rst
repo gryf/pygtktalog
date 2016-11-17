@@ -34,6 +34,7 @@ New version of pyGTKtalog was meant to use multiple interfaces.
    * update it
    * list
    * find files
+   * fsck (for maintenance for orphaned thumbs/images)
 
 #. ``gtktalog.py``. This is written from scratch frontend in pygtk. Still work
    in progress.
