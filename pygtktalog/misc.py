@@ -50,7 +50,7 @@ def calculate_image_path(dbpath=None, create=False):
         if not os.path.exists(images_dir):
             try:
                 os.mkdir(images_dir)
-            except OSError, err:
+            except OSError as err:
                 if err.errno != errno.EEXIST:
                     raise
     elif not os.path.exists(images_dir):
@@ -60,7 +60,7 @@ def calculate_image_path(dbpath=None, create=False):
 
 def mk_paths(fname, img_path):
     """Make path for provided pathname by calculating crc32 out of file"""
-    with open(fname) as fobj:
+    with open(fname, 'r+b') as fobj:
         new_path = "%x" % (crc32(fobj.read(10*1024*1024)) & 0xffffffff)
 
     new_path = [new_path[i:i + 2] for i in range(0, len(new_path), 2)]

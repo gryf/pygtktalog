@@ -44,15 +44,14 @@ Requirements
 
 pyGTKtalog requires python and following libraries:
 
-* `python 2.7`_
-* `sqlalchemy 1.0`_
-* `pygtk 2.24`_ (only for ``gtktalog.py``)
+* `python 3`_, tested on python 3.6
+* `sqlalchemy 1.2`_ or higher
+* `pygtk 2.24`_ (only for ``gtktalog.py``, will not work with python3)
 * `pillow`_ for image manipulation
 * `exifread`_ for parse EXIF information
 
 It may work on other (lower) version of libraries, and it should work with
-higher versions of libraries, although it will not work on Python 3 yet, nor
-GTK3.
+higher versions of libraries. GTK3 support will follow.
 
 pyGTKtalog extensively uses external programs in unix spirit, however there is
 small possibility of using it Windows (probably with limitations) and quite big
@@ -148,7 +147,7 @@ file in top-level directory.
 .. _paver: https://pythonhosted.org/paver/
 .. _pillow: https://python-pillow.org/
 .. _pygtk 2.24: http://www.pygtk.org
-.. _python 2.7: http://www.python.org/
-.. _sqlalchemy 1.0: http://www.sqlalchemy.org
+.. _python 3: http://www.python.org/
+.. _sqlalchemy 1.2: http://www.sqlalchemy.org
 .. _tagging files: http://en.wikipedia.org/wiki/tag_%28metadata%29
 .. _tox: https://testrun.org/tox

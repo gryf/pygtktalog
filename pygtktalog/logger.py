@@ -36,7 +36,7 @@ def cprint(txt, color):
                  "magenta": MAGENTA,
                  "cyan": CYAN,
                  "white": WHITE}
-    print COLOR_SEQ % (30 + color_map[color]) + txt + RESET_SEQ
+    print(COLOR_SEQ % (30 + color_map[color]) + txt + RESET_SEQ)
 
 
 class DummyFormater(logging.Formatter):

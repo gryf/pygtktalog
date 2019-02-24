@@ -6,19 +6,15 @@
     Created: 2009-05-05
 """
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 __appname__ = "pyGTKtalog"
-__copyright__ = u"\u00A9 Roman 'gryf' Dobosz"
+__copyright__ = "\u00A9 Roman 'gryf' Dobosz"
 __summary__ = "%s is simple tool for managing file collections." % __appname__
 __web__ = "http://github.com/gryf/pygtktalog"
 
 import os
-import sys
 import locale
 import gettext
-import __builtin__
-
-from pygtktalog.logger import get_logger
 
 
 __all__ = ['dbcommon',
@@ -49,10 +45,10 @@ except locale.Error:
 #     module.textdomain(GETTEXT_DOMAIN)
 
 # register the gettext function for the whole interpreter as "_"
-__builtin__._ = gettext.gettext
+_ = gettext.gettext
 
-# wrap errors into usefull message
-#def log_exception(exc_type, exc_val, traceback):
-#    get_logger(__name__).error(exc_val)
+# # wrap errors into usefull message
+# def log_exception(exc_type, exc_val, traceback):
+#     get_logger(__name__).error(exc_val)
 #
-#sys.excepthook = log_exception
+# sys.excepthook = log_exception

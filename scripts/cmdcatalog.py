@@ -40,7 +40,7 @@ def colorize(txt, color):
 def asserdb(func):
     def wrapper(args):
         if not os.path.exists(args.db):
-            print colorize("File `%s' does not exists!" % args.db, 'red')
+            print(colorize("File `%s' does not exists!" % args.db, 'red'))
             sys.exit(1)
         func(args)
     return wrapper
@@ -151,7 +151,7 @@ class Iface(object):
             node = self.root
             msg = "Content of path `/':"
 
-        print colorize(msg, 'white')
+        print(colorize(msg, 'white'))
 
         if recursive:
             items = self._walk(node)
@@ -168,7 +168,7 @@ class Iface(object):
         else:
             filenames = sorted(items.keys())
 
-        print '\n'.join(filenames)
+        print('\n'.join(filenames))
 
     def update(self, path, dir_to_update=None):
         """
@@ -179,8 +179,8 @@ class Iface(object):
         self.root = self.root.filter(dbo.File.type == dbo.TYPE['root']).first()
         node = self._resolve_path(path)
         if node == self.root:
-            print colorize('Cannot update entire db, since root was provided '
-                           'as path.', 'red')
+            print(colorize('Cannot update entire db, since root was provided '
+                           'as path.', 'red'))
             return
 
         if not dir_to_update:
@@ -189,8 +189,8 @@ class Iface(object):
         if not os.path.exists(dir_to_update):
             raise OSError("Path to updtate doesn't exists: %s", dir_to_update)
 
-        print colorize("Updating node `%s' against directory "
-                       "`%s'" % (path, dir_to_update), 'white')
+        print(colorize("Updating node `%s' against directory "
+                       "`%s'" % (path, dir_to_update), 'white'))
         if not self.dry_run:
             scanob = scan.Scan(dir_to_update)
             # scanob.update_files(node.id)
@@ -215,8 +215,8 @@ class Iface(object):
             self.sess.add(config)
             self.sess.commit()
 
-        print colorize("Creating new db against directory `%s'" % dir_to_add,
-                       'white')
+        print(colorize("Creating new db against directory `%s'" % dir_to_add,
+                       'white'))
         if not self.dry_run:
             if data_dir == ':same_as_db:':
                 misc.calculate_image_path(None, True)
@@ -234,7 +234,7 @@ class Iface(object):
         if not os.path.exists(dir_to_add):
             raise OSError("Path to add doesn't exists: %s", dir_to_add)
 
-        print colorize("Adding directory `%s'" % dir_to_add, 'white')
+        print(colorize("Adding directory `%s'" % dir_to_add, 'white'))
         if not self.dry_run:
             scanob = scan.Scan(dir_to_add)
             scanob.add_files()
@@ -273,19 +273,19 @@ class Iface(object):
         result = []
 
         for word in search_words:
-            phrase = u'%%%s%%' % word.decode('utf-8')
+            phrase = u'%%%s%%' % word
             query = query.filter(dbo.File.filename.like(phrase))
 
         for item in query.all():
             result.append(self._get_full_path(item))
 
         if not result:
-            print "No results for `%s'" % ' '.join(search_words)
+            print("No results for `%s'" % ' '.join(search_words))
             return
 
         result.sort()
         for item in result:
-            print self._annotate(item, search_words)
+            print(self._annotate(item, search_words))
 
     def fsck(self):
         """Fsck orphaned images/thumbs"""
@@ -342,9 +342,9 @@ class Iface(object):
         sys.stdout.flush()
 
         if self.dry_run:
-            print "Following files are not associated to any items in the DB:"
+            print("Following files are not associated to any items in the DB:")
             for filename in sorted(files_to_remove):
-                print filename
+                print(filename)
             self.sess.rollback()
         else:
             _remove_files(image_path, files_to_remove)

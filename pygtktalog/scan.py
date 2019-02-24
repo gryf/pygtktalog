@@ -155,7 +155,7 @@ class Scan(object):
         # in case of such, better get me a byte string. It is not perfect
         # though, since it WILL crash if the update_path would contain some
         # unconvertable characters.
-        update_path = update_path.encode("utf-8")
+        update_path = update_path
 
         # refresh objects
         LOG.debug("Refreshing objects")
@@ -199,8 +199,7 @@ class Scan(object):
                    '.ogm': 'video',
                    '.ogv': 'video'}
 
-        fp = os.path.join(fobj.filepath.encode(sys.getfilesystemencoding()),
-                          fobj.filename.encode(sys.getfilesystemencoding()))
+        fp = os.path.join(fobj.filepath, fobj.filename)
 
         mimeinfo = mimetypes.guess_type(fp)
         if mimeinfo[0]:
@@ -287,13 +286,8 @@ class Scan(object):
         """
         fullpath = os.path.join(path, fname)
 
-        fname = fname.decode(sys.getfilesystemencoding(),
-                             errors="replace")
-        path = path.decode(sys.getfilesystemencoding(),
-                           errors="replace")
-
         if ftype == TYPE['link']:
-            fname = fname + " -> " + os.readlink(fullpath).decode('utf-8')
+            fname = fname + " -> " + os.readlink(fullpath)
 
         fob = {'filename': fname,
                'path': path,
@@ -378,7 +372,7 @@ class Scan(object):
         LOG.info("Scanning `%s' [%s/%s]", fullpath, self.current_count,
                  self.files_count)
 
-        root, dirs, files = os.walk(fullpath).next()
+        root, dirs, files = next(os.walk(fullpath))
         for fname in files:
             fpath = os.path.join(root, fname)
             extension = os.path.splitext(fname)[1]

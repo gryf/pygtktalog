@@ -92,10 +92,10 @@ class Video(object):
         if scale < 1:
             return None
 
-        no_pictures = self.tags['length'] / scale
+        no_pictures = self.tags['length'] // scale
 
         if no_pictures > 8:
-            no_pictures = (no_pictures / 8) * 8  # only multiple of 8, please.
+            no_pictures = (no_pictures // 8) * 8  # only multiple of 8, please.
         else:
             # for really short movies
             no_pictures = 4
@@ -113,16 +113,16 @@ class Video(object):
         """
         Return formatted tags as a string
         """
-        out_tags = u''
+        out_tags = ''
         if 'container' in self.tags:
-            out_tags += u"Container: %s\n" % self.tags['container']
+            out_tags += "Container: %s\n" % self.tags['container']
 
         if 'width' in self.tags and 'height' in self.tags:
-            out_tags += u"Resolution: %sx%s\n" % (self.tags['width'],
-                                                  self.tags['height'])
+            out_tags += "Resolution: %sx%s\n" % (self.tags['width'],
+                                                 self.tags['height'])
 
         if 'duration' in self.tags:
-            out_tags += u"Duration: %s\n" % self.tags['duration']
+            out_tags += "Duration: %s\n" % self.tags['duration']
 
         if 'video_codec' in self.tags:
             out_tags += "Video codec: %s\n" % self.tags['video_codec']
@@ -178,7 +178,7 @@ class Video(object):
             @directory - full output directory name
             @no_pictures - number of pictures to take
         """
-        step = float(self.tags['length'] / (no_pictures + 1))
+        step = self.tags['length'] / (no_pictures + 1)
         current_time = 0
         for dummy in range(1, no_pictures + 1):
             current_time += step
@@ -191,7 +191,8 @@ class Video(object):
             try:
                 shutil.move(os.path.join(directory, "00000001.jpg"),
                             os.path.join(directory, "picture_%s.jpg" % time))
-            except IOError, (errno, strerror):
+            except IOError as exc:
+                errno, strerror = exc.args
                 LOG.error('error capturing file from movie "%s" at position '
                           '%s. Errors: %s, %s', self.filename, time, errno,
                           strerror)
@@ -234,7 +235,7 @@ class Video(object):
         img_list = [Image.open(os.path.join(directory, fn)).resize(dim) \
                 for fn in ifn_list]
 
-        rows = no_pictures / row_length
+        rows = no_pictures // row_length
         cols = row_length
         isize = (cols * dim[0] + cols + 1,
                  rows * dim[1] + rows + 1)
