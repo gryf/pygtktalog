@@ -29,6 +29,7 @@ def float_to_string(float_length):
     sec = int(float_length)
     return "%02d:%02d:%02d" % (hour, minutes, sec)
 
+
 def calculate_image_path(dbpath=None, create=False):
     """Calculate image path out of provided path or using current connection"""
     if not dbpath:
@@ -57,6 +58,7 @@ def calculate_image_path(dbpath=None, create=False):
         raise OSError("%s: No such directory" % images_dir)
 
     return os.path.abspath(images_dir)
+
 
 def mk_paths(fname, img_path):
     """Make path for provided pathname by calculating crc32 out of file"""

@@ -12,11 +12,6 @@ from sqlalchemy.ext.declarative import declarative_base
 from pygtktalog.logger import get_logger
 
 
-# setup SQLAlchemy logging facility
-# TODO: Logger("sqlalchemy")
-# or maybe it will be better to separate sqlalchemy stuff from application
-#get_logger("sqlalchemy", 'INFO')
-
 # Prepare SQLAlchemy objects
 Meta = MetaData()
 Base = declarative_base(metadata=Meta)

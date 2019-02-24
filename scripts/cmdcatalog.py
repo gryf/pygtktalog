@@ -3,7 +3,6 @@
 Fast and ugly CLI interface for pyGTKtalog
 """
 import argparse
-import errno
 import os
 import re
 import sys
@@ -23,6 +22,7 @@ COLOR_SEQ = '\033[1;%dm'
 BOLD_SEQ = '\033[1m'
 
 LOG = logger.get_logger(__name__)
+
 
 def colorize(txt, color):
     """Pretty print with colors to console."""
@@ -289,14 +289,13 @@ class Iface(object):
 
     def fsck(self):
         """Fsck orphaned images/thumbs"""
-        image_path = self.sess.query(dbo.Config).\
-                filter(dbo.Config.key=='image_path').one().value
+        image_path = (self.sess.query(dbo.Config)
+                      .filter(dbo.Config.key=='image_path')).one().value  # noqa
 
         if image_path == ':same_as_db:':
             image_path = misc.calculate_image_path(None, False)
 
         files_to_remove = []
-        obj_to_remove = []
 
         # remove images/thumbnails which doesn't have file relation
         for name, obj in (("images", dbo.Image),
@@ -318,20 +317,20 @@ class Iface(object):
                                       fname).lstrip('/')
 
                 if '_t' in fname:
-                    obj = self.sess.query(dbo.Thumbnail)\
-                            .filter(dbo.Thumbnail.filename==fname_).all()
+                    obj = (self.sess.query(dbo.Thumbnail)
+                           .filter(dbo.Thumbnail.filename==fname_)).all()  # noqa
                     if obj:
                         continue
 
-                    obj = self.sess.query(dbo.Image)\
-                            .filter(dbo.Image.filename==\
-                            fname_.replace('_t.', '.')).all()
+                    obj = (self.sess.query(dbo.Image)
+                           .filter(dbo.Image.filename==  # noqa
+                                   fname_.replace('_t.', '.'))).all()
                     if obj:
                         continue
 
                 else:
-                    obj = self.sess.query(dbo.Image)\
-                            .filter(dbo.Image.filename==fname_).all()
+                    obj = (self.sess.query(dbo.Image)
+                           .filter(dbo.Image.filename==fname_)).all()  # noqa
                     if obj:
                         continue
 
@@ -417,12 +416,12 @@ def add_dir(args):
     obj.close()
 
 
-@asserdb
 def create_db(args):
     """List"""
     obj = Iface(args.db, args.pretend, args.debug)
     obj.create(args.dir_to_add, args.imagedir)
     obj.close()
+
 
 @asserdb
 def search(args):
@@ -431,13 +430,13 @@ def search(args):
     obj.find(args.search_words)
     obj.close()
 
+
 @asserdb
 def cleanup(args):
     """Cleanup"""
     obj = Iface(args.db, False, args.debug)
     obj.fsck()
     obj.close()
-
 
 
 def main():
@@ -472,7 +471,7 @@ def main():
     create.add_argument('dir_to_add')
     create.add_argument('-i', '--imagedir', help="Directory where to put "
                         "images for the database. Popular, but deprecated "
-                        "choice is  `~/.pygtktalog/images'. Currnet default "
+                        "choice is  `~/.pygtktalog/images'. Current default "
                         "is special string `:same_as_db:' which will try to "
                         "create directory with the same name as the db with "
                         "data suffix", default=':same_as_db:')
@@ -510,7 +509,12 @@ def main():
     fsck.set_defaults(func=cleanup)
 
     args = parser.parse_args()
-    args.func(args)
+
+    if 'func' in args:
+        args.func(args)
+    else:
+        parser.print_help()
+
 
 if __name__ == '__main__':
     main()

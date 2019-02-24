@@ -49,7 +49,7 @@ class Video(object):
                  'ID_AUDIO_CODEC': ['audio_codec', self._return_lower],
                  'ID_AUDIO_FORMAT': ['audio_format', self._return_lower],
                  'ID_AUDIO_NCH': ['audio_no_channels', int]}
-                 # TODO: what about audio/subtitle language/existence?
+        # TODO: what about audio/subtitle language/existence?
 
         for key in output:
             if key in attrs:
@@ -183,9 +183,9 @@ class Video(object):
         for dummy in range(1, no_pictures + 1):
             current_time += step
             time = float_to_string(current_time)
-            cmd = "mplayer \"%s\" -ao null -brightness 0 -hue 0 " \
-            "-saturation 0 -contrast 0 -mc 0 -vf-clr -vo jpeg:outdir=\"%s\" -ss %s" \
-            " -frames 1 2>/dev/null"
+            cmd = ('mplayer "%s" -ao null -brightness 0 -hue 0 '
+                   '-saturation 0 -contrast 0 -mc 0 -vf-clr '
+                   '-vo jpeg:outdir="%s" -ss %s -frames 1 2>/dev/null')
             os.popen(cmd % (self.filename, directory, time)).readlines()
 
             try:
@@ -217,13 +217,13 @@ class Video(object):
 
         if not (self.tags['width'] * row_length) > self.out_width:
             for i in [8, 6, 5]:
-                if (no_pictures % i) == 0 and \
-                   (i * self.tags['width']) <= self.out_width:
+                if ((no_pictures % i) == 0 and
+                        (i * self.tags['width']) <= self.out_width):
                     row_length = i
                     break
 
-        coef = float(self.out_width - row_length - 1) / \
-                (self.tags['width'] * row_length)
+        coef = (float(self.out_width - row_length - 1) /
+                (self.tags['width'] * row_length))
         if coef < 1:
             dim = (int(self.tags['width'] * coef),
                    int(self.tags['height'] * coef))
@@ -232,8 +232,8 @@ class Video(object):
 
         ifn_list = os.listdir(directory)
         ifn_list.sort()
-        img_list = [Image.open(os.path.join(directory, fn)).resize(dim) \
-                for fn in ifn_list]
+        img_list = [Image.open(os.path.join(directory, fn)).resize(dim)
+                    for fn in ifn_list]
 
         rows = no_pictures // row_length
         cols = row_length
@@ -251,7 +251,7 @@ class Video(object):
                 bbox = (left, upper, right, lower)
                 try:
                     img = img_list.pop(0)
-                except:
+                except Exception:
                     break
                 inew.paste(img, bbox)
         inew.save(image_fn, 'JPEG')
@@ -272,7 +272,7 @@ class Video(object):
         """
         try:
             return int(chain.split(".")[0])
-        except:
+        except Exception:
             return 0
 
     def __str__(self):

@@ -1,10 +1,11 @@
 """
 Project: pyGTKtalog
 Description: pyGTK common utility functions
-Type: tility
+Type: utility
 Author: Roman 'gryf' Dobosz, gryf73@gmail.com
 Created: 2010-11-07 13:30:37
 """
+
 
 def get_tv_item_under_cursor(treeview):
     """
@@ -22,4 +23,3 @@ def get_tv_item_under_cursor(treeview):
         item_id = model.get_value(tm_iter, 0)
         return item_id
     return None
-

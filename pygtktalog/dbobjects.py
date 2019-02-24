@@ -148,8 +148,8 @@ class Thumbnail(Base):
         if not os.path.exists(os.path.join(img_path, *new_name)):
             shutil.move(thumb, os.path.join(img_path, *new_name))
         else:
-            LOG.info("Thumbnail already exists (%s: %s)" % \
-                    (fname, "/".join(new_name)))
+            LOG.info("Thumbnail already exists (%s: %s)",
+                     fname, "/".join(new_name))
             os.unlink(thumb)
 
     def __repr__(self):
@@ -201,7 +201,6 @@ class Image(Base):
             shutil.move(thumb.generate(), os.path.join(img_path, *new_name))
         else:
             LOG.info("Thumbnail already generated %s" % "/".join(new_name))
-
 
     def get_copy(self):
         """

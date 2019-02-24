@@ -105,7 +105,7 @@ class ThumbCreator(object):
         """
         try:
             image_thumb = Image.open(self.filename).convert('RGB')
-        except:
+        except Exception:
             return None
         it_x, it_y = image_thumb.size
         if it_x > self.thumb_x or it_y > self.thumb_y:

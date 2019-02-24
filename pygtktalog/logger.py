@@ -27,6 +27,7 @@ COLORS = {'WARNING': YELLOW,
           'CRITICAL': WHITE,
           'ERROR': RED}
 
+
 def cprint(txt, color):
     color_map = {"black": BLACK,
                  "red": RED,
@@ -58,13 +59,11 @@ class ColoredFormatter(logging.Formatter):
             record.levelname = levelname_color
         return logging.Formatter.format(self, record)
 
+
 log_obj = None
 
-#def get_logger(module_name, level='INFO', to_file=False):
-#def get_logger(module_name, level='DEBUG', to_file=True):
+
 def get_logger(module_name, level='INFO', to_file=True, to_console=True):
-# def get_logger(module_name, level='DEBUG', to_file=True, to_console=True):
-#def get_logger(module_name, level='DEBUG', to_file=False):
     """
     Prepare and return log object. Standard formatting is used for all logs.
     Arguments:
@@ -83,11 +82,9 @@ def get_logger(module_name, level='INFO', to_file=True, to_console=True):
     log.setLevel(LEVEL[level])
 
     if to_console:
-        #path = "/dev/null"
-
         console_handler = logging.StreamHandler(sys.stderr)
         console_formatter = ColoredFormatter("%(filename)s:%(lineno)s - "
-                                      "%(levelname)s - %(message)s")
+                                             "%(levelname)s - %(message)s")
         console_handler.setFormatter(console_formatter)
 
         log.addHandler(console_handler)

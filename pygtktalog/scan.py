@@ -6,7 +6,6 @@
     Created: 2011-03-27
 """
 import os
-import sys
 import re
 from datetime import datetime
 import mimetypes
@@ -24,7 +23,6 @@ RE_FN_START = re.compile(r'(?P<fname_start>'
                          r'([^(]*)\s'
                          r'((\(\d{4}\))\s)?).*'
                          r'(\[[A-Fa-f0-9]{8}\])\..*')
-
 
 
 class NoAccessError(Exception):
@@ -114,7 +112,7 @@ class Scan(object):
         # number of objects to retrieve at once. Limit is 999. Let's do a
         # little bit below.
         num = 900
-        steps = len(all_ids) / num + 1
+        steps = len(all_ids) // num + 1
         for step in range(steps):
             all_obj.extend(self._session
                            .query(File)
@@ -181,8 +179,8 @@ class Scan(object):
         # self._session.merge(self._files[0])
         LOG.debug("Deleting objects whitout parent: %s",
                   str(self._session.query(File)
-                      .filter(File.parent==None).all()))
-        self._session.query(File).filter(File.parent==None).delete()
+                      .filter(File.parent==None).all()))  # noqa
+        self._session.query(File).filter(File.parent==None).delete()  # noqa
 
         self._session.commit()
         return self._files
@@ -207,7 +205,7 @@ class Scan(object):
 
         ext = os.path.splitext(fp)[1]
 
-        if mimeinfo and mimeinfo in mimedict.keys():
+        if mimeinfo and mimeinfo in mimedict:
             mimedict[mimeinfo](fobj, fp)
         elif ext and ext in extdict:
             mimedict[extdict[ext]](fobj, fp)
@@ -417,7 +415,7 @@ class Scan(object):
         for dirname in dirs:
             dirpath = os.path.join(root, dirname)
 
-            if not os.access(dirpath, os.R_OK|os.X_OK):
+            if not os.access(dirpath, os.R_OK | os.X_OK):
                 LOG.info("Cannot access directory %s", dirpath)
                 continue
 
@@ -475,8 +473,8 @@ class Scan(object):
 
     def _set_image_path(self):
         """Get or calculate the images path"""
-        image_path = self._session.query(Config) \
-                .filter(Config.key=="image_path").one()
+        image_path = (self._session.query(Config)
+                      .filter(Config.key=="image_path")).one()  # noqa
         if image_path.value == ":same_as_db:":
             image_path = pygtktalog.misc.calculate_image_path()
         else:
@@ -501,4 +499,3 @@ def _get_dirsize(path):
                             os.path.join(root, fname))
     LOG.debug("_get_dirsize, %s: %d", path, size)
     return size
-

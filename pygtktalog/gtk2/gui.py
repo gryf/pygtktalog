@@ -138,21 +138,30 @@ class MainWindow(object):
     def _setup_menu_toolbar(self, vbox):
         """Create menu/toolbar using uimanager."""
         actions = [('File', None, '_File'),
-                   ('New', gtk.STOCK_NEW, '_New', None, 'Create new catalog', self.on_new),
-                   ('Open', gtk.STOCK_OPEN, '_Open', None, 'Open catalog file', self.on_open),
-                   ('Save', gtk.STOCK_SAVE, '_Save', None, 'Save catalog file', self.on_save),
-                   ('Save As', gtk.STOCK_SAVE_AS, '_Save As', None, None, self.on_save),
+                   ('New', gtk.STOCK_NEW, '_New', None,
+                    'Create new catalog', self.on_new),
+                   ('Open', gtk.STOCK_OPEN, '_Open', None,
+                    'Open catalog file', self.on_open),
+                   ('Save', gtk.STOCK_SAVE, '_Save', None,
+                    'Save catalog file', self.on_save),
+                   ('Save As', gtk.STOCK_SAVE_AS,
+                    '_Save As', None, None, self.on_save),
                    ('Import', None, '_Import', None, None, self.on_import),
                    ('Export', None, '_Export', None, None, self.on_export),
                    ('Recent', None, '_Recent files'),
-                   ('Quit', gtk.STOCK_QUIT, '_Quit', None, 'Quit the Program', self.on_quit),
+                   ('Quit', gtk.STOCK_QUIT, '_Quit', None,
+                    'Quit the Program', self.on_quit),
                    ('Edit', None, '_Edit'),
-                   ('Delete', gtk.STOCK_DELETE, '_Delete', None, None, self.on_delete),
-                   ('Find', gtk.STOCK_FIND, '_Find', None, 'Find file', self.on_find),
+                   ('Delete', gtk.STOCK_DELETE, '_Delete', None, None,
+                    self.on_delete),
+                   ('Find', gtk.STOCK_FIND, '_Find', None, 'Find file',
+                    self.on_find),
                    ('Preferences', gtk.STOCK_PREFERENCES, '_Preferences'),
                    ('Catalog', None, '_Catalog'),
-                   ('Add_CD', gtk.STOCK_CDROM, '_Add CD', None, 'Add CD/DVD/BR to catalog'),
-                   ('Add_Dir', gtk.STOCK_DIRECTORY, '_Add Dir', None, 'Add directory to catalog'),
+                   ('Add_CD', gtk.STOCK_CDROM, '_Add CD', None,
+                    'Add CD/DVD/BR to catalog'),
+                   ('Add_Dir', gtk.STOCK_DIRECTORY, '_Add Dir', None,
+                    'Add directory to catalog'),
                    ('Delete_all_images', None, '_Delete all images'),
                    ('Delete_all_thumbnails', None, '_Delete all thumbnails'),
                    ('Save_all_images', None, '_Save all images…'),
@@ -244,5 +253,5 @@ class MainWindow(object):
 
 
 def run():
-    gui = MainWindow()
+    MainWindow()
     gtk.mainloop()
