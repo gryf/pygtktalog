@@ -290,7 +290,7 @@ class Iface(object):
     def fsck(self):
         """Fsck orphaned images/thumbs"""
         image_path = (self.sess.query(dbo.Config)
-                      .filter(dbo.Config.key=='image_path')).one().value  # noqa
+                      .filter(dbo.Config.key == 'image_path')).one().value
 
         if image_path == ':same_as_db:':
             image_path = misc.calculate_image_path(None, False)
@@ -318,19 +318,19 @@ class Iface(object):
 
                 if '_t' in fname:
                     obj = (self.sess.query(dbo.Thumbnail)
-                           .filter(dbo.Thumbnail.filename==fname_)).all()  # noqa
+                           .filter(dbo.Thumbnail.filename == fname_)).all()
                     if obj:
                         continue
 
                     obj = (self.sess.query(dbo.Image)
-                           .filter(dbo.Image.filename==  # noqa
+                           .filter(dbo.Image.filename ==
                                    fname_.replace('_t.', '.'))).all()
                     if obj:
                         continue
 
                 else:
                     obj = (self.sess.query(dbo.Image)
-                           .filter(dbo.Image.filename==fname_)).all()  # noqa
+                           .filter(dbo.Image.filename == fname_)).all()
                     if obj:
                         continue
 

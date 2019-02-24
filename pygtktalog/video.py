@@ -6,12 +6,13 @@
     Author: Roman 'gryf' Dobosz, gryf73@gmail.com
     Created: 2009-04-04
 """
+import math
 import os
 import shutil
-from tempfile import mkdtemp, mkstemp
-import math
+import tempfile
 
 from PIL import Image
+
 from pygtktalog.misc import float_to_string
 from pygtktalog.logger import get_logger
 
@@ -58,9 +59,9 @@ class Video(object):
         if 'length' in self.tags and self.tags['length'] > 0:
             start = self.tags.get('start', 0)
             length = self.tags['length'] - start
-            hours = length / 3600
+            hours = length // 3600
             seconds = length - hours * 3600
-            minutes = seconds / 60
+            minutes = seconds // 60
             seconds -= minutes * 60
             length_str = "%02d:%02d:%02d" % (hours, minutes, seconds)
             self.tags['duration'] = length_str
@@ -100,8 +101,8 @@ class Video(object):
             # for really short movies
             no_pictures = 4
 
-        tempdir = mkdtemp()
-        file_desc, image_fn = mkstemp(suffix=".jpg")
+        tempdir = tempfile.mkdtemp()
+        file_desc, image_fn = tempfile.mkstemp(suffix=".jpg")
         os.close(file_desc)
         self._make_captures(tempdir, no_pictures)
         self._make_montage(tempdir, image_fn, no_pictures)

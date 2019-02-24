@@ -23,7 +23,7 @@ def populate_with_mock_files(dir_):
     files_no = 0
     for file_ in files1:
         with open(os.path.join(dir_, file_), "wb") as fobj:
-            fobj.write("\xde\xad\xbe\xef" * len(file_))
+            fobj.write(b"\xde\xad\xbe\xef" * len(file_))
             files_no += 1
 
     os.symlink(os.path.join(dir_, files1[-1]), os.path.join(dir_, 'link.jpg'))
@@ -32,7 +32,7 @@ def populate_with_mock_files(dir_):
     os.mkdir(os.path.join(dir_, 'directory'))
     for file_ in files2:
         with open(os.path.join(dir_, 'directory', file_), "wb") as fobj:
-            fobj.write("\xfe\xad\xfa\xce" * len(file_))
+            fobj.write(b"\xfe\xad\xfa\xce" * len(file_))
             files_no += 1
 
     return files_no
@@ -178,8 +178,8 @@ class TestScan(unittest.TestCase):
         self.assertTrue(file_ob is not file2_ob)
 
         # While Image objects points to the same file
-        self.assertTrue(file_ob.images[0].filename == \
-                file2_ob.images[0].filename)
+        self.assertTrue(file_ob.images[0].filename ==
+                        file2_ob.images[0].filename)
 
         # they are different objects
         self.assertTrue(file_ob.images[0] is not file2_ob.images[0])

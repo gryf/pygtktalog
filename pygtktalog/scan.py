@@ -179,8 +179,8 @@ class Scan(object):
         # self._session.merge(self._files[0])
         LOG.debug("Deleting objects whitout parent: %s",
                   str(self._session.query(File)
-                      .filter(File.parent==None).all()))  # noqa
-        self._session.query(File).filter(File.parent==None).delete()  # noqa
+                      .filter(File.parent.is_(None)).all()))
+        self._session.query(File).filter(File.parent.is_(None)).delete()
 
         self._session.commit()
         return self._files
@@ -474,7 +474,7 @@ class Scan(object):
     def _set_image_path(self):
         """Get or calculate the images path"""
         image_path = (self._session.query(Config)
-                      .filter(Config.key=="image_path")).one()  # noqa
+                      .filter(Config.key == "image_path")).one()
         if image_path.value == ":same_as_db:":
             image_path = pygtktalog.misc.calculate_image_path()
         else:

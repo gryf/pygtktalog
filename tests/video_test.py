@@ -7,6 +7,8 @@
 """
 import os
 import unittest
+from unittest import mock
+import io
 
 import PIL
 
@@ -130,7 +132,7 @@ ID_AUDIO_RATE=22050
 ID_AUDIO_NCH=1
 ID_AUDIO_CODEC=ffac3
 ID_EXIT=EOF""",
-        "m.wmv":"""ID_AUDIO_ID=1
+        "m.wmv": """ID_AUDIO_ID=1
 ID_VIDEO_ID=2
 ID_FILENAME=m.wmv
 ID_DEMUXER=asf
@@ -198,6 +200,7 @@ class Readlines(object):
     def readlines(self):
         return self.data.split('\n')
 
+
 def mock_popen(command):
     key = None
     if 'midentify' in command:
@@ -205,22 +208,25 @@ def mock_popen(command):
     elif 'jpeg:outdir' in command:
         # simulate capture for mplayer
         img_dir = command.split('"')[-2]
-        img = PIL.Image.new('RGBA', (320, 200))
+        img = PIL.Image.new('RGB', (320, 200))
         with open(os.path.join(img_dir, "00000001.jpg"), "wb") as fobj:
             img.save(fobj)
 
     return Readlines(key)
 
 
-os.popen = mock_popen
+# os.popen = mock_popen
 
 
 class TestVideo(unittest.TestCase):
     """test class for retrive midentify script output"""
 
-    def test_avi(self):
+    @mock.patch('os.popen')
+    def test_avi(self, popen):
         """test mock avi file, should return dict with expected values"""
-        avi = Video("m.avi")
+        fname = "m.avi"
+        popen.return_value = io.StringIO(DATA[fname])
+        avi = Video(fname)
         self.assertTrue(len(avi.tags) != 0, "result should have lenght > 0")
         self.assertEqual(avi.tags['audio_format'], '85')
         self.assertEqual(avi.tags['width'], 128)
@@ -233,10 +239,13 @@ class TestVideo(unittest.TestCase):
         self.assertEqual(avi.tags['duration'], '00:00:04')
         self.assertEqual(avi.tags['container'], 'avi')
 
-    def test_avi2(self):
+    @mock.patch('os.popen')
+    def test_avi2(self, popen):
         """test another mock avi file, should return dict with expected
         values"""
-        avi = Video("m1.avi")
+        fname = "m1.avi"
+        popen.return_value = io.StringIO(DATA[fname])
+        avi = Video(fname)
         self.assertTrue(len(avi.tags) != 0, "result should have lenght > 0")
         self.assertEqual(avi.tags['audio_format'], '85')
         self.assertEqual(avi.tags['width'], 128)
@@ -249,9 +258,12 @@ class TestVideo(unittest.TestCase):
         self.assertEqual(avi.tags['duration'], '00:00:04')
         self.assertEqual(avi.tags['container'], 'avi')
 
-    def test_mkv(self):
+    @mock.patch('os.popen')
+    def test_mkv(self, popen):
         """test mock mkv file, should return dict with expected values"""
-        mkv = Video("m.mkv")
+        fname = "m.mkv"
+        popen.return_value = io.StringIO(DATA[fname])
+        mkv = Video(fname)
         self.assertTrue(len(mkv.tags) != 0, "result should have lenght > 0")
         self.assertEqual(mkv.tags['audio_format'], '8192')
         self.assertEqual(mkv.tags['width'], 128)
@@ -264,24 +276,30 @@ class TestVideo(unittest.TestCase):
         self.assertEqual(mkv.tags['duration'], '00:00:04')
         self.assertTrue(mkv.tags['container'] in ('mkv', 'lavfpref'))
 
-    def test_mpg(self):
+    @mock.patch('os.popen')
+    def test_mpg(self, popen):
         """test mock mpg file, should return dict with expected values"""
-        mpg = Video("m.mpg")
+        fname = "m.mpg"
+        popen.return_value = io.StringIO(DATA[fname])
+        mpg = Video(fname)
         self.assertTrue(len(mpg.tags) != 0, "result should have lenght > 0")
-        self.assertFalse(mpg.tags.has_key('audio_format'))
+        self.assertFalse('audio_format' in mpg.tags)
         self.assertEqual(mpg.tags['width'], 128)
-        self.assertFalse(mpg.tags.has_key('audio_no_channels'))
+        self.assertFalse('audio_no_channels' in mpg.tags)
         self.assertEqual(mpg.tags['height'], 96)
         self.assertEqual(mpg.tags['video_format'], '0x10000001')
-        self.assertFalse(mpg.tags.has_key('lenght'))
-        self.assertFalse(mpg.tags.has_key('audio_codec'))
+        self.assertFalse('lenght' in mpg.tags)
+        self.assertFalse('audio_codec' in mpg.tags)
         self.assertEqual(mpg.tags['video_codec'], 'ffmpeg1')
-        self.assertFalse(mpg.tags.has_key('duration'))
+        self.assertFalse('duration' in mpg.tags)
         self.assertEqual(mpg.tags['container'], 'mpeges')
 
-    def test_ogm(self):
+    @mock.patch('os.popen')
+    def test_ogm(self, popen):
         """test mock ogm file, should return dict with expected values"""
-        ogm = Video("m.ogm")
+        fname = "m.ogm"
+        popen.return_value = io.StringIO(DATA[fname])
+        ogm = Video(fname)
         self.assertTrue(len(ogm.tags) != 0, "result should have lenght > 0")
         self.assertEqual(ogm.tags['audio_format'], '8192')
         self.assertEqual(ogm.tags['width'], 160)
@@ -294,9 +312,12 @@ class TestVideo(unittest.TestCase):
         self.assertEqual(ogm.tags['duration'], '00:00:04')
         self.assertTrue(ogm.tags['container'] in ('ogg', 'lavfpref'))
 
-    def test_wmv(self):
+    @mock.patch('os.popen')
+    def test_wmv(self, popen):
         """test mock wmv file, should return dict with expected values"""
-        wmv = Video("m.wmv")
+        fname = "m.wmv"
+        popen.return_value = io.StringIO(DATA[fname])
+        wmv = Video(fname)
         self.assertTrue(len(wmv.tags) != 0, "result should have lenght > 0")
         self.assertEqual(wmv.tags['audio_format'], '353')
         self.assertEqual(wmv.tags['width'], 852)
@@ -309,9 +330,12 @@ class TestVideo(unittest.TestCase):
         self.assertEqual(wmv.tags['duration'], '01:17:32')
         self.assertEqual(wmv.tags['container'], 'asf')
 
-    def test_mp4(self):
+    @mock.patch('os.popen')
+    def test_mp4(self, popen):
         """test mock mp4 file, should return dict with expected values"""
-        mp4 = Video("m.mp4")
+        fname = "m.mp4"
+        popen.return_value = io.StringIO(DATA[fname])
+        mp4 = Video(fname)
         self.assertTrue(len(mp4.tags) != 0, "result should have lenght > 0")
         self.assertEqual(mp4.tags['audio_format'], 'mp4a')
         self.assertEqual(mp4.tags['width'], 720)
@@ -324,21 +348,31 @@ class TestVideo(unittest.TestCase):
         self.assertEqual(mp4.tags['duration'], '00:01:09')
         self.assertEqual(mp4.tags['container'], 'lavfpref')
 
-    def test_capture(self):
+    @mock.patch('shutil.move')
+    @mock.patch('pygtktalog.video.Image')
+    @mock.patch('os.listdir')
+    @mock.patch('shutil.rmtree')
+    @mock.patch('os.close')
+    @mock.patch('tempfile.mkstemp')
+    @mock.patch('tempfile.mkdtemp')
+    @mock.patch('os.popen')
+    def test_capture(self, popen, mkdtemp, mkstemp, fclose, rmtree, listdir,
+                     img, move):
         """test capture with some small movie and play a little with tags"""
-        avi = Video("m.avi")
+        fname = 'm.avi'
+        popen.return_value = io.StringIO(DATA[fname])
+        mkdtemp.return_value = '/tmp'
+        mkstemp.return_value = (10, 'foo.jpg')
+        listdir.return_value = ['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg']
+
+        avi = Video(fname)
         filename = avi.capture()
-        self.assertTrue(filename != None)
-        self.assertTrue(os.path.exists(filename))
-        file_size = os.stat(filename)[6]
-        self.assertAlmostEqual(file_size/10000.0, 0.151, 0)
-        os.unlink(filename)
+        self.assertIsNotNone(filename)
 
         for length in (480, 380, 4):
             avi.tags['length'] = length
             filename = avi.capture()
             self.assertTrue(filename is not None)
-            os.unlink(filename)
 
         avi.tags['length'] = 3
         self.assertTrue(avi.capture() is None)
@@ -351,7 +385,6 @@ class TestVideo(unittest.TestCase):
         avi.tags['width'] = 1025
         filename = avi.capture()
         self.assertTrue(filename is not None)
-        os.unlink(filename)
 
         del(avi.tags['length'])
         self.assertTrue(avi.capture() is None)
