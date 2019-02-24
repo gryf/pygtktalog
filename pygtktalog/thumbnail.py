@@ -11,9 +11,9 @@ from tempfile import mkstemp
 import shutil
 
 from PIL import Image
+import exifread
 
 from pygtktalog.logger import get_logger
-from pygtktalog import EXIF
 
 
 LOG = get_logger(__name__)
@@ -90,7 +90,7 @@ class ThumbCreator(object):
         """
         image_file = open(self.filename, 'rb')
         try:
-            exif = EXIF.process_file(image_file)
+            exif = exifread.process_file(image_file)
         except Exception:
             exif = {}
             LOG.info("Exif crashed on '%s'." % self.filename)

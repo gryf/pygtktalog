@@ -47,18 +47,12 @@ pyGTKtalog requires python and following libraries:
 * `python 2.7`_
 * `sqlalchemy 1.0`_
 * `pygtk 2.24`_ (only for ``gtktalog.py``)
+* `pillow`_ for image manipulation
+* `exifread`_ for parse EXIF information
 
 It may work on other (lower) version of libraries, and it should work with
 higher versions of libraries, although it will not work on Python 3 yet, nor
 GTK3.
-
-Optional modules
-^^^^^^^^^^^^^^^^
-
-* `PIL`_ for image manipulation
-
-Additional pyGTKtalog uses `EXIF`_ module by Gene Cash (slightly updated to EXIF
-2.2 by me) which is included in sources.
 
 pyGTKtalog extensively uses external programs in unix spirit, however there is
 small possibility of using it Windows (probably with limitations) and quite big
@@ -142,7 +136,7 @@ file in top-level directory.
 
 
 .. _coverage: http://nedbatchelder.com/code/coverage/
-.. _exif: https://github.com/ianare/exif-py
+.. _exifread: https://github.com/ianare/exif-py
 .. _gettext: http://www.gnu.org/software/gettext/gettext.html
 .. _gthumb: http://gthumb.sourceforge.net
 .. _gtktalog: http://www.nongnu.org/gtktalog/
@@ -152,7 +146,7 @@ file in top-level directory.
 .. _mplayer: http://mplayerhq.hu
 .. _nose: http://code.google.com/p/python-nose/
 .. _paver: https://pythonhosted.org/paver/
-.. _pil: http://www.pythonware.com/products/pil/index.htm
+.. _pillow: https://python-pillow.org/
 .. _pygtk 2.24: http://www.pygtk.org
 .. _python 2.7: http://www.python.org/
 .. _sqlalchemy 1.0: http://www.sqlalchemy.org

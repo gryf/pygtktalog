@@ -21,8 +21,7 @@ import __builtin__
 from pygtktalog.logger import get_logger
 
 
-__all__ = ['EXIF',
-           'dbcommon',
+__all__ = ['dbcommon',
            'dbobjects',
            'dialogs',
            'logger',
