@@ -9,8 +9,8 @@ import os
 import errno
 from zlib import crc32
 
-import pygtktalog.dbcommon
-from pygtktalog.logger import get_logger
+import pycatalog.dbcommon
+from pycatalog.logger import get_logger
 
 LOG = get_logger(__name__)
 
@@ -33,7 +33,7 @@ def float_to_string(float_length):
 def calculate_image_path(dbpath=None, create=False):
     """Calculate image path out of provided path or using current connection"""
     if not dbpath:
-        dbpath = pygtktalog.dbcommon.DbFilename
+        dbpath = pycatalog.dbcommon.DbFilename
         if dbpath == ":memory:":
             raise OSError("Cannot create image path out of in-memory db!")
 

@@ -10,11 +10,11 @@ import re
 from datetime import datetime
 import mimetypes
 
-import pygtktalog.misc
-from pygtktalog.dbobjects import File, Image, Thumbnail, Config, TYPE
-from pygtktalog.dbcommon import Session
-from pygtktalog.logger import get_logger
-from pygtktalog.video import Video
+import pycatalog.misc
+from pycatalog.dbobjects import File, Image, Thumbnail, Config, TYPE
+from pycatalog.dbcommon import Session
+from pycatalog.logger import get_logger
+from pycatalog.video import Video
 
 
 LOG = get_logger(__name__)
@@ -476,9 +476,9 @@ class Scan(object):
         image_path = (self._session.query(Config)
                       .filter(Config.key == "image_path")).one()
         if image_path.value == ":same_as_db:":
-            image_path = pygtktalog.misc.calculate_image_path()
+            image_path = pycatalog.misc.calculate_image_path()
         else:
-            image_path = pygtktalog.misc.calculate_image_path(image_path.value)
+            image_path = pycatalog.misc.calculate_image_path(image_path.value)
 
         self.img_path = image_path
 

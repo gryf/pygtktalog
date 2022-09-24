@@ -71,12 +71,12 @@ def get_logger(module_name, level='INFO', to_file=True, to_console=True):
         @level - Log level (as string), one of DEBUG, INFO, WARN, ERROR and
                  CRITICAL.
         @to_file - If True, additionally stores full log in file inside
-                   .pygtktalog config directory and to stderr, otherwise log
+                   .pycatalog config directory and to stderr, otherwise log
                    is only redirected to stderr.
     Returns: object of logging.Logger class
     """
 
-    path = os.path.join(os.path.expanduser("~"), ".pygtktalog", "app.log")
+    path = os.path.join(os.path.expanduser("~"), ".pycatalog", "app.log")
 
     log = logging.getLogger(module_name)
     log.setLevel(LEVEL[level])

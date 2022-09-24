@@ -1,6 +1,5 @@
-#!/usr/bin/env python
 """
-Fast and ugly CLI interface for pyGTKtalog
+Fast and ugly CLI interface
 """
 import argparse
 import os
@@ -9,11 +8,11 @@ import sys
 
 from sqlalchemy import or_
 
-from pygtktalog import scan
-from pygtktalog import misc
-from pygtktalog import dbobjects as dbo
-from pygtktalog.dbcommon import connect, Session
-from pygtktalog import logger
+from pycatalog import scan
+from pycatalog import misc
+from pycatalog import dbobjects as dbo
+from pycatalog.dbcommon import connect, Session
+from pycatalog import logger
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(30, 38)
 
@@ -418,6 +417,7 @@ def add_dir(args):
 
 def create_db(args):
     """List"""
+    __import__('pdb').set_trace()
     obj = Iface(args.db, args.pretend, args.debug)
     obj.create(args.dir_to_add, args.imagedir)
     obj.close()
@@ -514,7 +514,6 @@ def main():
         args.func(args)
     else:
         parser.print_help()
-
 
 
 if __name__ == '__main__':

@@ -208,7 +208,7 @@ class Video(object):
             @no_pictures - number of pictures
         timeit result:
             python /usr/lib/python2.6/timeit.py -n 1 -r 1 'from \
-            pygtktalog.video import Video; v = Video("/home/gryf/t/a.avi"); \
+            pycatalog.video import Video; v = Video("/home/gryf/t/a.avi"); \
             v.capture()'
             1 loops, best of 1: 18.8 sec per loop
         """

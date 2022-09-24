@@ -13,7 +13,7 @@ import shutil
 from PIL import Image
 import exifread
 
-from pygtktalog.logger import get_logger
+from pycatalog.logger import get_logger
 
 
 LOG = get_logger(__name__)

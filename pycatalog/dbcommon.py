@@ -9,7 +9,7 @@ from sqlalchemy import MetaData, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-from pygtktalog.logger import get_logger
+from pycatalog.logger import get_logger
 
 
 # Prepare SQLAlchemy objects

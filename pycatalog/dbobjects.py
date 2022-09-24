@@ -12,10 +12,10 @@ from sqlalchemy import Column, Table, Integer, Text
 from sqlalchemy import DateTime, ForeignKey, Sequence
 from sqlalchemy.orm import relation, backref
 
-from pygtktalog.dbcommon import Base
-from pygtktalog.thumbnail import ThumbCreator
-from pygtktalog.logger import get_logger
-from pygtktalog.misc import mk_paths
+from pycatalog.dbcommon import Base
+from pycatalog.thumbnail import ThumbCreator
+from pycatalog.logger import get_logger
+from pycatalog.misc import mk_paths
 
 
 LOG = get_logger(__name__)
