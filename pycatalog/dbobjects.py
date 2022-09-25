@@ -104,7 +104,7 @@ class Tag(Base):
     tag = Column(Text)
     group = relation('Group', backref=backref('tags', remote_side="Group.id"))
 
-    files = relation("File", secondary=tags_files)
+    files = relation("File", secondary=tags_files, back_populates="tags")
 
     def __init__(self, tag=None, group=None):
         self.tag = tag
