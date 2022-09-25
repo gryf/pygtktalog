@@ -10,9 +10,8 @@ import re
 from datetime import datetime
 import mimetypes
 
-import pycatalog.misc
-from pycatalog.dbobjects import File, Config, TYPE
-from pycatalog.dbcommon import Session
+from pycatalog.dbobjects import File, TYPE
+from pycatalog import dbcommon
 from pycatalog.logger import get_logger
 from pycatalog.video import Video
 
@@ -27,7 +26,6 @@ RE_FN_START = re.compile(r'(?P<fname_start>'
 
 class NoAccessError(Exception):
     """No access exception"""
-    pass
 
 
 class Scan(object):
@@ -45,7 +43,7 @@ class Scan(object):
         self._files = []
         self._existing_files = []  # for re-use purpose in adding
         self._existing_branch = []  # for branch storage, mainly for updating
-        self._session = Session()
+        self._session = dbcommon.Session()
         self.files_count = self._get_files_count()
         self.current_count = 0
 
@@ -73,6 +71,8 @@ class Scan(object):
 
         # add only first item from _files, because it is a root of the other,
         # so other will be automatically added aswell.
+        if label:
+            self._files[0].filename = label
         self._session.add(self._files[0])
         self._session.commit()
         return self._files
@@ -212,11 +212,11 @@ class Scan(object):
             pass
 
     def _audio(self, fobj, filepath):
-        # LOG.warning('audio')
+        # tags, depending on the format?
         return
 
     def _image(self, fobj, filepath):
-        # LOG.warning('image')
+        # exif?
         return
 
     def _video(self, fobj, filepath):

@@ -4,47 +4,16 @@ Fast and ugly CLI interface
 import argparse
 import os
 import re
-import sys
 
 from sqlalchemy import or_
 
 from pycatalog import scan
 from pycatalog import misc
 from pycatalog import dbobjects as dbo
-from pycatalog.dbcommon import connect, Session
+from pycatalog import dbcommon
 from pycatalog import logger
 
-BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(30, 38)
-
-RESET_SEQ = '\033[0m'
-COLOR_SEQ = '\033[1;%dm'
-BOLD_SEQ = '\033[1m'
-
 LOG = logger.get_logger()
-
-
-def colorize(txt, color):
-    """Pretty print with colors to console."""
-    color_map = {'black': BLACK,
-                 'red': RED,
-                 'green': GREEN,
-                 'yellow': YELLOW,
-                 'blue': BLUE,
-                 'magenta': MAGENTA,
-                 'cyan': CYAN,
-                 'white': WHITE}
-    return COLOR_SEQ % color_map[color] + txt + RESET_SEQ
-
-
-def asserdb(func):
-    def wrapper(args):
-        if not os.path.exists(args.db):
-            print(colorize("File `%s' does not exists!" % args.db, 'red'))
-            sys.exit(1)
-        func(args)
-    return wrapper
-
-
 TYPE_MAP = {0: 'd', 1: 'd', 2: 'f', 3: 'l'}
 
 
@@ -52,8 +21,8 @@ class Iface(object):
     """Main class which interacts with the pyGTKtalog modules"""
     def __init__(self, dbname, pretend=False, debug=False):
         """Init"""
-        self.engine = connect(dbname)
-        self.sess = Session()
+        self.engine = dbcommon.connect(dbname)
+        self.sess = dbcommon.Session()
         self.dry_run = pretend
         self.root = None
         self._dbname = dbname
@@ -99,7 +68,7 @@ class Iface(object):
 
         ext = ''
         if node.parent.type == dbo.TYPE['root']:
-            ext = colorize(' (%s)' % node.filepath, 'white')
+            ext = misc.colorize(' (%s)' % node.filepath, 'white')
 
         path = []
         path.append(node.filename)
@@ -150,7 +119,7 @@ class Iface(object):
             node = self.root
             msg = "Content of path `/':"
 
-        print(colorize(msg, 'white'))
+        print(misc.colorize(msg, 'white'))
 
         if recursive:
             items = self._walk(node)
@@ -178,8 +147,8 @@ class Iface(object):
         self.root = self.root.filter(dbo.File.type == dbo.TYPE['root']).first()
         node = self._resolve_path(path)
         if node == self.root:
-            print(colorize('Cannot update entire db, since root was provided '
-                           'as path.', 'red'))
+            print(misc.colorize('Cannot update entire db, since root was '
+                                'provided as path.', 'red'))
             return
 
         if not dir_to_update:
@@ -188,8 +157,8 @@ class Iface(object):
         if not os.path.exists(dir_to_update):
             raise OSError("Path to updtate doesn't exists: %s", dir_to_update)
 
-        print(colorize("Updating node `%s' against directory "
-                       "`%s'" % (path, dir_to_update), 'white'))
+        print(misc.colorize("Updating node `%s' against directory "
+                            "`%s'" % (path, dir_to_update), 'white'))
         if not self.dry_run:
             scanob = scan.Scan(dir_to_update)
             # scanob.update_files(node.id)
@@ -211,8 +180,8 @@ class Iface(object):
             self.sess.add(config)
             self.sess.commit()
 
-        print(colorize("Creating new db against directory `%s'" % dir_to_add,
-                       'white'))
+        print(misc.colorize("Creating new db against directory `%s'" %
+                            dir_to_add, 'white'))
         if not self.dry_run:
             scanob = scan.Scan(dir_to_add)
             scanob.add_files(self.engine)
@@ -225,7 +194,7 @@ class Iface(object):
         if not os.path.exists(dir_to_add):
             raise OSError("Path to add doesn't exists: %s", dir_to_add)
 
-        print(colorize("Adding directory `%s'" % dir_to_add, 'white'))
+        print(misc.colorize("Adding directory `%s'" % dir_to_add, 'white'))
         if not self.dry_run:
             scanob = scan.Scan(dir_to_add)
             scanob.add_files()
@@ -248,12 +217,12 @@ class Iface(object):
             if idx in indexes:
                 if not highlight:
                     highlight = True
-                    result.append(COLOR_SEQ % WHITE)
+                    result.append(misc.COLOR_SEQ % misc.WHITE)
                 result.append(char)
             else:
                 if highlight:
                     highlight = False
-                    result.append(RESET_SEQ)
+                    result.append(misc.RESET_SEQ)
                 result.append(char)
 
         return "".join(result)
@@ -284,7 +253,7 @@ def _get_highest_size_length(item_dict):
     return highest + highest / 3
 
 
-@asserdb
+@misc.asserdb
 def list_db(args):
     """List"""
     obj = Iface(args.db, False, args.debug)
@@ -292,7 +261,7 @@ def list_db(args):
     obj.close()
 
 
-@asserdb
+@misc.asserdb
 def update_db(args):
     """Update"""
     obj = Iface(args.db, args.pretend, args.debug)
@@ -300,7 +269,7 @@ def update_db(args):
     obj.close()
 
 
-@asserdb
+@misc.asserdb
 def add_dir(args):
     """Add"""
     obj = Iface(args.db, args.pretend, args.debug)
@@ -315,7 +284,7 @@ def create_db(args):
     obj.close()
 
 
-@asserdb
+@misc.asserdb
 def search(args):
     """Find"""
     obj = Iface(args.db, False, args.debug)
