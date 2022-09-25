@@ -20,7 +20,7 @@ RESET_SEQ = '\033[0m'
 COLOR_SEQ = '\033[1;%dm'
 BOLD_SEQ = '\033[1m'
 
-LOG = logger.get_logger(__name__)
+LOG = logger.get_logger()
 
 
 def colorize(txt, color):

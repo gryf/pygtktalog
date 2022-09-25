@@ -63,11 +63,10 @@ class ColoredFormatter(logging.Formatter):
 log_obj = None
 
 
-def get_logger(module_name, level='INFO', to_file=True, to_console=True):
+def get_logger(level='INFO', to_file=True, to_console=True):
     """
     Prepare and return log object. Standard formatting is used for all logs.
     Arguments:
-        @module_name - String name for Logger object.
         @level - Log level (as string), one of DEBUG, INFO, WARN, ERROR and
                  CRITICAL.
         @to_file - If True, additionally stores full log in file inside
@@ -75,10 +74,13 @@ def get_logger(module_name, level='INFO', to_file=True, to_console=True):
                    is only redirected to stderr.
     Returns: object of logging.Logger class
     """
+    global log_obj
+    if log_obj:
+        return log_obj
 
     path = os.path.join(os.path.expanduser("~"), ".pycatalog", "app.log")
 
-    log = logging.getLogger(module_name)
+    log = logging.getLogger("pycatalog")
     log.setLevel(LEVEL[level])
 
     if to_console:
@@ -104,4 +106,5 @@ def get_logger(module_name, level='INFO', to_file=True, to_console=True):
         dummy_handler.setFormatter(dummy_formatter)
         log.addHandler(dummy_handler)
 
+    log_obj = log
     return log

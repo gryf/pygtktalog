@@ -17,7 +17,7 @@ from pycatalog.logger import get_logger
 from pycatalog.video import Video
 
 
-LOG = get_logger(__name__)
+LOG = get_logger()
 RE_FN_START = re.compile(r'(?P<fname_start>'
                          r'(\[[^\]]*\]\s)?'
                          r'([^(]*)\s'

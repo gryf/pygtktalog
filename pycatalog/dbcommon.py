@@ -18,7 +18,7 @@ Base = declarative_base(metadata=Meta)
 Session = sessionmaker()
 DbFilename = None
 
-LOG = get_logger("dbcommon")
+LOG = get_logger()
 
 
 def connect(filename=None):

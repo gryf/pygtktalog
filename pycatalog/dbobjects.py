@@ -16,7 +16,7 @@ from pycatalog.dbcommon import Base
 from pycatalog.logger import get_logger
 
 
-LOG = get_logger(__name__)
+LOG = get_logger()
 
 tags_files = Table("tags_files", Base.metadata,
                    Column("file_id", Integer, ForeignKey("files.id")),

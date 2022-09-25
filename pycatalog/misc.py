@@ -5,9 +5,9 @@
     Author: Roman 'gryf' Dobosz, gryf73@gmail.com
     Created: 2009-04-05
 """
-from pycatalog.logger import get_logger
+from pycatalog import logger
 
-LOG = get_logger(__name__)
+LOG = logger.get_logger()
 
 
 def float_to_string(float_length):

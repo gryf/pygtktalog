@@ -17,7 +17,7 @@ from pycatalog.misc import float_to_string
 from pycatalog.logger import get_logger
 
 
-LOG = get_logger("Video")
+LOG = get_logger()
 
 
 class Video(object):
