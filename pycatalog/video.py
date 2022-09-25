@@ -13,8 +13,8 @@ import tempfile
 
 from PIL import Image
 
-from pygtktalog.misc import float_to_string
-from pygtktalog.logger import get_logger
+from pycatalog.misc import float_to_string
+from pycatalog.logger import get_logger
 
 
 LOG = get_logger("Video")

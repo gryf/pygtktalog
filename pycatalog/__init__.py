@@ -471,7 +471,7 @@ def main():
     create.add_argument('dir_to_add')
     create.add_argument('-i', '--imagedir', help="Directory where to put "
                         "images for the database. Popular, but deprecated "
-                        "choice is  `~/.pygtktalog/images'. Current default "
+                        "choice is  `~/.pycatalog/images'. Current default "
                         "is special string `:same_as_db:' which will try to "
                         "create directory with the same name as the db with "
                         "data suffix", default=':same_as_db:')
