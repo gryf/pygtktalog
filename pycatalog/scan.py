@@ -47,7 +47,7 @@ class Scan(object):
         self.files_count = self._get_files_count()
         self.current_count = 0
 
-    def add_files(self, engine=None):
+    def add_files(self, label=None):
         """
         Returns list, which contain object, modification date and file
         size.

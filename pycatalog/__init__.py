@@ -164,7 +164,7 @@ class Iface(object):
             # scanob.update_files(node.id)
             scanob.update_files(node.id, self.engine)
 
-    def create(self, dir_to_add):
+    def create(self, dir_to_add, label=None):
         """Create new database"""
         self.root = dbo.File()
         self.root.id = 1
@@ -174,19 +174,17 @@ class Iface(object):
         self.root.type = 0
         self.root.parent_id = 1
 
-
         if not self.dry_run:
             self.sess.add(self.root)
-            self.sess.add(config)
             self.sess.commit()
 
         print(misc.colorize("Creating new db against directory `%s'" %
                             dir_to_add, 'white'))
         if not self.dry_run:
             scanob = scan.Scan(dir_to_add)
-            scanob.add_files(self.engine)
+            scanob.add_files(label=label)
 
-    def add(self, dir_to_add):
+    def add(self, dir_to_add, label=None):
         """Add new directory to the db"""
         self.root = self.sess.query(dbo.File)
         self.root = self.root.filter(dbo.File.type == 0).first()
@@ -197,7 +195,7 @@ class Iface(object):
         print(misc.colorize("Adding directory `%s'" % dir_to_add, 'white'))
         if not self.dry_run:
             scanob = scan.Scan(dir_to_add)
-            scanob.add_files()
+            scanob.add_files(label=label)
 
     def _annotate(self, item, search_words):
         """
@@ -273,14 +271,14 @@ def update_db(args):
 def add_dir(args):
     """Add"""
     obj = Iface(args.db, args.pretend, args.debug)
-    obj.add(args.dir_to_add)
+    obj.add(args.dir_to_add, args.label)
     obj.close()
 
 
 def create_db(args):
     """List"""
     obj = Iface(args.db, args.pretend, args.debug)
-    obj.create(args.dir_to_add, args.imagedir)
+    obj.create(args.dir_to_add, args.label)
     obj.close()
 
 
@@ -322,6 +320,8 @@ def main():
     create = subparser.add_parser('create')
     create.add_argument('db')
     create.add_argument('dir_to_add')
+    create.add_argument('-l', '--label', help='Add label as the root item of '
+                        'the added directory')
     create.add_argument('-p', '--pretend', help="Don't do the action, just "
                         "give the info what would gonna to happen.",
                         action='store_true', default=False)
@@ -337,6 +337,8 @@ def main():
                      action='store_true', default=False)
     add.add_argument('-d', '--debug', help='Turn on debug',
                      action='store_true', default=False)
+    add.add_argument('-l', '--label', help='Add label as the root item of the '
+                     'added directory')
     add.set_defaults(func=add_dir)
 
     find = subparser.add_parser('find')
