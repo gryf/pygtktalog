@@ -8,7 +8,7 @@
 import unittest
 import os
 
-import pygtktalog.misc as pgtkmisc
+import pycatalog.misc as pgtkmisc
 
 
 class TestMiscModule(unittest.TestCase):

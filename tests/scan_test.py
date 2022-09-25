@@ -10,9 +10,9 @@ import shutil
 import tempfile
 import unittest
 
-from pygtktalog import scan
-from pygtktalog.dbobjects import File, Config, Image
-from pygtktalog.dbcommon import connect, Session
+from pycatalog import scan
+from pycatalog.dbobjects import File, Config, Image
+from pycatalog.dbcommon import connect, Session
 
 
 def populate_with_mock_files(dir_):

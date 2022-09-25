@@ -8,7 +8,7 @@
 import unittest
 import os
 
-from pygtktalog.dbcommon import connect, Meta, Session, Base
+from pycatalog.dbcommon import connect
 
 
 class TestDataBase(unittest.TestCase):

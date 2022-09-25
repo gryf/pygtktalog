@@ -12,7 +12,7 @@ import io
 
 import PIL
 
-from pygtktalog.video import Video
+from pycatalog.video import Video
 
 
 DATA = {"m1.avi": """ID_VIDEO_ID=0
@@ -349,7 +349,7 @@ class TestVideo(unittest.TestCase):
         self.assertEqual(mp4.tags['container'], 'lavfpref')
 
     @mock.patch('shutil.move')
-    @mock.patch('pygtktalog.video.Image')
+    @mock.patch('pycatalog.video.Image')
     @mock.patch('os.listdir')
     @mock.patch('shutil.rmtree')
     @mock.patch('os.close')
@@ -386,7 +386,7 @@ class TestVideo(unittest.TestCase):
         filename = avi.capture()
         self.assertTrue(filename is not None)
 
-        del(avi.tags['length'])
+        del avi.tags['length']
         self.assertTrue(avi.capture() is None)
 
         self.assertTrue(len(str(avi)) > 0)
