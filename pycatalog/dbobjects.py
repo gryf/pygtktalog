@@ -13,9 +13,7 @@ from sqlalchemy import DateTime, ForeignKey, Sequence
 from sqlalchemy.orm import relation, backref
 
 from pycatalog.dbcommon import Base
-from pycatalog.thumbnail import ThumbCreator
 from pycatalog.logger import get_logger
-from pycatalog.misc import mk_paths
 
 
 LOG = get_logger(__name__)
@@ -49,8 +47,6 @@ class File(Base):
                         backref=backref('parent', remote_side="File.id"),
                         order_by=[type, filename])
     tags = relation("Tag", secondary=tags_files, order_by="Tag.tag")
-    thumbnail = relation("Thumbnail", backref="file")
-    images = relation("Image", backref="file", order_by="Image.filename")
 
     def __init__(self, filename=None, path=None, date=None, size=None,
                  ftype=None, src=None):
@@ -116,111 +112,6 @@ class Tag(Base):
 
     def __repr__(self):
         return "<Tag('%s', %s)>" % (str(self.tag), str(self.id))
-
-
-class Thumbnail(Base):
-    """Thumbnail for the file"""
-    __tablename__ = "thumbnails"
-    id = Column(Integer, Sequence("thumbnail_id_seq"), primary_key=True)
-    file_id = Column(Integer, ForeignKey("files.id"), index=True)
-    filename = Column(Text)
-
-    def __init__(self, filename=None, img_path=None, file_obj=None):
-        self.filename = filename
-        self.file = file_obj
-        self.img_path = img_path
-        if filename and file_obj and img_path:
-            self.save(self.filename, img_path)
-
-    def save(self, fname, img_path):
-        """
-        Create file related thumbnail, add it to the file object.
-        """
-        new_name = mk_paths(fname, img_path)
-        ext = os.path.splitext(self.filename)[1]
-        if ext:
-            new_name.append("".join([new_name.pop(), ext]))
-
-        thumb = ThumbCreator(self.filename).generate()
-        name, ext = os.path.splitext(new_name.pop())
-        new_name.append("".join([name, "_t", ext]))
-        self.filename = os.path.sep.join(new_name)
-        if not os.path.exists(os.path.join(img_path, *new_name)):
-            shutil.move(thumb, os.path.join(img_path, *new_name))
-        else:
-            LOG.info("Thumbnail already exists (%s: %s)",
-                     fname, "/".join(new_name))
-            os.unlink(thumb)
-
-    def __repr__(self):
-        return "<Thumbnail('%s', %s)>" % (str(self.filename), str(self.id))
-
-
-class Image(Base):
-    """Images and their thumbnails"""
-    __tablename__ = "images"
-    id = Column(Integer, Sequence("images_id_seq"), primary_key=True)
-    file_id = Column(Integer, ForeignKey("files.id"), index=True)
-    filename = Column(Text)
-
-    def __init__(self, filename=None, img_path=None, file_obj=None, move=True):
-        self.filename = None
-        self.file = file_obj
-        self.img_path = img_path
-        if filename and img_path:
-            self.filename = filename
-            self.save(filename, img_path, move)
-
-    def save(self, fname, img_path, move=True):
-        """
-        Save and create coressponding thumbnail (note: it differs from file
-        related thumbnail!)
-        """
-        new_name = mk_paths(fname, img_path)
-        ext = os.path.splitext(self.filename)[1]
-
-        if ext:
-            new_name.append("".join([new_name.pop(), ext]))
-
-        if not os.path.exists(os.path.join(img_path, *new_name)):
-            if move:
-                shutil.move(self.filename, os.path.join(img_path, *new_name))
-            else:
-                shutil.copy(self.filename, os.path.join(img_path, *new_name))
-        else:
-            LOG.warning("Image with same CRC already exists "
-                        "('%s', '%s')" % (self.filename, "/".join(new_name)))
-
-        self.filename = os.path.sep.join(new_name)
-
-        name, ext = os.path.splitext(new_name.pop())
-        new_name.append("".join([name, "_t", ext]))
-
-        if not os.path.exists(os.path.join(img_path, *new_name)):
-            thumb = ThumbCreator(os.path.join(img_path, self.filename))
-            shutil.move(thumb.generate(), os.path.join(img_path, *new_name))
-        else:
-            LOG.info("Thumbnail already generated %s" % "/".join(new_name))
-
-    def get_copy(self):
-        """
-        Create the very same object as self with exception of id field
-        """
-        img = Image()
-        img.filename = self.filename
-        return img
-
-    @property
-    def thumbnail(self):
-        """
-        Return path to thumbnail for this image
-        """
-        path, fname = os.path.split(self.filename)
-        base, ext = os.path.splitext(fname)
-        return os.path.join(path, base + "_t" + ext)
-
-    def __repr__(self):
-        return "<Image('%s', %s)>" % (str(self.filename), str(self.id))
 
 
 class Exif(Base):

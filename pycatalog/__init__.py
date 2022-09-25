@@ -195,7 +195,7 @@ class Iface(object):
             # scanob.update_files(node.id)
             scanob.update_files(node.id, self.engine)
 
-    def create(self, dir_to_add, data_dir):
+    def create(self, dir_to_add):
         """Create new database"""
         self.root = dbo.File()
         self.root.id = 1
@@ -205,9 +205,6 @@ class Iface(object):
         self.root.type = 0
         self.root.parent_id = 1
 
-        config = dbo.Config()
-        config.key = 'image_path'
-        config.value = data_dir
 
         if not self.dry_run:
             self.sess.add(self.root)
@@ -217,11 +214,6 @@ class Iface(object):
         print(colorize("Creating new db against directory `%s'" % dir_to_add,
                        'white'))
         if not self.dry_run:
-            if data_dir == ':same_as_db:':
-                misc.calculate_image_path(None, True)
-            else:
-                misc.calculate_image_path(data_dir, True)
-
             scanob = scan.Scan(dir_to_add)
             scanob.add_files(self.engine)
 
@@ -286,105 +278,6 @@ class Iface(object):
         for item in result:
             print(self._annotate(item, search_words))
 
-    def fsck(self):
-        """Fsck orphaned images/thumbs"""
-        image_path = (self.sess.query(dbo.Config)
-                      .filter(dbo.Config.key == 'image_path')).one().value
-
-        if image_path == ':same_as_db:':
-            image_path = misc.calculate_image_path(None, False)
-
-        files_to_remove = []
-
-        # remove images/thumbnails which doesn't have file relation
-        for name, obj in (("images", dbo.Image),
-                          ("thumbnails", dbo.Thumbnail)):
-            self._purge_orphaned_objects(obj, "Scanning %s " % name)
-
-        # find all image files not associate with either Image (image/thumb)
-        # or Thumbnail (thumb) objects
-        sys.stdout.write(40 * " " + "\r")
-        count = 0
-        for root, dirs, files in os.walk(image_path):
-            for fname in files:
-                sys.stdout.write("Scanning files " +
-                                 "| / - \\".split()[count % 4] + "\r")
-                sys.stdout.flush()
-                count += 1
-
-                fname_ = os.path.join(root.split(image_path)[1],
-                                      fname).lstrip('/')
-
-                if '_t' in fname:
-                    obj = (self.sess.query(dbo.Thumbnail)
-                           .filter(dbo.Thumbnail.filename == fname_)).all()
-                    if obj:
-                        continue
-
-                    obj = (self.sess.query(dbo.Image)
-                           .filter(dbo.Image.filename ==
-                                   fname_.replace('_t.', '.'))).all()
-                    if obj:
-                        continue
-
-                else:
-                    obj = (self.sess.query(dbo.Image)
-                           .filter(dbo.Image.filename == fname_)).all()
-                    if obj:
-                        continue
-
-                files_to_remove.append(os.path.join(root, fname))
-
-        LOG.debug("Found %d orphaned files", len(files_to_remove))
-        sys.stdout.write(40 * " " + "\r")
-        sys.stdout.flush()
-
-        if self.dry_run:
-            print("Following files are not associated to any items in the DB:")
-            for filename in sorted(files_to_remove):
-                print(filename)
-            self.sess.rollback()
-        else:
-            _remove_files(image_path, files_to_remove)
-            self.sess.commit()
-
-    def _purge_orphaned_objects(self, sa_class, msg):
-        """Return tuple of lists of images that are orphaned"""
-
-        ids_to_remove = []
-
-        for count, item in enumerate(self.sess.query(sa_class).all()):
-            sys.stdout.write(msg + "| / - \\".split()[count % 4] + "\r")
-            if not item.file:
-                self.sess.delete(item)
-                ids_to_remove.append(item.id)
-                del item
-            sys.stdout.flush()
-
-        LOG.debug("Found %d orphaned object of class %s",
-                  len(ids_to_remove), sa_class.__name__)
-        self.sess.flush()
-
-
-def _remove_files(image_path, filenames):
-    """Remove files and empty directories in provided location"""
-
-    count = 0
-    for count, fname in enumerate(filenames, start=1):
-        os.unlink(fname)
-
-    LOG.info("Removed %d orphaned files", count)
-
-    count = 0
-    for root, dirs, _ in os.walk(image_path):
-        for dirname in dirs:
-            try:
-                os.rmdir(os.path.join(root, dirname))
-                count += 1
-            except OSError:
-                pass
-    LOG.info("Removed %d empty directories", count)
-
 
 def _get_highest_size_length(item_dict):
     highest = len(str(sorted([i[1] for i in item_dict.values()])[-1]))
@@ -417,7 +310,6 @@ def add_dir(args):
 
 def create_db(args):
     """List"""
-    __import__('pdb').set_trace()
     obj = Iface(args.db, args.pretend, args.debug)
     obj.create(args.dir_to_add, args.imagedir)
     obj.close()
@@ -428,14 +320,6 @@ def search(args):
     """Find"""
     obj = Iface(args.db, False, args.debug)
     obj.find(args.search_words)
-    obj.close()
-
-
-@asserdb
-def cleanup(args):
-    """Cleanup"""
-    obj = Iface(args.db, False, args.debug)
-    obj.fsck()
     obj.close()
 
 
@@ -469,12 +353,6 @@ def main():
     create = subparser.add_parser('create')
     create.add_argument('db')
     create.add_argument('dir_to_add')
-    create.add_argument('-i', '--imagedir', help="Directory where to put "
-                        "images for the database. Popular, but deprecated "
-                        "choice is  `~/.pycatalog/images'. Current default "
-                        "is special string `:same_as_db:' which will try to "
-                        "create directory with the same name as the db with "
-                        "data suffix", default=':same_as_db:')
     create.add_argument('-p', '--pretend', help="Don't do the action, just "
                         "give the info what would gonna to happen.",
                         action='store_true', default=False)
@@ -498,15 +376,6 @@ def main():
     find.add_argument('-d', '--debug', help='Turn on debug',
                       action='store_true', default=False)
     find.set_defaults(func=search)
-
-    fsck = subparser.add_parser('fsck')
-    fsck.add_argument('db')
-    fsck.add_argument('-p', '--pretend', help="Don't do the action, just give"
-                      " the info what would gonna to happen.",
-                      action='store_true', default=False)
-    fsck.add_argument('-d', '--debug', help='Turn on debug',
-                      action='store_true', default=False)
-    fsck.set_defaults(func=cleanup)
 
     args = parser.parse_args()
 

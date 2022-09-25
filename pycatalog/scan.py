@@ -11,7 +11,7 @@ from datetime import datetime
 import mimetypes
 
 import pycatalog.misc
-from pycatalog.dbobjects import File, Image, Thumbnail, Config, TYPE
+from pycatalog.dbobjects import File, Config, TYPE
 from pycatalog.dbcommon import Session
 from pycatalog.logger import get_logger
 from pycatalog.video import Video
@@ -48,8 +48,6 @@ class Scan(object):
         self._session = Session()
         self.files_count = self._get_files_count()
         self.current_count = 0
-
-        self._set_image_path()
 
     def add_files(self, engine=None):
         """
@@ -225,54 +223,8 @@ class Scan(object):
         """
         Make captures for a movie. Save it under uniq name.
         """
-        result = RE_FN_START.match(fobj.filename)
-        if result:
-            self._check_related(fobj, result.groupdict()['fname_start'])
-
         vid = Video(filepath)
-
         fobj.description = vid.get_formatted_tags()
-
-        preview_fn = vid.capture()
-        if preview_fn:
-            Image(preview_fn, self.img_path, fobj)
-
-    def _check_related(self, fobj, filename_start):
-        """
-        Try to search for related files which belongs to specified File
-        object and pattern. If found, additional File objects are created.
-
-        For example, if we have movie file named like:
-            [aXXo] Batman (1989) [D3ADBEEF].avi
-            [aXXo] Batman (1989) trailer [B00B1337].avi
-            Batman (1989) [D3ADBEEF].avi
-            Batman [D3ADBEEF].avi
-
-        And for example file '[aXXo] Batman (1989) [D3ADBEEF].avi' might have
-        some other accompanied files, like:
-
-            [aXXo] Batman (1989) [D3ADBEEF].avi.conf
-            [aXXo] Batman (1989) [DEADC0DE].nfo
-            [aXXo] Batman (1989) cover [BEEFD00D].jpg
-            [aXXo] Batman (1989) poster [FEEDD00D].jpg
-
-        Which can be atuomatically asociated with the movie.
-
-        This method find such files, and for some of them (currently images)
-        will perform extra actions - like creating corresponding Image objects.
-
-        """
-        for fname in os.listdir(fobj.filepath):
-            extension = os.path.splitext(fname)[1]
-            if fname.startswith(filename_start) and \
-               extension in ('.jpg', '.gif', '.png'):
-                full_fname = os.path.join(fobj.filepath, fname)
-                LOG.debug('found corresponding image file: %s', full_fname)
-
-                Image(full_fname, self.img_path, fobj, False)
-
-                if not fobj.thumbnail:
-                    Thumbnail(full_fname, self.img_path, fobj)
 
     def _get_all_files(self):
         """Gather all File objects"""
@@ -470,17 +422,6 @@ class Scan(object):
             count += len(files)
         LOG.debug("count of files: %s", count)
         return count
-
-    def _set_image_path(self):
-        """Get or calculate the images path"""
-        image_path = (self._session.query(Config)
-                      .filter(Config.key == "image_path")).one()
-        if image_path.value == ":same_as_db:":
-            image_path = pycatalog.misc.calculate_image_path()
-        else:
-            image_path = pycatalog.misc.calculate_image_path(image_path.value)
-
-        self.img_path = image_path
 
 
 def _get_dirsize(path):
