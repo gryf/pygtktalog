@@ -19,13 +19,14 @@ TYPE_MAP = {0: 'd', 1: 'd', 2: 'f', 3: 'l'}
 
 class Iface(object):
     """Main class which interacts with the pyGTKtalog modules"""
-    def __init__(self, dbname, pretend=False, debug=False):
+    def __init__(self, dbname, pretend=False, debug=False, use_color=True):
         """Init"""
         self.engine = dbcommon.connect(dbname)
         self.sess = dbcommon.Session()
         self.dry_run = pretend
         self.root = None
         self._dbname = dbname
+        self.use_color = use_color
         if debug:
             scan.LOG.setLevel('DEBUG')
             LOG.setLevel('DEBUG')
@@ -64,10 +65,10 @@ class Iface(object):
         """Make the path to the item in the DB"""
         orig_node = node
         if node.parent == node:
-            return {u'/': (u' ', 0, u' ')}
+            return {'/': (u' ', 0, u' ')}
 
         ext = ''
-        if node.parent.type == dbo.TYPE['root']:
+        if node.parent.type == dbo.TYPE['root'] and self.use_color:
             ext = misc.colorize(' (%s)' % node.filepath, 'white')
 
         path = []
@@ -108,8 +109,11 @@ class Iface(object):
         self.sess.commit()
         self.sess.close()
 
-    def list(self, path=None, recursive=False, long_=False):
+    def list(self, path=None, recursive=False, long_=False, mode='plain'):
         """Simulate ls command for the provided item path"""
+        if mode == 'mc':
+            self.use_color = False
+
         self.root = self.sess.query(dbo.File)
         self.root = self.root.filter(dbo.File.type == dbo.TYPE['root']).first()
         if path:
@@ -119,16 +123,37 @@ class Iface(object):
             node = self.root
             msg = "Content of path `/':"
 
-        print(misc.colorize(msg, 'white'))
+        if mode != 'mc':
+            print(misc.colorize(msg, 'white'))
 
         if recursive:
             items = self._walk(node)
         else:
             items = self._list(node)
 
-        if long_:
+        if mode == 'mc':
             filenames = []
-            format_str = (u'{} {:>%d,} {} {}' %
+            format_str = ('{}    1 {}     {}   {:>%d} {} {}' %
+                          len(str(sorted([i[1] for i in
+                                          items.values()])[-1])))
+            for fname in sorted(items.keys()):
+                type_, size, date = items[fname]
+                if type_ == 'd':
+                    perms = 'drwxrwxrwx'
+                elif type_ == 'l':
+                    perms = 'lrw-rw-rw-'
+                elif type_ == 'f':
+                    perms = '-rw-rw-rw-'
+                else:
+                    continue
+                filenames.append(format_str
+                                 .format(perms, os.getuid(),
+                                         os.getgid(), size,
+                                         date.strftime('%d/%m/%Y %H:%M:%S'),
+                                         fname))
+        elif long_:
+            filenames = []
+            format_str = ('{} {:>%d,} {} {}' %
                           _get_highest_size_length(items))
             for fname in sorted(items.keys()):
                 type_, size, date = items[fname]
@@ -254,8 +279,12 @@ def _get_highest_size_length(item_dict):
 @misc.asserdb
 def list_db(args):
     """List"""
+    if args.mode == 'mc':
+        LOG.setLevel(100)  # supress logging
+
     obj = Iface(args.db, False, args.debug)
-    obj.list(path=args.path, recursive=args.recursive, long_=args.long)
+    obj.list(path=args.path, recursive=args.recursive, long_=args.long,
+             mode=args.mode)
     obj.close()
 
 
@@ -298,6 +327,12 @@ def main():
     list_ = subparser.add_parser('list')
     list_.add_argument('db')
     list_.add_argument('path', nargs='?')
+    list_.add_argument('-m', '--mode', help='List items using mode. By '
+                       'default is simply plain mode, other possibility is to '
+                       'use "mc" mode, which is suitable to use with extfs '
+                       'plugin', default='plain')
+    list_.add_argument('-c', '--color', help='Use colors for listing',
+                       action='store_true', default=False)
     list_.add_argument('-l', '--long', help='Show size, date and type',
                        action='store_true', default=False)
     list_.add_argument('-r', '--recursive', help='list items in '
