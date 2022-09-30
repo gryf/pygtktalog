@@ -10,6 +10,7 @@ import re
 from datetime import datetime
 import mimetypes
 
+import exifread
 from pycatalog.dbobjects import File, TYPE
 from pycatalog import dbcommon
 from pycatalog.logger import get_logger
@@ -216,8 +217,21 @@ class Scan(object):
         return
 
     def _image(self, fobj, filepath):
-        # exif?
-        return
+        """Read exif if exists, add it to description"""
+        with open(filepath, 'rb') as obj:
+            exif = exifread.process_file(obj)
+            if not exif:
+                return
+
+        data = []
+        # longest key + 2, since we need a colon and a space after it
+        longest_key = max([len(k) for k in exif]) + 2
+        for key in exif:
+            if 'thumbnail' in key.lower() and isinstance(exif[key], bytes):
+                data.append(f"{key + ':' :<{longest_key}}thumbnail present")
+                continue
+            data.append(f"{key + ':' :<{longest_key}}{exif[key]}")
+        fobj.description = "\n".join(data)
 
     def _video(self, fobj, filepath):
         """
