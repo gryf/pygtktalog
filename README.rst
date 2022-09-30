@@ -34,6 +34,7 @@ pycatalog requires python and following libraries:
 * `python 3.10`_ and up
 * `sqlalchemy 1.4`_
 * `exifread`_ for parse EXIF information
+* `mutagen`_ for extracting tags from audio files
 
 Pycatalog extensively uses external programs in unix spirit, however there is
 small possibility of using it Windows (probably with limitations) and quite big
@@ -88,3 +89,4 @@ file in top-level directory.
 .. _sqlalchemy 1.4: http://www.sqlalchemy.org
 .. _tagging files: http://en.wikipedia.org/wiki/tag_%28metadata%29
 .. _tox: https://testrun.org/tox
+.. _mutagen: https://github.com/quodlibet/mutagen

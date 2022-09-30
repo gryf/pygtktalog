@@ -11,6 +11,8 @@ from datetime import datetime
 import mimetypes
 
 import exifread
+import mutagen
+
 from pycatalog.dbobjects import File, TYPE
 from pycatalog import dbcommon
 from pycatalog.logger import get_logger
@@ -213,8 +215,10 @@ class Scan(object):
             pass
 
     def _audio(self, fobj, filepath):
-        # tags, depending on the format?
-        return
+        tags = mutagen.File(filepath)
+        if not tags:
+            return
+        fobj.description = tags.pprint()
 
     def _image(self, fobj, filepath):
         """Read exif if exists, add it to description"""
